@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AlgorithmDescription xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="file:hek.xsd">
+    <AlgorithmName>SPoCA 0.1</AlgorithmName>
+    <Cadence>60</Cadence>
+    <CodeFilename>spoca.sav</CodeFilename>
+    <Description>Run the SPoCA Algorithm for detecting AR on EIT/EUVI/AIA images</Description>
+    <ImageInput>
+        <ImageRequirement>
+            <ParamName>aia_image1</ParamName>
+            <Optional>false</Optional>
+            <ImageChoice>
+                <Instrument>AIA</Instrument>
+                <Wavelength>171</Wavelength>
+                <Resolution>4096</Resolution>
+            </ImageChoice>
+        </ImageRequirement>
+    </ImageInput>
+    <ImageInput>
+        <ImageRequirement>
+            <ParamName>aia_image2</ParamName>
+            <Optional>false</Optional>
+            <ImageChoice>
+                <Instrument>AIA</Instrument>
+                <Wavelength>195</Wavelength>
+                <Resolution>4096</Resolution>
+            </ImageChoice>
+        </ImageRequirement>
+    </ImageInput>
+    <StateStorage>true</StateStorage>
+    <TriggerMode>Continuous</TriggerMode>
+    <ImplementationType>IDL</ImplementationType>
+    <OutputVOEventType>
+        <VOEventType>ar</VOEventType>
+        <WavelengthAngstroms>171 A</WavelengthAngstroms>
+    </OutputVOEventType>
+    <OutputVOEventType>
+        <VOEventType>ar</VOEventType>
+        <WavelengthAngstroms>195 A</WavelengthAngstroms>
+    </OutputVOEventType>
+</AlgorithmDescription>

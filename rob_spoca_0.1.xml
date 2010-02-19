@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ParameterizedAlgorithmFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="file:hek.xsd">
+    <AlgorithmDescriptionFile>rob_spoca.xml</AlgorithmDescriptionFile>
+    <CodeVersion>0.1</CodeVersion>
+    <Parameter>
+        <ParameterName>output_directory</ParameterName>
+        <Type>string</Type>
+        <Value>'results/'</Value>
+        <ExcludeFromCoverageID>true</ExcludeFromCoverageID>
+    </Parameter>
+ 
+    
+    <Parameter>
+        <ParameterName>spoca_args_preprocessing</ParameterName>
+        <Type>string</Type>
+        <Value>'1'</Value>
+        <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+    </Parameter>
+    <Parameter>
+        <ParameterName>spoca_args_numberclasses</ParameterName>
+        <Type>string</Type>
+        <Value>'3'</Value>
+        <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+    </Parameter>
+    <Parameter>
+        <ParameterName>spoca_args_precision</ParameterName>
+        <Type>string</Type>
+        <Value>'0.000001'</Value>
+        <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+    </Parameter>
+    
+       <Parameter>
+        <ParameterName>tracking_args_deltat</ParameterName>
+        <Type>string</Type>
+        <Value>'3600'</Value>
+        <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+    </Parameter>
+    <Parameter>
+        <ParameterName>tracking_number_images</ParameterName>
+        <Type>numeric</Type>
+        <Value>9</Value>
+        <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+    </Parameter>
+    <Parameter>
+        <ParameterName>tracking_overlay</ParameterName>
+        <Type>numeric</Type>
+        <Value>0.3</Value>
+        <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+    </Parameter>
+    <DataSpecificationFile>
+   	<!-- Don't know what comes here ??? -->
+        <Filename>'Put here something'</Filename>
+        <LiveData>true</LiveData>
+        <SeriesName>'Maybe AIA'</SeriesName>
+    </DataSpecificationFile>
+  
+</ParameterizedAlgorithmFile>

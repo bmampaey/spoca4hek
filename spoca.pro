@@ -23,8 +23,13 @@ PRO SPoCA, aia_image1, aia_image2, $
 	outputStatusFilename = outputStatusFilename, $
 	numActiveEvents = numActiveEvents, $
 	output_directory = output_directory, $
-	tracking_frequency = tracking_frequency, $
-	tracking_max_number_images = tracking_max_number_images
+	spoca_args_preprocessing = spoca_args_preprocessing, $
+	spoca_args_numberclasses = spoca_args_numberclasses, $
+	spoca_args_precision = spoca_args_precision, $
+	tracking_args_deltat = tracking_args_deltat, $
+	tracking_number_images = tracking_number_images, $
+	tracking_overlay = tracking_overlay, $
+	
 	
 
 ; set debugging
@@ -82,7 +87,8 @@ ENDIF
 
 ; We verify our module arguments
 
-; Test for filenames
+; We test the filenames
+
 IF N_PARAMS() LT 1 THEN BEGIN ; TODO Change back to 2
 
 	error = [ error, 'Wrong number of images passed as arguments, expecting 2']
@@ -94,6 +100,7 @@ ENDIF ELSE BEGIN
 ;		error = [ error, 'Images file names must be of type string' ]
 ;		RETURN
 ;	ENDIF
+; TODO test for file existence
 
 ENDELSE
 
@@ -103,20 +110,18 @@ IF N_ELEMENTS(output_directory) EQ 0 THEN output_directory = 'results/'
 
 spoca_bin = 'bin/SPoCA_HEK.x'
 
-; I propose to set the right default values in the version we deliver
-spoca_args_preprocessing = '1'  
-spoca_args_numberclasses = '3'
-spoca_args_precision = '0.000001'
+IF N_ELEMENTS(spoca_args_preprocessing) EQ 0 THEN spoca_args_preprocessing = '1'  
+IF N_ELEMENTS(spoca_args_numberclasses) EQ 0 THEN spoca_args_numberclasses = '3'
+IF N_ELEMENTS(spoca_args_precision) EQ 0 THEN spoca_args_precision = '0.000001'
 spoca_args_centersfile = output_directory + 'centers.txt'
-
-
 
 
 ; Tracking parameters
 
 tracking_bin = 'bin/Tracking_HEK.x'
-IF N_ELEMENTS(tracking_frequency) EQ 0 THEN tracking_frequency = 30 * 60 ; It is in seconds
-IF N_ELEMENTS(tracking_max_number_images) EQ 0 THEN tracking_max_number_images = 3
+IF N_ELEMENTS(tracking_deltat) EQ 0 THEN tracking_deltat = 3600 ; It is in seconds
+IF N_ELEMENTS(tracking_number_images) EQ 0 THEN tracking_number_images = 3
+IF N_ELEMENTS(tracking_overlay) EQ 0 THEN tracking_overlay = 0.3
 
 
 ; We initialise correctly the arguments for SPoCA_HEK
@@ -140,7 +145,7 @@ IF (spoca_exit NE 0) THEN BEGIN
 
 	error = [ error, 'Error executing '+ spoca_bin + spoca_args ]
 	error = [ error, spoca_errors ]
-	; TODO Should we cleanup and exit ?
+	; TODO Should we cleanup  ???
 	
 ENDIF
 
@@ -151,18 +156,18 @@ IF (debug GT 0) THEN BEGIN
 	PRINT, 'Spoca Output is : ', endl + spoca_output
 ENDIF
 
+; We allocate space for the events
+spoca_events = strarr(N_ELEMENTS(spoca_output))
+
+
 ; TODO Check that output is not null
 
-; We convert the cartesian pixel coodinates into heliographic coordinates
-
 ; We need the header of one of the image to call the coord_cart_helio procedure
-
 header = HEADFITS(aia_image1)
 index=fitshead2struct(header)
-r=1.3
+r=1.3 ; TODO correct this
 
-; We allocate space for the events
-events = strarr(N_ELEMENTS(spoca_output))
+
 
 FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN 
 
@@ -180,7 +185,7 @@ FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN
 		PRINT, cartesian_y
 	ENDIF
 	
-	; We transform into long and lat
+	; We convert the cartesian pixel coodinates into stonyhurst heliographic coordinates
 	coord_cart_helio,index,r,cartesian_x,cartesian_y,arcsec_x, arcsec_y, helio_long, helio_lat
 	
 	IF (debug GT 0) THEN BEGIN
@@ -193,30 +198,36 @@ FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN
 		
 	event = struct4event('AR')
 	
-	;event.required.KB_ArchivDate = '???'
-	;event.required.KB_ArchivID = '???'
-	;event.required.KB_Archivist = '???'
-	;event.required.KB_ArchivURL = '???'
+	event.required.KB_ArchivDate = anytim(sys2ut(), /ccsds) ; ??? Not sure what to put here
+	event.required.KB_ArchivID = 'SPoCA' ; ??? Not sure what to put here
+	event.required.KB_Archivist = '' ; ??? Not sure what to put here
+	event.required.KB_ArchivURL = '' ; ??? Not sure what to put here
 
 	event.required.OBS_Observatory = 'SDO'
 	event.required.OBS_Instrument = 'AIA'
-	event.required.OBS_ChannelID = '???'
-	event.required.OBS_MeanWavel = 171+195/2 ; ??? IS IT CORRECT
+	event.required.OBS_ChannelID = 'AIA 171, AIA 195'
+	event.required.OBS_MeanWavel = 171+195/2 ; ??? THIS IS A JOKE UNTIL WE GET TO PUT 2 VALUES
 	event.required.OBS_WavelUnit = 'Angstroms'
 
 	event.required.FRM_Name = 'SPoCA'
 	event.optional.FRM_VersionNumber = 1
-	;event.required.FRM_Identifier = '???'
+	event.required.FRM_Identifier = 'vdelouille'
 	event.required.FRM_Institute ='ROB'
 	event.required.FRM_HumanFlag = 'F'
-	;event.required.FRM_ParamSet = '???'
+	event.required.FRM_ParamSet = 'calibration=1' $
+		+ ' tracking_deltat=' + STRING(tracking_deltat, FORMAT='(I)') $
+		+ ' tracking_number_images=' + STRING(tracking_number_images, FORMAT='(I)') $
+		+ ' spoca_args_preprocessing=' + STRING(spoca_args_preprocessing, FORMAT='(I)') $
+		+ ' spoca_args_numberclasses=' + STRING(spoca_args_numberclasses, FORMAT='(I)') $
+		+ ' spoca_args_precision='  + STRING(spoca_args_precision, FORMAT='(F)') 
+
 	event.required.FRM_DateRun = anytim(sys2ut(), /ccsds)
 	event.required.FRM_Contact = 'veronique.delouille@sidc.be'
 	event.required.FRM_URL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SpocA'
 
-	;event.required.Event_StartTime = '???' ; TBD from the tracking ?
-	;event.required.Event_EndTime = '???' ; TBD from the tracking ?
-	;event.optional.Event_Expires = '???'
+	event.required.Event_StartTime = anytim(sys2ut(), /ccsds) ; TBD from the tracking ???
+	event.required.Event_EndTime = anytim(sys2ut(), /ccsds) ; TBD from the tracking ???
+	;event.optional.Event_Expires = anytim(sys2ut(), /ccsds) ; ??? Not sure what to put here
 	event.required.Event_CoordSys = 'UTC-HGS-TOPO'
 	event.required.Event_CoordUnit = 'deg,deg'
 	event.required.Event_Coord1 = helio_long[0]
@@ -224,9 +235,9 @@ FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN
 	event.required.Event_C1Error = 0
 	event.required.Event_C2Error = 0
 	event.optional.Event_Npixels = size
-	;event.optional.Event_PixelUnit = '???'
-	;event.optional.OBS_DataPrepURL = '???'
-	;event.optional.Event_ClippedSpatial = '???'
+	event.optional.Event_PixelUnit = 'DN/s' ; ??? TBC
+	event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SpocA' ; ??? TBC
+	event.optional.Event_ClippedSpatial = 'F'  ; ??? TBC
 	;event.optional.Event_ClippedTemporal = '???'
 
 	event.required.BoundBox_C1LL = helio_long[1]
@@ -238,61 +249,46 @@ FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN
 	; We write the VOevent
 	
 	IF KEYWORD_SET(write_file) THEN BEGIN
-		export_event, event, /write, suff=label, buff=buff, filenameout=fn0
+		export_event, event, /write, suff=label, buff=buff
 	ENDIF ELSE BEGIN
-		export_event, event, suffix=label, buff=buff, filenameout=fn0
+		export_event, event, suffix=label, buff=buff
 	ENDELSE
 	
-	events[k]=STRJOIN(buff, /SINGLE) ;
+	spoca_events[k]=STRJOIN(buff, /SINGLE) ;
 
 
 ENDFOR 
 
 ; We take care of the tracking
 
-deltat = SYSTIME(/SECONDS) - tracking_lastrun
+tracking_overlay = UINT(tracking_number_images / tracking_overlay)
+
 ARmaps = FILE_SEARCH(output_directory, '*ARmap.tracking.fits', /TEST_READ, /TEST_REGULAR , /TEST_WRITE  ) 
 
 IF (debug GT 0) THEN BEGIN
 	PRINT, endl, "*********************************************************"
-	PRINT , deltat, " seconds elapsed since last tracking"
 	PRINT , "Found files : ", endl + ARmaps
 ENDIF
 
-IF (deltat GE tracking_frequency && N_ELEMENTS(ARmaps) GE tracking_max_number_images) THEN BEGIN
-	
-	
-	; We cleanup old files
-	number_of_files_to_delete = N_ELEMENTS(ARmaps) - tracking_max_number_images
-	
-	IF (number_of_files_to_delete GT 0) THEN BEGIN
-	
-		files_to_delete = ARmaps[0:number_of_files_to_delete-1]
+IF (N_ELEMENTS(ARmaps) GE tracking_number_images) THEN BEGIN
 		
-		IF (debug GT 0) THEN BEGIN
-			PRINT , "Deleting files : ", endl + files_to_delete
-		ENDIF
+	; We initialise correctly the arguments for Tarcking_HEK
+	
+	tracking_args = ' -d ' + tracking_args_deltat + ' -D ' + STRING(tracking_overlay, FORMAT = '(I)') + ' ' + STRJOIN( ARmaps , ' ', /SINGLE)
+	
 		
-		FILE_DELETE, files_to_delete , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug
-				
-		ARmaps = ARmaps[number_of_files_to_delete:*]
-	
-	ENDIF
-	
-	tracking_lastrun = SYSTIME(/SECONDS)
-	
 	IF (debug GT 0) THEN BEGIN
 
-		PRINT, 'About to run : ' , tracking_bin + ' ' + STRJOIN( ARmaps , ' ', /SINGLE) 
+		PRINT, 'About to run : ' , tracking_bin + tracking_args 
 	
 	ENDIF
 	
-	SPAWN, tracking_bin + ' ' + STRJOIN( ARmaps , ' ', /SINGLE) , tracking_output, tracking_errors, EXIT_STATUS=tracking_exit 
+	SPAWN, tracking_bin + tracking_args , tracking_output, tracking_errors, EXIT_STATUS=tracking_exit 
 
 	
 	IF (tracking_exit NE 0) THEN BEGIN
 
-		error = [ error, 'Error executing ', tracking_bin + ' ' + STRJOIN( ARmaps , ' ', /SINGLE) ]
+		error = [ error, 'Error executing ', tracking_bin + tracking_args ]
 		error = [ error, tracking_errors ]
 		; What do we do in case of error ?
 		
@@ -306,12 +302,15 @@ IF (deltat GE tracking_frequency && N_ELEMENTS(ARmaps) GE tracking_max_number_im
 		PRINT, 'Tracking Output is :', endl + tracking_output
 	ENDIF
 
-	; We convert the caartesian pixel coodinates into heliographic coordinates
+	; We allocate space for the events
+	tracking_events = strarr(N_ELEMENTS(tracking_output)
 
 	; We need the header of one of the image to call the coord_cart_helio procedure
-	; Depends witch ar we decide to output from tracking, if it is the ones from the last image, THEN it is not necessary to update the header and stuff
-	; otherwise it si complicated because we have to make sure we keep all the headers of each file
+	; Depends witch AR we decide to output from tracking, if it is the ones from the last image, THEN it is not necessary to update the header and stuff
+	; otherwise we do have to know wich header to load 
 
+	;header = HEADFITS(aia_image1)
+	;index=fitshead2struct(header)
 	r=1.3 ; TODO Put r=1 when answer from alisdair
 
 	FOR k = 0, N_ELEMENTS(tracking_output) - 1 DO BEGIN 
@@ -331,7 +330,7 @@ IF (deltat GE tracking_frequency && N_ELEMENTS(ARmaps) GE tracking_max_number_im
 			PRINT, cartesian_y
 		ENDIF
 		
-		; We transform into long and lat
+		; We convert the cartesian pixel coodinates into stonyhurst heliographic coordinates
 		coord_cart_helio,index,r,cartesian_x,cartesian_y,arcsec_x, arcsec_y, helio_long, helio_lat
 		
 		IF (debug GT 0) THEN BEGIN
@@ -343,31 +342,37 @@ IF (deltat GE tracking_frequency && N_ELEMENTS(ARmaps) GE tracking_max_number_im
 		; Create an Hek event and fill it
 			
 		event = struct4event('AR')
-		
-		;event.required.KB_ArchivDate = '???'
-		;event.required.KB_ArchivID = '???'
-		;event.required.KB_Archivist = '???'
-		;event.required.KB_ArchivURL = '???'
+	
+		event.required.KB_ArchivDate = anytim(sys2ut(), /ccsds) ; ??? Not sure what to put here
+		event.required.KB_ArchivID = 'SPoCA' ; ??? Not sure what to put here
+		event.required.KB_Archivist = '' ; ??? Not sure what to put here
+		event.required.KB_ArchivURL = '' ; ??? Not sure what to put here
 
 		event.required.OBS_Observatory = 'SDO'
 		event.required.OBS_Instrument = 'AIA'
-		event.required.OBS_ChannelID = '???'
-		event.required.OBS_MeanWavel = 171+195/2 ; ??? IS IT CORRECT
+		event.required.OBS_ChannelID = 'AIA 171, AIA 195'
+		event.required.OBS_MeanWavel = 171+195/2 ; ??? THIS IS A JOKE UNTIL WE GET TO PUT 2 VALUES
 		event.required.OBS_WavelUnit = 'Angstroms'
 
 		event.required.FRM_Name = 'SPoCA'
 		event.optional.FRM_VersionNumber = 1
-		;event.required.FRM_Identifier = '???'
+		event.required.FRM_Identifier = 'vdelouille'
 		event.required.FRM_Institute ='ROB'
 		event.required.FRM_HumanFlag = 'F'
-		;event.required.FRM_ParamSet = '???'
+		event.required.FRM_ParamSet = 'calibration=1' $
+			+ ' tracking_deltat=' + STRING(tracking_deltat, FORMAT='(I)') $
+			+ ' tracking_number_images=' + STRING(tracking_number_images, FORMAT='(I)') $
+			+ ' spoca_args_preprocessing=' + STRING(spoca_args_preprocessing, FORMAT='(I)') $
+			+ ' spoca_args_numberclasses=' + STRING(spoca_args_numberclasses, FORMAT='(I)') $
+			+ ' spoca_args_precision='  + STRING(spoca_args_precision, FORMAT='(F)') 
+
 		event.required.FRM_DateRun = anytim(sys2ut(), /ccsds)
 		event.required.FRM_Contact = 'veronique.delouille@sidc.be'
 		event.required.FRM_URL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SpocA'
 
-		;event.required.Event_StartTime = '???' ; TBD from the tracking ?
-		;event.required.Event_EndTime = '???' ; TBD from the tracking ?
-		;event.optional.Event_Expires = '???'
+		event.required.Event_StartTime = anytim(sys2ut(), /ccsds) ; TBD from the tracking ???
+		event.required.Event_EndTime = anytim(sys2ut(), /ccsds) ; TBD from the tracking ???
+		;event.optional.Event_Expires = anytim(sys2ut(), /ccsds) ; ??? Not sure what to put here
 		event.required.Event_CoordSys = 'UTC-HGS-TOPO'
 		event.required.Event_CoordUnit = 'deg,deg'
 		event.required.Event_Coord1 = helio_long[0]
@@ -375,9 +380,9 @@ IF (deltat GE tracking_frequency && N_ELEMENTS(ARmaps) GE tracking_max_number_im
 		event.required.Event_C1Error = 0
 		event.required.Event_C2Error = 0
 		event.optional.Event_Npixels = size
-		;event.optional.Event_PixelUnit = '???'
-		;event.optional.OBS_DataPrepURL = '???'
-		;event.optional.Event_ClippedSpatial = '???'
+		event.optional.Event_PixelUnit = 'DN/s' ; ??? TBC
+		event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SpocA' ; ??? TBC
+		event.optional.Event_ClippedSpatial = 'T'  ; ??? TBC
 		;event.optional.Event_ClippedTemporal = '???'
 
 		event.required.BoundBox_C1LL = helio_long[1]
@@ -385,22 +390,40 @@ IF (deltat GE tracking_frequency && N_ELEMENTS(ARmaps) GE tracking_max_number_im
 		event.required.BoundBox_C1UR = helio_long[2]
 		event.required.BoundBox_C2UR = helio_lat[2]
 		
+		
 		; We write the VOevent
 		
 		IF KEYWORD_SET(write_file) THEN BEGIN
-			export_event, event, /write, suff=label, buff=buff, filenameout=fn0 
+			export_event, event, /write, suff=label, buff=buff
 		ENDIF ELSE BEGIN
-			export_event, event, suffix=label, buff=buff, filenameout=fn0
+			export_event, event, suffix=label, buff=buff
 		ENDELSE
 		
-		events[k]=STRJOIN(buff, /SINGLE) ;
+		tracking_events[k]=STRJOIN(buff, /SINGLE) ;
  
-
-
 	ENDFOR 
+
+	; We cleanup old files
+	number_of_files_to_delete = N_ELEMENTS(ARmaps) - tracking_overlay
+	
+	IF (number_of_files_to_delete GT 0) THEN BEGIN
+	
+		files_to_delete = ARmaps[0:number_of_files_to_delete-1]
+		
+		IF (debug GT 0) THEN BEGIN
+			PRINT , "Deleting files : ", endl + files_to_delete
+		ENDIF
+		
+		FILE_DELETE, files_to_delete , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug
+	
+	ENDIF
 
 
 ENDIF
+
+; We concatenate events from spoca and tracking
+events = [ spoca_events , tracking_events ] 
+
 
 ; We save the variables for next run
 
