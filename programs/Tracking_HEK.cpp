@@ -260,7 +260,7 @@ int main(int argc, const char **argv)
 	string fileName;
 	vector<string> sunImagesFileNames;
 	newColor = 0;
-	unsigned delta_time = 24 * 3600, delta_image = 5;
+	unsigned delta_time = 3600, overlay = 1;
 	vector<SunImage*> images;
 
 	string programDescription = "This Programm will track active regions.\n";
@@ -274,7 +274,7 @@ int main(int argc, const char **argv)
 	arguments.set_string_vector("fitsFileName1 fitsFileName2 ...", "The name of the fits files containing the images of the sun.", sunImagesFileNames);
 	arguments.new_named_unsigned_long('n',"newColor","newColor","The last color given to active regions",newColor);
 	arguments.new_named_unsigned_int('d',"delta_time","delta_time","The maximal delta time between 2 tracked regions",delta_time);
-	arguments.new_named_unsigned_int('D',"delta_image","delta_image","The maximal delta number between 2 images",delta_image);
+	arguments.new_named_unsigned_int('D',"overlay","overlay","The number of images that overlay between 2 tracking run",overlay);
 	arguments.set_description(programDescription.c_str());
 	arguments.set_author("Benjamin Mampaey, benjamin.mampaey@sidc.be");
 	arguments.set_build_date(__DATE__);
@@ -341,14 +341,17 @@ int main(int argc, const char **argv)
 	// if they overlap
 	// if there is not already a path between them
 
-	for (unsigned d = 1; d <= delta_image; ++d)
+	
+	for (unsigned s1 = 0; s1 < images.size(); ++s1)
 	{
-		for (unsigned s1 = 0; s1 + d < images.size(); ++s1)
+		for (unsigned d = 1; d + s1 < images.size(); ++d)
 		{
 			unsigned s2 = s1 + d;
-			//The images have been sorted according to time
+			//If the time difference between the 2 images is too big, we don't need to continue
 			if (unsigned(difftime(images[s2]->ObsDate(),images[s1]->ObsDate())) > delta_time)
-				continue;						  // The time difference between the 2 images is too big
+			{
+				break;						  
+			}	
 			for (unsigned r1 = 0; r1 < regions[s1].size(); ++r1)
 			{
 				for (unsigned r2 = 0; r2 < regions[s2].size(); ++r2)
@@ -364,9 +367,9 @@ int main(int argc, const char **argv)
 		}
 	}
 
-	// To gain some memory space we can delete all images but the last one
+	// To gain some memory space we can delete all images but the last ones
 	#if !defined(DEBUG) || DEBUG < 2			  // We must keep them in case of debug because we display them
-	for (unsigned s = 0; s < images.size() - 1; ++s)
+	for (unsigned s = 0; s < images.size() - overlay; ++s)
 		delete images[s];
 	#endif
 
@@ -392,7 +395,7 @@ int main(int argc, const char **argv)
 
 	#if defined(DEBUG) && DEBUG >= 2
 	// We color all images and output them
-	for (unsigned s = 0; s < images.size(); ++s)
+	for (unsigned s = 0; s < images.size() - overlay; ++s)
 	{
 		for (unsigned r = 0; r < regions[s].size(); ++r)
 		{
@@ -404,8 +407,8 @@ int main(int argc, const char **argv)
 
 	}
 	#endif
-	//We color the last image and output it
-	for (unsigned s = images.size() - 1; s < images.size(); ++s)
+	//We color the last images and output it
+	for (unsigned s = images.size() - overlay; s < images.size(); ++s)
 	{
 		for (unsigned r = 0; r < regions[s].size(); ++r)
 		{

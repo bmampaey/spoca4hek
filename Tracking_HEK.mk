@@ -1,7 +1,7 @@
 CC=g++
 CFLAGS=-Wall -fkeep-inline-functions -O3
 LFLAGS=-l cfitsio -l pthread
-DFLAGS=-DINSTRUMENT=EIT -DDEBUG=0
+DFLAGS=-DINSTRUMENT=EUVI -DDEBUG=0 -DNUMBERWAVELENGTH=1
 
 all:bin/Tracking_HEK.x
 clean: rm bin/Tracking_HEK.x objects/Tracking_HEK.o objects/MainUtilities.o objects/FeatureVector.o objects/ArgumentHelper.o objects/Region.o objects/SunImage.o objects/Image.o objects/tools.o

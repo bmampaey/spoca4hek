@@ -248,5 +248,5 @@
                         <xs:element name="SeriesName" type="xs:string"/>
                 </xs:sequence>
         </xs:complexType>
-        <xs:complexType name="MovieImageParameters"> </xs:complexType>
+        <xs:complexType name="MovieImageParameters"> <!--Put something here please--> </xs:complexType>
 </xs:schema>
