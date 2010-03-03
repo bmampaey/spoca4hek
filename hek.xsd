@@ -14,8 +14,7 @@
                         <!-- Additional text for human reading, not used by system -->
                         <xs:element type="xs:string" name="Description" minOccurs="0"/>
                         <!-- List of types of input images - listed in order of call -->
-                        <xs:element type="ImageInputSet" name="ImageInput" minOccurs="0"
-                                maxOccurs="2"/>
+                        <xs:element type="ImageInputSet" name="ImageInput" minOccurs="0" maxOccurs="1"/>
                         <!-- True denotes that it will track events over a time range and report a single 
                                         composite (like the flares).  False means that it will report event at a  
                                         single timestamp for each image.  Note that this being set to true means the 
@@ -237,7 +236,51 @@
                         <xs:element name="ParamName" type="xs:string"/>
                 </xs:sequence>
         </xs:complexType>
-        <!-- ADDED BY BENJAMIN -->
+        
+        <xs:complexType name="MovieImageParameters">
+
+                <!-- Controls how the event is modified to make movies, or images -->
+
+                <xs:sequence>
+
+                        <!-- Added to bounding box to make FOV of image/movie (this amount is added to both of left/right and both of top/bottom margins). -->
+
+                        <xs:element name="SpatialBufferArcseconds" type="xs:int"/>
+
+                        <!-- Added to both beginning and endtimes of event. Movies only -->
+
+                        <xs:element name="TimeBufferBeforeSeconds" type="xs:int"/>
+
+                        <xs:element name="TimeBufferAfterSeconds" type="xs:int"/>
+
+                        <!-- Optional factor to downscale resolution; if missing resolution is not changed. -->
+
+                        <xs:element name="ResolutionFactor" type="xs:float" minOccurs="0"/>
+
+                        <!-- Frame settings, movie only. We send a number of frames to movie generation tool.
+
+                        Can be hardcoded (fixedNumFrames), a set spacing between frames (FixedCadence), or
+
+                        a total # of pixels as approximation of movie size. In the last case # of frames
+
+                        will be calculated using the resolution -->
+
+                        <xs:choice>
+
+                                <xs:element name="FixedCadenceSeconds" type="xs:int"/>
+
+                                <xs:element name="FixedNumFrames" type="xs:int"/>
+
+                                <xs:element name="FixedTotalPixels" type="xs:long"/>
+
+                        </xs:choice>
+
+                </xs:sequence>
+
+        </xs:complexType>
+
+
+
         <xs:complexType name="DataSpecificationFile">
                 <xs:sequence>
                         <!-- ADD ME COMMENTS PLEASE -->
@@ -248,5 +291,4 @@
                         <xs:element name="SeriesName" type="xs:string"/>
                 </xs:sequence>
         </xs:complexType>
-        <xs:complexType name="MovieImageParameters"> <!--Put something here please--> </xs:complexType>
 </xs:schema>

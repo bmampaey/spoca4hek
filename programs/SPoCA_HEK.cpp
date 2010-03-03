@@ -9,7 +9,7 @@
 #include "../classes/tools.h"
 #include "../classes/constants.h"
 #include "../classes/SunImage.h"
-#include "../classes/FCMClassifier.h"
+#include "../classes/HistogramFCMClassifier.h"
 #include "../classes/FeatureVector.h"
 #include "../dsr/ArgumentHelper.h"
 #include "../classes/MainUtilities.h"
@@ -33,12 +33,12 @@ int main(int argc, const char **argv)
 
 	unsigned initNumberClasses =  3, maxNumberIteration = 100, preprocessingType = 1;
 	double radiusRatio = 1.31, precision = 0.001, fuzzifier = 2;
-	string centersFileName;
+	string centersFileName, sbinSize;
 	vector<string> sunImagesFileNames;
 
 	vector<SunImage*> images;
 	vector<RealFeature> B;
-	RealFeature wavelengths;
+	RealFeature wavelengths, binSize;
 
 	string programDescription = "SPoCA classification of images.\n";
 	programDescription+="Compiled with options :";
@@ -58,6 +58,7 @@ int main(int argc, const char **argv)
 	arguments.new_named_unsigned_int('I', "maxNumberIteration", "maxNumberIteration", "The maximal number of iteration for the SPoCA classification.", maxNumberIteration);
 	arguments.new_named_unsigned_int('P', "preprocessingType", "preprocessingType", "The type of preprocessing to apply to the sun images.\n\tNullifyAboveRadius(default) = 0, AnnulusLimbCorrection(ALC) = 1, ALC+TakeLog = 2, ALC+DivMedian = 3, ALC+TakeSqrt = 4", preprocessingType);
 	arguments.new_named_double('f',"fuzzifier","fuzzifier","The fuzzifier (m).",fuzzifier);
+	arguments.new_named_string('z',"binSize","binSize", "The width of the bin.\n\tList of number separated by commas, and no spaces. ex -z 1.2,1.3", sbinSize);
 	arguments.set_string_vector("fitsFileName1 fitsFileName2 ...", "The name of the fits files containing the images of the sun.", sunImagesFileNames);
 	arguments.set_description(programDescription.c_str());
 	arguments.set_author("Benjamin Mampaey, benjamin.mampaey@sidc.be");
@@ -80,12 +81,28 @@ int main(int argc, const char **argv)
 		cerr<<"Error : "<<sunImagesFileNames.size()<<" fits image file given as parameter, "<<NUMBERWAVELENGTH<<" must be given!"<<endl;
 		return EXIT_FAILURE;
 	}
+	
+	if(sbinSize.empty())
+	{
+		cerr<<"No binSize given as parameter."<<endl;
+		return EXIT_FAILURE;
+	}
+	else
+	{
+		istringstream Z(sbinSize);
+		Z>>binSize;
+		if(Z.fail())
+		{
+			cerr<<"Error reading the binSize."<<endl;
+			return EXIT_FAILURE;
+		}
+	}
 
 	//We read and preprocess the sun images
 	fetchImagesFromFile(images, sunImagesFileNames, preprocessingType, radiusRatio);
 
 	//We declare the type of Classifier we want
-	FCMClassifier F(fuzzifier);
+	HistogramFCMClassifier F(fuzzifier);
 
 	//We initialise the initial centers initB from the centers file
 	if(! centersFileName.empty())
@@ -114,7 +131,7 @@ int main(int argc, const char **argv)
 	}
 
 	//We add the images to the classifier
-	F.addImages(images);
+	F.addImages(images, binSize);
 
 	if(B.size() == initNumberClasses)
 	{
@@ -152,10 +169,10 @@ int main(int argc, const char **argv)
 	//We save the AR map for tracking
 	F.saveARmap(images[0]);
 	
+	
+	/* No need for Warning anymore -> We remove the output for the regions out of limb
 	//We get the regions to output the ones beyond the radius
 	vector<RegionStats*> regions = F.getRegions(images[0], 0);
-
-	
 
 	double sunRadius2 = images[0]->SunRadius() * images[0]->SunRadius();
 	Coordinate sunCenter = images[0]->SunCenter();
@@ -182,6 +199,6 @@ int main(int argc, const char **argv)
 	images[0]->writeFitsImage(fileName);
 	#endif
 
-
+	*/
 	return EXIT_SUCCESS;
 }

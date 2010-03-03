@@ -9,8 +9,13 @@
         <Value>'results/'</Value>
         <ExcludeFromCoverageID>true</ExcludeFromCoverageID>
     </Parameter>
- 
-    
+    <Parameter>
+        <ParameterName>write_events_frequency</ParameterName>
+        <Type>numeric</Type>
+        <!-- This must be changed back to 14400 after the test-->
+        <Value>0</Value>
+        <ExcludeFromCoverageID>true</ExcludeFromCoverageID>
+    </Parameter>
     <Parameter>
         <ParameterName>spoca_args_preprocessing</ParameterName>
         <Type>string</Type>
@@ -26,14 +31,20 @@
     <Parameter>
         <ParameterName>spoca_args_precision</ParameterName>
         <Type>string</Type>
-        <Value>'0.000001'</Value>
+        <Value>'0.000000001'</Value>
         <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
     </Parameter>
-    
-       <Parameter>
+    <Parameter>
+        <ParameterName>spoca_args_binsize</ParameterName>
+        <Type>string</Type>
+        <Value>'0.01,0.01'</Value>
+        <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+    </Parameter>
+    <Parameter>
         <ParameterName>tracking_args_deltat</ParameterName>
         <Type>string</Type>
-        <Value>'3600'</Value>
+        <!-- This must be changed back to 3600 after the test--> 
+        <Value>'21600'</Value>
         <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
     </Parameter>
     <Parameter>
@@ -43,16 +54,16 @@
         <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
     </Parameter>
     <Parameter>
-        <ParameterName>tracking_overlay</ParameterName>
+        <ParameterName>tracking_overlap</ParameterName>
         <Type>numeric</Type>
         <Value>0.3</Value>
         <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
     </Parameter>
     <DataSpecificationFile>
-   	<!-- Don't know what comes here ??? -->
+        <!-- Don't know what comes here ??? -->
         <Filename>'Put here something'</Filename>
         <LiveData>true</LiveData>
-        <SeriesName>'Maybe AIA'</SeriesName>
+        <SeriesName>'AIA'</SeriesName>
     </DataSpecificationFile>
-  
+
 </ParameterizedAlgorithmFile>
