@@ -6,7 +6,7 @@
 ; Date:
 ; 	16 February 2010
 ; Params:
-; 	aia_image1, aia_image2: in, required, type string, aia images filename of wavelength 171 and 195
+; 	image1, image2: in, required, type string, images filename of wavelength 171 and 195
 ;	events: out, required, type string array, see document SDO EDS API
 ;	write_file: in, optional, type boolean, see document SDO EDS API
 ;	restart: in, optional, type boolean, see document SDO EDS API
@@ -30,10 +30,11 @@
  
 ; TODO :
 ; - Handle the imageRejected and quality when we know what is that quality keyword
-; - Check for numActiveEvents
+; - Take care of the Clear Events case
+; 
 
 
-PRO SPoCA, aia_image1, aia_image2, $
+PRO SPoCA, image1, image2, $
 	events = events, $
 	write_file = write_file, $
 	restart = restart, $ ; Is it obsolete ?
@@ -77,8 +78,9 @@ SWITCH runMode OF
 				
 				spoca_lastrun_number = 0
 				write_events_last = SYSTIME(/SECONDS)
+				numActiveEvents = 0
 				
-				status = {spoca_lastrun_number : spoca_lastrun_number, write_events_last : write_events_last}
+				status = {spoca_lastrun_number : spoca_lastrun_number, write_events_last : write_events_last, numActiveEvents : numActiveEvents}
 				BREAK
 
    			END
@@ -98,6 +100,7 @@ SWITCH runMode OF
    	'Normal':	BEGIN ; We read the status
 				spoca_lastrun_number = status.spoca_lastrun_number
 				write_events_last = status.write_events_last
+				numActiveEvents = status.numActiveEvents
 				BREAK
    			END 
 
@@ -114,6 +117,7 @@ IF (debug GT 0) THEN BEGIN
 	PRINT, 'Status :'
 	PRINT, 'spoca_lastrun_number : ' , spoca_lastrun_number
 	PRINT, 'write_events_last : ', write_events_last
+	PRINT, 'numActiveEvents : ', numActiveEvents
 	
 ENDIF
 
@@ -129,8 +133,8 @@ IF N_PARAMS() LT 2 THEN BEGIN
 ENDIF 
 
 
-IF (~ FILE_TEST( aia_image1, /READ, /REGULAR)) || (~ FILE_TEST( aia_image2, /READ, /REGULAR) )  THEN BEGIN
-	error = [ error, 'Cannot find images ' + aia_image1 + ' or ' + aia_image2 ]
+IF (~ FILE_TEST( image1, /READ, /REGULAR)) || (~ FILE_TEST( image2, /READ, /REGULAR) )  THEN BEGIN
+	error = [ error, 'Cannot find images ' + image1 + ' or ' + image2 ]
 	RETURN
 ENDIF
 
@@ -174,7 +178,7 @@ spoca_args =	' -P ' + spoca_args_preprocessing + $
 		' -z ' + spoca_args_binsize + $
 		' -B ' + spoca_args_centersfile + $
 		' -O ' + output_directory + STRING(spoca_lastrun_number, FORMAT='(I010)') + $
-		' ' + aia_image1 + ' ' + aia_image2
+		' ' + image1 + ' ' + image2
 
 IF (debug GT 0) THEN BEGIN
 
@@ -216,7 +220,7 @@ ENDIF
 spoca_events = strarr(N_ELEMENTS(spoca_output))
 
 ; We need the header of one of the image to transform the coordinates
-header = headfits(aia_image1)
+header = headfits(image1)
 wcs = fitshead2wcs(header)
 
 FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN 
@@ -260,9 +264,9 @@ FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN
 	event.required.KB_Archivist = '' ; ??? Not sure what to put here
 	event.required.KB_ArchivURL = '' ; ??? Not sure what to put here
 
-	event.required.OBS_Observatory = 'SDO'
-	event.required.OBS_Instrument = 'AIA'
-	event.required.OBS_ChannelID = 'AIA 171, AIA 195'
+	event.required.OBS_Observatory = 'STEREO'
+	event.required.OBS_Instrument = 'EUVI'
+	event.required.OBS_ChannelID = 'EUVI 171, EUVI 195'
 	event.required.OBS_MeanWavel = 171; ??? There should be 2 values, one for 195 also
 	event.required.OBS_WavelUnit = 'Angstroms'
 
@@ -271,16 +275,23 @@ FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN
 	event.required.FRM_Identifier = 'vdelouille'
 	event.required.FRM_Institute ='ROB'
 	event.required.FRM_HumanFlag = 'F'
-	event.required.FRM_ParamSet = 'calibration=1' $
-		+ ' tracking_deltat=' + STRING(tracking_deltat, FORMAT='(I)') $
-		+ ' tracking_number_images=' + STRING(tracking_number_images, FORMAT='(I)') $
-		+ ' spoca_args_preprocessing=' + STRING(spoca_args_preprocessing, FORMAT='(I)') $
-		+ ' spoca_args_numberclasses=' + STRING(spoca_args_numberclasses, FORMAT='(I)') $
-		+ ' spoca_args_precision='  + STRING(spoca_args_precision, FORMAT='(F)') 
+	event.required.FRM_ParamSet = 'image1 : calibrated image 171 A' $
+		+ ', image2 : calibrated image 195 A' $
+		+ ', dilation_factor= 12' $
+		+ ', initialisation_type= FCM' $
+		+ ', numerical_precision= double' $
+		+ ', spoca_args_preprocessing=' + spoca_args_preprocessing $
+		+ ', spoca_args_numberclasses=' + spoca_args_numberclasses $
+		+ ', spoca_args_precision='  + spoca_args_precision $
+		+ ', spoca_args_binsize='  + spoca_args_binsize $
+		+ ', tracking_deltat=' + tracking_deltat $
+		+ ', tracking_number_images=' + STRING(tracking_number_images, FORMAT='(I)') $
+		+ ', tracking_overlap=' + STRING(tracking_overlap, FORMAT='(F)') 
+
 
 	event.required.FRM_DateRun = anytim(sys2ut(), /ccsds)
 	event.required.FRM_Contact = 'veronique.delouille@sidc.be'
-	event.required.FRM_URL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SpocA'
+	event.required.FRM_URL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA'
 
 	event.required.Event_StartTime = anytim(sys2ut(), /ccsds)
 	event.required.Event_EndTime = anytim(sys2ut(), /ccsds)  
@@ -289,13 +300,11 @@ FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN
 	event.required.Event_CoordUnit = 'deg,deg'
 	event.required.Event_Coord1 = hpc_x[0]
 	event.required.Event_Coord2 = hpc_y[0]
-	event.required.Event_C1Error = 0
-	event.required.Event_C2Error = 0
+	event.required.Event_C1Error = 0 ; TBD
+	event.required.Event_C2Error = 0 ; TBD
 	event.optional.Event_Npixels = size
-	event.optional.Event_PixelUnit = 'DN/s' ; ??? TBC
-	event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SpocA' ; ??? TBC
-	event.optional.Event_ClippedSpatial = 'F'  ; ??? TBC
-	event.optional.Event_ClippedTemporal = 'F'
+	event.optional.Event_PixelUnit = 'DN/s' ; ??? TBC for AIA
+	event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA' ; 
 
 	event.required.BoundBox_C1LL = hpc_x[1]
 	event.required.BoundBox_C2LL = hpc_y[1]
@@ -374,6 +383,10 @@ IF (N_ELEMENTS(tracking_output) LE 1 && N_ELEMENTS(tracking_output[0]) LE 1 ) TH
 	GOTO, Finish
 ENDIF
 
+; We update the number of Active events we follow
+numActiveEvents = N_ELEMENTS(tracking_output)
+
+
 ; We check if it is time to write events to the hek
 events_write_deltat = SYSTIME(/SECONDS) -  write_events_last
 
@@ -396,9 +409,9 @@ tracking_events = strarr(N_ELEMENTS(tracking_output))
 
 ; We need the header of one of the image to transform the coordinates
 ; Depends witch AR we decide to output from tracking, if it is the ones from the last image, THEN it is not necessary to update the header and stuff
-; otherwise we do have to know wich header to load 
+; otherwise we do have to know which header to load 
 
-header = headfits(aia_image1)
+header = headfits(image1)
 wcs = fitshead2wcs(header)
 
 
@@ -443,9 +456,9 @@ FOR k = 0, N_ELEMENTS(tracking_output) - 1 DO BEGIN
 	event.required.KB_Archivist = '' ; ??? Not sure what to put here
 	event.required.KB_ArchivURL = '' ; ??? Not sure what to put here
 
-	event.required.OBS_Observatory = 'SDO'
-	event.required.OBS_Instrument = 'AIA'
-	event.required.OBS_ChannelID = 'AIA 171, AIA 195'
+	event.required.OBS_Observatory = 'STEREO'
+	event.required.OBS_Instrument = 'EUVI'
+	event.required.OBS_ChannelID = 'EUVI 171, EUVI 195'
 	event.required.OBS_MeanWavel = 171; ??? There should be 2 values, one for 195 also
 	event.required.OBS_WavelUnit = 'Angstroms'
 
@@ -454,31 +467,36 @@ FOR k = 0, N_ELEMENTS(tracking_output) - 1 DO BEGIN
 	event.required.FRM_Identifier = 'vdelouille'
 	event.required.FRM_Institute ='ROB'
 	event.required.FRM_HumanFlag = 'F'
-	event.required.FRM_ParamSet = 'calibration=1' $
-		+ ' tracking_deltat=' + STRING(tracking_deltat, FORMAT='(I)') $
-		+ ' tracking_number_images=' + STRING(tracking_number_images, FORMAT='(I)') $
-		+ ' spoca_args_preprocessing=' + STRING(spoca_args_preprocessing, FORMAT='(I)') $
-		+ ' spoca_args_numberclasses=' + STRING(spoca_args_numberclasses, FORMAT='(I)') $
-		+ ' spoca_args_precision='  + STRING(spoca_args_precision, FORMAT='(F)') 
+	event.required.FRM_ParamSet = 'image1 : calibrated image 171 A' $
+		+ ', image2 : calibrated image 195 A' $
+		+ ', dilation_factor= 12' $
+		+ ', initialisation_type= FCM' $
+		+ ', numerical_precision= double' $
+		+ ', spoca_args_preprocessing=' + spoca_args_preprocessing $
+		+ ', spoca_args_numberclasses=' + spoca_args_numberclasses $
+		+ ', spoca_args_precision='  + spoca_args_precision $
+		+ ', spoca_args_binsize='  + spoca_args_binsize $
+		+ ', tracking_deltat=' + tracking_deltat $
+		+ ', tracking_number_images=' + STRING(tracking_number_images, FORMAT='(I)') $
+		+ ', tracking_overlap=' + STRING(tracking_overlap, FORMAT='(F)') 
+
 
 	event.required.FRM_DateRun = anytim(sys2ut(), /ccsds)
 	event.required.FRM_Contact = 'veronique.delouille@sidc.be'
-	event.required.FRM_URL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SpocA'
+	event.required.FRM_URL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA'
 
-	event.required.Event_StartTime = Event_StartTime ; We say that the event started when we last wrote to the hek
+	event.required.Event_StartTime = anytim(sys2ut(), /ccsds)
 	event.required.Event_EndTime = anytim(sys2ut(), /ccsds)  
-	;event.optional.Event_Expires = anytim(sys2ut(), /ccsds) 
+	;event.optional.Event_Expires = anytim(sys2ut(), /ccsds)  
 	event.required.Event_CoordSys = 'UTC-HPC-TOPO'
 	event.required.Event_CoordUnit = 'deg,deg'
 	event.required.Event_Coord1 = hpc_x[0]
 	event.required.Event_Coord2 = hpc_y[0]
-	event.required.Event_C1Error = 0
-	event.required.Event_C2Error = 0
+	event.required.Event_C1Error = 0 ; TBD
+	event.required.Event_C2Error = 0 ; TBD
 	event.optional.Event_Npixels = size
-	event.optional.Event_PixelUnit = 'DN/s' ; ??? TBC
-	event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SpocA' ; ??? TBC
-	event.optional.Event_ClippedSpatial = 'T'  ; ??? TBC
-	event.optional.Event_ClippedTemporal = 'F'
+	event.optional.Event_PixelUnit = 'DN/s' ; ??? TBC for AIA
+	event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA' ; 
 
 	event.required.BoundBox_C1LL = hpc_x[1]
 	event.required.BoundBox_C2LL = hpc_y[1]
@@ -534,13 +552,13 @@ ENDIF
  
 
 ; This may need to change
-numActiveEvents = N_ELEMENTS(events)
 imageRejected = 0
 
 ; We save the variables for next run
 
 status.spoca_lastrun_number = spoca_lastrun_number
 status.write_events_last = write_events_last
+status.numActiveEvents = numActiveEvents
  
 SAVE, status , DESCRIPTION='Spoca last run status variable at ' + SYSTIME() , FILENAME=outputStatusFilename, VERBOSE = debug
  

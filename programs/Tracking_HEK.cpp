@@ -79,7 +79,7 @@ vector<Region*> getRegions(const SunImage* ARmap)
 }
 
 
-unsigned overlap(SunImage* image1, const Region* region1, SunImage* image2, const Region* region2)
+unsigned overlay(SunImage* image1, const Region* region1, SunImage* image2, const Region* region2)
 {
 	unsigned intersectPixels = 0;
 	PixelType setValue1 = image1->pixel(region1->FirstPixel());
@@ -90,12 +90,12 @@ unsigned overlap(SunImage* image1, const Region* region1, SunImage* image2, cons
 	unsigned Ymax = region1->Boxmax().y < region2->Boxmax().y ? region1->Boxmax().y : region2->Boxmax().y;
 
 	// We scan the intersection between the 2 boxes of the regions
-	// If the 2 regions don't overlap, we will not even enter the loops
+	// If the 2 regions don't overlay, we will not even enter the loops
 	for (unsigned y = Ymin; y <= Ymax; ++y)
 	{
 		for (unsigned x = Xmin; x <= Xmax; ++x)
 		{
-												  //There is overlap between the two regions
+												  //There is overlay between the two regions
 			if(image1->pixel(x,y) == setValue1 && image2->pixel(x,y) == setValue2)
 				++intersectPixels;
 		}
@@ -260,7 +260,7 @@ int main(int argc, const char **argv)
 	string fileName;
 	vector<string> sunImagesFileNames;
 	newColor = 0;
-	unsigned delta_time = 3600, overlay = 1;
+	unsigned delta_time = 3600, overlap = 1;
 	vector<SunImage*> images;
 
 	string programDescription = "This Programm will track active regions.\n";
@@ -274,7 +274,7 @@ int main(int argc, const char **argv)
 	arguments.set_string_vector("fitsFileName1 fitsFileName2 ...", "The name of the fits files containing the images of the sun.", sunImagesFileNames);
 	arguments.new_named_unsigned_long('n',"newColor","newColor","The last color given to active regions",newColor);
 	arguments.new_named_unsigned_int('d',"delta_time","delta_time","The maximal delta time between 2 tracked regions",delta_time);
-	arguments.new_named_unsigned_int('D',"overlay","overlay","The number of images that overlay between 2 tracking run",overlay);
+	arguments.new_named_unsigned_int('D',"overlap","overlap","The number of images that overlap between 2 tracking run",overlap);
 	arguments.set_description(programDescription.c_str());
 	arguments.set_author("Benjamin Mampaey, benjamin.mampaey@sidc.be");
 	arguments.set_build_date(__DATE__);
@@ -338,7 +338,7 @@ int main(int argc, const char **argv)
 	// We create the edges of the graph
 	// According to Cis be create an edge between 2 nodes
 	// if their time difference is smaller than some value and
-	// if they overlap
+	// if they overlay
 	// if there is not already a path between them
 
 	
@@ -356,7 +356,7 @@ int main(int argc, const char **argv)
 			{
 				for (unsigned r2 = 0; r2 < regions[s2].size(); ++r2)
 				{
-					unsigned intersectPixels = overlap(images[s1], regions[s1][r1], images[s2], regions[s2][r2]);
+					unsigned intersectPixels = overlay(images[s1], regions[s1][r1], images[s2], regions[s2][r2]);
 					if(intersectPixels > 0 && !path(tracking_graph.get_node(regions[s1][r1]), regions[s2][r2]))
 					{
 						tracking_graph.insert_edge(intersectPixels, regions[s1][r1], regions[s2][r2]);
@@ -369,7 +369,7 @@ int main(int argc, const char **argv)
 
 	// To gain some memory space we can delete all images but the last ones
 	#if !defined(DEBUG) || DEBUG < 2			  // We must keep them in case of debug because we display them
-	for (unsigned s = 0; s < images.size() - overlay; ++s)
+	for (unsigned s = 0; s < images.size() - overlap; ++s)
 		delete images[s];
 	#endif
 
@@ -395,20 +395,20 @@ int main(int argc, const char **argv)
 
 	#if defined(DEBUG) && DEBUG >= 2
 	// We color all images and output them
-	for (unsigned s = 0; s < images.size() - overlay; ++s)
+	for (unsigned s = 0; s < images.size() - overlap; ++s)
 	{
 		for (unsigned r = 0; r < regions[s].size(); ++r)
 		{
 			if(images[s]->pixel(regions[s][r]->FirstPixel()) != regions[s][r]->Color())
 				images[s]->propagateColor(regions[s][r]->Color(), regions[s][r]->FirstPixel());
 		}
-		fileName = outputFileName + sunImagesFileNames[s].substr(0, sunImagesFileNames[s].rfind(".fits")) + ".tracked.fits";
+		fileName = sunImagesFileNames[s];
 		images[s]->writeFitsImage(fileName);
 
 	}
 	#endif
 	//We color the last images and output it
-	for (unsigned s = images.size() - overlay; s < images.size(); ++s)
+	for (unsigned s = images.size() - overlap; s < images.size(); ++s)
 	{
 		for (unsigned r = 0; r < regions[s].size(); ++r)
 		{

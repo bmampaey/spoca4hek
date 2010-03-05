@@ -7,23 +7,23 @@
     <Description>Run the SPoCA Algorithm for detecting AR on EIT/EUVI/AIA images</Description>
     <ImageInput>
         <ImageRequirement>
-            <ParamName>aia_image1</ParamName>
+            <ParamName>image1</ParamName>
             <Optional>false</Optional>
             <ImageChoice>
-                <Instrument>AIA</Instrument>
+                <Instrument>EUVI</Instrument>
                 <Wavelength>171</Wavelength>
-                <Resolution>4096</Resolution>
+                <Resolution>2048</Resolution>
             </ImageChoice>
         </ImageRequirement>
     </ImageInput>
     <ImageInput>
         <ImageRequirement>
-            <ParamName>aia_image2</ParamName>
+            <ParamName>image2</ParamName>
             <Optional>false</Optional>
             <ImageChoice>
-                <Instrument>AIA</Instrument>
+                <Instrument>EUVI</Instrument>
                 <Wavelength>195</Wavelength>
-                <Resolution>4096</Resolution>
+                <Resolution>2048</Resolution>
             </ImageChoice>
         </ImageRequirement>
     </ImageInput>

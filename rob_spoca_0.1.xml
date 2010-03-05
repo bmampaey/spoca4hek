@@ -62,8 +62,8 @@
     <DataSpecificationFile>
         <!-- Don't know what comes here ??? -->
         <Filename>'Put here something'</Filename>
-        <LiveData>true</LiveData>
-        <SeriesName>'AIA'</SeriesName>
+        <LiveData>false</LiveData>
+        <SeriesName>'EUVI'</SeriesName>
     </DataSpecificationFile>
 
 </ParameterizedAlgorithmFile>
