@@ -19,13 +19,13 @@
 ;	numActiveEvents: out, required, type integer, see document SDO EDS API
 ;	output_directory: in, required, type string, folder where spoca can store temporary files (The modules manage the cleanup of old files) 
 ;	write_events_frequency: in, required, type integer, number of seconds between events write to the HEK
-;	spoca_args_preprocessing: in, optional, type string, type of image preprocessing for spoca
-;	spoca_args_numberclasses: in, optional, type string, number of classes for spoca
-;	spoca_args_precision: in, optional, type string, precision for spoca
-;	spoca_args_binsize: in, optional, type string, bin size for spoca
-;	tracking_args_deltat: in, optional, type string, maximal time difference between 2 images for tracking
-;	tracking_number_images: in, optional, type integer, number of images to track at the same time
-;	tracking_overlap: in, optional, type real, proportion of the number of images to overlap between tracking succesive run
+;	spocaArgs_preprocessing: in, optional, type string, type of image preprocessing for spoca
+;	spocaArgs_numberclasses: in, optional, type string, number of classes for spoca
+;	spocaArgs_precision: in, optional, type string, precision for spoca
+;	spocaArgs_binsize: in, optional, type string, bin size for spoca
+;	trackingArgsDeltat: in, optional, type string, maximal time difference between 2 images for tracking
+;	trackingNumberImages: in, optional, type integer, number of images to track at the same time
+;	trackingOverlap: in, optional, type integer, proportion of the number of images to overlap between tracking succesive run
 ; -
  
 ; TODO :
@@ -34,10 +34,9 @@
 ; 
 
 
-PRO SPoCA, image1, image2, $
+PRO SPoCA, image1=image1, image2=image2, $
 	events = events, $
 	write_file = write_file, $
-	restart = restart, $ ; Is it obsolete ?
 	error = error, $
 	imageRejected = imageRejected, $
 	status = status, $
@@ -45,15 +44,16 @@ PRO SPoCA, image1, image2, $
 	inputStatusFilename = inputStatusFilename, $
 	outputStatusFilename = outputStatusFilename, $
 	numActiveEvents = numActiveEvents, $
-	output_directory = output_directory, $
-	write_events_frequency = write_events_frequency, $
-	spoca_args_preprocessing = spoca_args_preprocessing, $
-	spoca_args_numberclasses = spoca_args_numberclasses, $
-	spoca_args_precision = spoca_args_precision, $
-	spoca_args_binsize = spoca_args_binsize, $
-	tracking_args_deltat = tracking_args_deltat, $
-	tracking_number_images = tracking_number_images, $
-	tracking_overlap = tracking_overlap
+	outputDirectory = outputDirectory, $
+	writeEventsFrequency = writeEventsFrequency, $
+	spocaArgsPreprocessing = spocaArgsPreprocessing, $
+	spocaArgsNumberclasses = spocaArgsNumberclasses, $
+	spocaArgsPrecision = spocaArgsPrecision, $
+	spocaArgsBinsize = spocaArgsBinsize, $
+	trackingArgsDeltat = trackingArgsDeltat, $
+	trackingNumberImages = trackingNumberImages, $
+	trackingOverlap = trackingOverlap, $
+        cCodeLocation = cCodeLocation
 	
 	
 
@@ -79,8 +79,8 @@ SWITCH runMode OF
 				spoca_lastrun_number = 0
 				write_events_last = SYSTIME(/SECONDS)
 				numActiveEvents = 0
-				
-				status = {spoca_lastrun_number : spoca_lastrun_number, write_events_last : write_events_last, numActiveEvents : numActiveEvents}
+				last_color_assigned = 0
+				status = {spoca_lastrun_number : spoca_lastrun_number, write_events_last : write_events_last, numActiveEvents : numActiveEvents, last_color_assigned : last_color_assigned}
 				BREAK
 
    			END
@@ -101,11 +101,19 @@ SWITCH runMode OF
 				spoca_lastrun_number = status.spoca_lastrun_number
 				write_events_last = status.write_events_last
 				numActiveEvents = status.numActiveEvents
+				last_color_assigned = status.last_color_assigned
 				BREAK
    			END 
 
 	'Clear Events':	BEGIN
-				; TODO 
+				; TODO close out events (altought I don't think we have that)
+				ARmaps = FILE_SEARCH(output_directory, '*ARmap.tracking.fits', /TEST_READ, /TEST_REGULAR , /TEST_WRITE  )
+				IF (debug GT 0) THEN BEGIN
+					PRINT, "Clear Events called"
+					PRINT , "Deleting all remaining ARmaps : ", endl + ARmaps
+				ENDIF
+		
+				FILE_DELETE, ARmaps , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug
 			END
 	ELSE:		BEGIN
 				error = [ error, "I just don't know what to do with myself. runMode is " + runMode ]
@@ -118,6 +126,7 @@ IF (debug GT 0) THEN BEGIN
 	PRINT, 'spoca_lastrun_number : ' , spoca_lastrun_number
 	PRINT, 'write_events_last : ', write_events_last
 	PRINT, 'numActiveEvents : ', numActiveEvents
+	PRINT, 'last_color_assigned : ', last_color_assigned
 	
 ENDIF
 
@@ -146,19 +155,19 @@ IF N_ELEMENTS(write_events_frequency) EQ 0 THEN write_events_frequency = 4 * 360
 
 spoca_bin = 'bin/SPoCA_HEK.x'
 
-IF N_ELEMENTS(spoca_args_preprocessing) EQ 0 THEN spoca_args_preprocessing = '5'  
-IF N_ELEMENTS(spoca_args_numberclasses) EQ 0 THEN spoca_args_numberclasses = '4'
-IF N_ELEMENTS(spoca_args_precision) EQ 0 THEN spoca_args_precision = '0.000000001'
-IF N_ELEMENTS(spoca_args_binsize) EQ 0 THEN spoca_args_binsize = '0.01,0.01'
-spoca_args_centersfile = output_directory + 'centers.txt'
+IF N_ELEMENTS(spocaArgs_preprocessing) EQ 0 THEN spocaArgs_preprocessing = '3'  
+IF N_ELEMENTS(spocaArgs_numberclasses) EQ 0 THEN spocaArgs_numberclasses = '4'
+IF N_ELEMENTS(spocaArgs_precision) EQ 0 THEN spocaArgs_precision = '0.000000001'
+IF N_ELEMENTS(spocaArgs_binsize) EQ 0 THEN spocaArgs_binsize = '0.01,0.01'
+spocaArgs_centersfile = output_directory + 'centers.txt'
 
 
 ; Tracking parameters
 
 tracking_bin = 'bin/Tracking_HEK.x'
-IF N_ELEMENTS(tracking_deltat) EQ 0 THEN tracking_deltat = 3600 ; It is in seconds
-IF N_ELEMENTS(tracking_number_images) EQ 0 THEN tracking_number_images = 3
-IF N_ELEMENTS(tracking_overlap) EQ 0 THEN tracking_overlap = 0.3
+IF N_ELEMENTS(tracking_args_deltat) EQ 0 THEN tracking_args_deltat = '21600' ; It is in seconds
+IF N_ELEMENTS(tracking_number_images) EQ 0 THEN tracking_number_images = 9
+IF N_ELEMENTS(tracking_overlap) EQ 0 THEN tracking_overlap = 3
 
 
 IF (debug GT 0) THEN BEGIN
@@ -172,28 +181,28 @@ ENDIF
 
 ++spoca_lastrun_number
 
-spoca_args =	' -P ' + spoca_args_preprocessing + $
-		' -C ' + spoca_args_numberclasses + $
-		' -p ' + spoca_args_precision + $
-		' -z ' + spoca_args_binsize + $
-		' -B ' + spoca_args_centersfile + $
+spocaArgs =	' -P ' + spocaArgs_preprocessing + $
+		' -C ' + spocaArgs_numberclasses + $
+		' -p ' + spocaArgs_precision + $
+		' -z ' + spocaArgs_binsize + $
+		' -B ' + spocaArgs_centersfile + $
 		' -O ' + output_directory + STRING(spoca_lastrun_number, FORMAT='(I010)') + $
 		' ' + image1 + ' ' + image2
 
 IF (debug GT 0) THEN BEGIN
 
-	PRINT, 'About to run : ' , spoca_bin + spoca_args
+	PRINT, 'About to run : ' , spoca_bin + spocaArgs
 	
 ENDIF
 
 ; We call SPoCA with the correct arguments
 
-SPAWN, spoca_bin + spoca_args, spoca_output, spoca_errors, EXIT_STATUS=spoca_exit 
+SPAWN, spoca_bin + spocaArgs, spoca_output, spoca_errors, EXIT_STATUS=spoca_exit 
 
 ; In case of error
 IF (spoca_exit NE 0) THEN BEGIN
 
-	error = [ error, 'Error executing '+ spoca_bin + spoca_args ]
+	error = [ error, 'Error executing '+ spoca_bin + spocaArgs ]
 	error = [ error, spoca_errors ]
 	; TODO Should we cleanup  ???
 	
@@ -209,7 +218,7 @@ ENDIF
 
 ; We check that output is not null
 
-IF (N_ELEMENTS(spoca_output) LE 1 && N_ELEMENTS(spoca_output[0]) LE 1 ) THEN BEGIN
+IF (N_ELEMENTS(spoca_output) LT 1 || STRLEN(spoca_output[0]) LE 1 ) THEN BEGIN
 	IF (debug GT 0) THEN BEGIN
 		PRINT, 'Spoca Output is void, going to Tracking'
 	ENDIF
@@ -225,7 +234,7 @@ wcs = fitshead2wcs(header)
 
 FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN 
 
-	; The output of SpoCA is (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) id size label
+	; The output of SpoCA is (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) id size label date_obs
 	output = strsplit( spoca_output[k] , ' 	(),', /EXTRACT) 
 	; We parse the output
 	cartesian_x = FLOAT(output[0:4:2])
@@ -236,7 +245,7 @@ FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN
 	id = output[6]
 	size = output[7]
 	label = output[8]
-	
+	date_obs = output[9] 
 	IF (debug GT 0) THEN BEGIN
 		PRINT , "cartesians coordinates for the region ", k
 		PRINT, cartesian
@@ -247,7 +256,7 @@ FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN
         wcs_coord = WCS_GET_COORD(wcs, cartesian)
         
 	; We convert the WCS coodinates into helioprojective cartesian
-	WCS_CONVERT_FROM_COORD, wcs, wcs_coord, 'HPC', hpc_x, hpc_y
+	WCS_CONVERT_FROM_COORD, wcs, wcs_coord, 'HPC', /ARCSECONDS, hpc_x, hpc_y
 	
 	IF (debug GT 0) THEN BEGIN
 		PRINT , "x, y, z HPC coordinates for the region ", k
@@ -280,24 +289,24 @@ FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN
 		+ ', dilation_factor= 12' $
 		+ ', initialisation_type= FCM' $
 		+ ', numerical_precision= double' $
-		+ ', spoca_args_preprocessing=' + spoca_args_preprocessing $
-		+ ', spoca_args_numberclasses=' + spoca_args_numberclasses $
-		+ ', spoca_args_precision='  + spoca_args_precision $
-		+ ', spoca_args_binsize='  + spoca_args_binsize $
-		+ ', tracking_deltat=' + tracking_deltat $
+		+ ', spocaArgs_preprocessing=' + spocaArgs_preprocessing $
+		+ ', spocaArgs_numberclasses=' + spocaArgs_numberclasses $
+		+ ', spocaArgs_precision='  + spocaArgs_precision $
+		+ ', spocaArgs_binsize='  + spocaArgs_binsize $
+		+ ', tracking_args_deltat=' + tracking_args_deltat $
 		+ ', tracking_number_images=' + STRING(tracking_number_images, FORMAT='(I)') $
-		+ ', tracking_overlap=' + STRING(tracking_overlap, FORMAT='(F)') 
+		+ ', tracking_overlap=' + STRING(tracking_overlap, FORMAT='(I)') 
 
 
 	event.required.FRM_DateRun = anytim(sys2ut(), /ccsds)
 	event.required.FRM_Contact = 'veronique.delouille@sidc.be'
 	event.required.FRM_URL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA'
 
-	event.required.Event_StartTime = anytim(sys2ut(), /ccsds)
-	event.required.Event_EndTime = anytim(sys2ut(), /ccsds)  
+	event.required.Event_StartTime = anytim(date_obs, /ccsds) 
+	event.required.Event_EndTime = anytim(date_obs, /ccsds)  
 	;event.optional.Event_Expires = anytim(sys2ut(), /ccsds)  
 	event.required.Event_CoordSys = 'UTC-HPC-TOPO'
-	event.required.Event_CoordUnit = 'deg,deg'
+	event.required.Event_CoordUnit = 'arcsec,arcsec'
 	event.required.Event_Coord1 = hpc_x[0]
 	event.required.Event_Coord2 = hpc_y[0]
 	event.required.Event_C1Error = 0 ; TBD
@@ -321,6 +330,8 @@ FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN
 	ENDELSE
 	
 	spoca_events[k]=STRJOIN(buff, /SINGLE) ;
+	
+	
 
 
 ENDFOR 
@@ -349,9 +360,8 @@ ENDIF
 		
 ; We initialise correctly the arguments for Tracking_HEK
 
-tracking_overlap = UINT(tracking_number_images / tracking_overlap)
-
-tracking_args =	' -d ' + tracking_args_deltat + $
+tracking_args =	' -n ' + STRING(last_color_assigned, FORMAT = '(I)') + $
+		' -d ' + tracking_args_deltat + $
 		' -D ' + STRING(tracking_overlap, FORMAT = '(I)') + $
 		' ' + STRJOIN( ARmaps , ' ', /SINGLE)
 	
@@ -376,7 +386,7 @@ ENDIF
 
 
 ; We check that output is not null
-IF (N_ELEMENTS(tracking_output) LE 1 && N_ELEMENTS(tracking_output[0]) LE 1 ) THEN BEGIN
+IF (N_ELEMENTS(tracking_output) LT 1 || STRLEN(tracking_output[0]) LE 1 ) THEN BEGIN
 	IF (debug GT 0) THEN BEGIN
 		PRINT, 'Tracking Output is void, going to Finish'
 	ENDIF
@@ -399,7 +409,6 @@ ENDIF ELSE BEGIN
 	IF (debug GT 0) THEN BEGIN
 		PRINT, STRING(events_write_deltat) + ' seconds elapsed since last events write, writing to the HEK'
 	ENDIF
-	Event_StartTime = anytim(write_events_last, /ccsds)
 	write_events_last = SYSTIME(/SECONDS)
 ENDELSE
 
@@ -417,7 +426,7 @@ wcs = fitshead2wcs(header)
 
 FOR k = 0, N_ELEMENTS(tracking_output) - 1 DO BEGIN 
 
-	; The output of Tracking is (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) id size label color	
+	; The output of Tracking is (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) id size label date_obs color
 	output = strsplit( tracking_output[k] , ' 	(),', /EXTRACT) 
 	; We parse the output
 	cartesian_x = FLOAT(output[0:4:2])
@@ -428,7 +437,8 @@ FOR k = 0, N_ELEMENTS(tracking_output) - 1 DO BEGIN
 	id = output[6]
 	size = output[7]
 	label = output[8]
-	color = output[9]
+	date_obs = output[9]
+	color = output[10]
 	
 	IF (debug GT 0) THEN BEGIN
 		PRINT , "cartesians coordinates for the region ", k
@@ -439,7 +449,7 @@ FOR k = 0, N_ELEMENTS(tracking_output) - 1 DO BEGIN
         wcs_coord = WCS_GET_COORD(wcs, cartesian)
         
 	; We convert the WCS coodinates into helioprojective cartesian
-	WCS_CONVERT_FROM_COORD, wcs, wcs_coord, 'HPC', hpc_x, hpc_y
+	WCS_CONVERT_FROM_COORD, wcs, wcs_coord, 'HPC', /ARCSECONDS, hpc_x, hpc_y
 	
 	IF (debug GT 0) THEN BEGIN
 		PRINT , "x, y, z HPC coordinates for the region ", k
@@ -472,24 +482,24 @@ FOR k = 0, N_ELEMENTS(tracking_output) - 1 DO BEGIN
 		+ ', dilation_factor= 12' $
 		+ ', initialisation_type= FCM' $
 		+ ', numerical_precision= double' $
-		+ ', spoca_args_preprocessing=' + spoca_args_preprocessing $
-		+ ', spoca_args_numberclasses=' + spoca_args_numberclasses $
-		+ ', spoca_args_precision='  + spoca_args_precision $
-		+ ', spoca_args_binsize='  + spoca_args_binsize $
-		+ ', tracking_deltat=' + tracking_deltat $
+		+ ', spocaArgs_preprocessing=' + spocaArgs_preprocessing $
+		+ ', spocaArgs_numberclasses=' + spocaArgs_numberclasses $
+		+ ', spocaArgs_precision='  + spocaArgs_precision $
+		+ ', spocaArgs_binsize='  + spocaArgs_binsize $
+		+ ', tracking_args_deltat=' + tracking_args_deltat $
 		+ ', tracking_number_images=' + STRING(tracking_number_images, FORMAT='(I)') $
-		+ ', tracking_overlap=' + STRING(tracking_overlap, FORMAT='(F)') 
+		+ ', tracking_overlap=' + STRING(tracking_overlap, FORMAT='(I)') 
 
 
 	event.required.FRM_DateRun = anytim(sys2ut(), /ccsds)
 	event.required.FRM_Contact = 'veronique.delouille@sidc.be'
 	event.required.FRM_URL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA'
 
-	event.required.Event_StartTime = anytim(sys2ut(), /ccsds)
-	event.required.Event_EndTime = anytim(sys2ut(), /ccsds)  
+	event.required.Event_StartTime = anytim(date_obs - write_events_frequency, /ccsds) 
+	event.required.Event_EndTime = anytim(date_obs, /ccsds) 
 	;event.optional.Event_Expires = anytim(sys2ut(), /ccsds)  
 	event.required.Event_CoordSys = 'UTC-HPC-TOPO'
-	event.required.Event_CoordUnit = 'deg,deg'
+	event.required.Event_CoordUnit = 'arcsec,arcsec'
 	event.required.Event_Coord1 = hpc_x[0]
 	event.required.Event_Coord2 = hpc_y[0]
 	event.required.Event_C1Error = 0 ; TBD
@@ -512,6 +522,11 @@ FOR k = 0, N_ELEMENTS(tracking_output) - 1 DO BEGIN
 	ENDELSE
 	
 	tracking_events[k]=STRJOIN(buff, /SINGLE) ;
+	
+	; We update the last color assigned
+	IF color GT last_color_assigned THEN BEGIN
+		last_color_assigned = color
+	ENDIF
 
 ENDFOR 
 
@@ -559,6 +574,7 @@ imageRejected = 0
 status.spoca_lastrun_number = spoca_lastrun_number
 status.write_events_last = write_events_last
 status.numActiveEvents = numActiveEvents
+status.last_color_assigned = last_color_assigned
  
 SAVE, status , DESCRIPTION='Spoca last run status variable at ' + SYSTIME() , FILENAME=outputStatusFilename, VERBOSE = debug
  

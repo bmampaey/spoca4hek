@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <AlgorithmDescription xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="file:hek.xsd">
-    <AlgorithmName>SPoCA 0.1</AlgorithmName>
+    <AlgorithmName>SPoCA 0.2</AlgorithmName>
     <Cadence>60</Cadence>
     <CodeFilename>spoca.sav</CodeFilename>
     <Description>Run the SPoCA Algorithm for detecting AR on EIT/EUVI/AIA images</Description>

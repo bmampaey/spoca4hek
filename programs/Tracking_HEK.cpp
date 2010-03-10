@@ -424,7 +424,7 @@ int main(int argc, const char **argv)
 	unsigned s = images.size() - 1;
 	for (unsigned r = 0; r < regions[s].size(); ++r)
 	{
-		cout<<regions[s][r]->Center()<<"\t"<<regions[s][r]->Boxmin()<<"\t"<<regions[s][r]->Boxmax()<<"\t"<<regions[s][r]->Id()<<"\t"<<regions[s][r]->size()<<"\t"<<regions[s][r]->Label()<<"\t"<<regions[s][r]->Color()<<endl;
+		cout<<regions[s][r]->Center()<<"\t"<<regions[s][r]->Boxmin()<<"\t"<<regions[s][r]->Boxmax()<<"\t"<<regions[s][r]->Id()<<"\t"<<regions[s][r]->size()<<"\t"<<regions[s][r]->Label()<<"\t"<<regions[s][r]->DateObs()<<"\t"<<regions[s][r]->Color()<<endl;
 		
 	}
 

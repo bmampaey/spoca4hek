@@ -61,6 +61,10 @@ unsigned Region::size() const
 	return numberPixels;
 }
 
+time_t Region::DateObs() const
+{
+	return date_obs;
+}
 
 void Region::add(const unsigned& x, const unsigned& y)
 {

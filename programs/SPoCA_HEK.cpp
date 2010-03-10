@@ -180,7 +180,7 @@ int main(int argc, const char **argv)
 	{
 		if(sunCenter.d2(regions[r]->Center()) > sunRadius2)
 		{
-			cout<<regions[r]->Center()<<"\t"<<regions[r]->Boxmin()<<"\t"<<regions[r]->Boxmax()<<"\t"<<regions[r]->Id()<<"\t"<<regions[r]->size()<<"\t"<<regions[r]->Label()<<endl;
+			cout<<regions[r]->Center()<<"\t"<<regions[r]->Boxmin()<<"\t"<<regions[r]->Boxmax()<<"\t"<<regions[r]->Id()<<"\t"<<regions[r]->size()<<"\t"<<regions[r]->Label()<<"\t"<<regions[s][r]->DateObs()<<endl;
 		}
 	}
 

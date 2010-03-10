@@ -1,41 +1,48 @@
 PRO test_spoca
 
-files = FILE_SEARCH('/home/benjamin/data/stereo/200910/', '*A.fts', /TEST_READ, /TEST_REGULAR)
+files = FILE_SEARCH('/home/benjamin/data/stereo/dataset/', '*A.fts', /TEST_READ, /TEST_REGULAR)
 inputStatusFilename = "spoca.sav"
+write_file = 1
 
-output_directory = "results/"
-write_events_frequency = 0
-spoca_args_preprocessing = '3'
-spoca_args_numberclasses ='4'
-spoca_args_precision = '0.000000001'
-tracking_args_deltat = '21600'
-tracking_number_images = 9
-tracking_overlap = 3
+outputDirectory = "results/"
+writeEventsFrequency = 0
+cCodeLocation = "bin/"
+spocaArgsPreprocessing = '3'
+spocaArgsNumberclasses ='4'
+spocaArgsPrecision = '0.000000001'
+spocaArgsBinsize = '0.1,0.1'
+trackingArgsDeltat = '21600'
+trackingNumberImages = 9
+trackingOverlap = 3
 
-spoca, files[0], files[1], $
+
+
+spoca, image1 = files[0], image2 = files[1], $
 	events = events, $
-	write_file = 1, $
+	write_file = write_file, $
 	error = error, $
 	imageRejected = imageRejected, $
 	status = status, $
-	runMode = 'Construct', $
+	runMode = runMode, $
 	inputStatusFilename = inputStatusFilename, $
-	outputStatusFilename = inputStatusFilename, $
+	outputStatusFilename = outputStatusFilename, $
 	numActiveEvents = numActiveEvents, $
-	output_directory = output_directory, $
-	write_events_frequency = write_events_frequency, $
-	spoca_args_preprocessing = spoca_args_preprocessing, $
-	spoca_args_numberclasses = spoca_args_numberclasses, $
-	spoca_args_precision = spoca_args_precision, $
-	tracking_args_deltat = tracking_args_deltat, $
-	tracking_number_images = tracking_number_images, $
-	tracking_overlap = tracking_overlap
+	outputDirectory = outputDirectory, $
+	writeEventsFrequency = writeEventsFrequency, $
+	cCodeLocation = cCodeLocation, $
+	spocaArgsPreprocessing = spocaArgsPreprocessing, $
+	spocaArgsNumberclasses = spocaArgsNumberclasses, $
+	spocaArgsPrecision = spocaArgsPrecision, $
+	spocaArgsBinsize = spocaArgsBinsize, $
+	trackingArgsDeltat = trackingArgsDeltat, $
+	trackingNumberImages = trackingNumberImages, $
+	trackingOverlap = trackingOverlap
 
-FOR i=1, N_ELEMENTS(files)/2 DO BEGIN
+FOR i=1, (N_ELEMENTS(files)/2 - 2) DO BEGIN
 
-spoca, files[i*2], files[i*2+1], $
+spoca, image1 = files[i*2], image2 = files[i*2+1], $
 	events = events, $
-	write_file = 1, $
+	write_file = write_file, $
 	error = error, $
 	imageRejected = imageRejected, $
 	status = status, $
@@ -43,16 +50,38 @@ spoca, files[i*2], files[i*2+1], $
 	inputStatusFilename = inputStatusFilename, $
 	outputStatusFilename = inputStatusFilename, $
 	numActiveEvents = numActiveEvents, $
-	output_directory = output_directory, $
-	write_events_frequency = write_events_frequency, $
-	spoca_args_preprocessing = spoca_args_preprocessing, $
-	spoca_args_numberclasses = spoca_args_numberclasses, $
-	spoca_args_precision = spoca_args_precision, $
-	tracking_args_deltat = tracking_args_deltat, $
-	tracking_number_images = tracking_number_images, $
-	tracking_overlap = tracking_overlap
+	outputDirectory = outputDirectory, $
+	writeEventsFrequency = writeEventsFrequency, $
+	cCodeLocation = cCodeLocation, $
+	spocaArgsPreprocessing = spocaArgsPreprocessing, $
+	spocaArgsNumberclasses = spocaArgsNumberclasses, $
+	spocaArgsPrecision = spocaArgsPrecision, $
+	spocaArgsBinsize = spocaArgsBinsize, $
+	trackingArgsDeltat = trackingArgsDeltat, $
+	trackingNumberImages = trackingNumberImages, $
+	trackingOverlap = trackingOverlap
 
 ENDFOR
-              
+
+spoca, image1 = files[0], image2 = files[1], $
+	events = events, $
+	write_file = write_file, $
+	error = error, $
+	imageRejected = imageRejected, $
+	status = status, $
+	runMode = 'Clear Events', $
+	inputStatusFilename = inputStatusFilename, $
+	outputStatusFilename = inputStatusFilename, $
+	numActiveEvents = numActiveEvents, $
+	outputDirectory = outputDirectory, $
+	writeEventsFrequency = writeEventsFrequency, $
+	cCodeLocation = cCodeLocation, $
+	spocaArgsPreprocessing = spocaArgsPreprocessing, $
+	spocaArgsNumberclasses = spocaArgsNumberclasses, $
+	spocaArgsPrecision = spocaArgsPrecision, $
+	spocaArgsBinsize = spocaArgsBinsize, $
+	trackingArgsDeltat = trackingArgsDeltat, $
+	trackingNumberImages = trackingNumberImages, $
+	trackingOverlap = trackingOverlap
 
 end

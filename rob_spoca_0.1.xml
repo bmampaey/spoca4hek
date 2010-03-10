@@ -19,13 +19,13 @@
     <Parameter>
         <ParameterName>spoca_args_preprocessing</ParameterName>
         <Type>string</Type>
-        <Value>'1'</Value>
+        <Value>'3'</Value>
         <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
     </Parameter>
     <Parameter>
         <ParameterName>spoca_args_numberclasses</ParameterName>
         <Type>string</Type>
-        <Value>'3'</Value>
+        <Value>'4'</Value>
         <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
     </Parameter>
     <Parameter>
@@ -56,7 +56,7 @@
     <Parameter>
         <ParameterName>tracking_overlap</ParameterName>
         <Type>numeric</Type>
-        <Value>0.3</Value>
+        <Value>3</Value>
         <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
     </Parameter>
     <DataSpecificationFile>
