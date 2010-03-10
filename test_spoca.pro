@@ -2,6 +2,7 @@ PRO test_spoca
 
 files = FILE_SEARCH('/home/benjamin/data/stereo/dataset/', '*A.fts', /TEST_READ, /TEST_REGULAR)
 inputStatusFilename = "spoca.sav"
+outputStatusFilename = "spoca.sav"
 write_file = 1
 
 outputDirectory = "results/"
@@ -23,7 +24,7 @@ spoca, image1 = files[0], image2 = files[1], $
 	error = error, $
 	imageRejected = imageRejected, $
 	status = status, $
-	runMode = runMode, $
+	runMode = 'Construct', $
 	inputStatusFilename = inputStatusFilename, $
 	outputStatusFilename = outputStatusFilename, $
 	numActiveEvents = numActiveEvents, $
