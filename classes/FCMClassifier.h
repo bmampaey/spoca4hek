@@ -1,4 +1,4 @@
-#pragma once
+
 #ifndef FCMClassifier_H
 #define FCMClassifier_H
 
@@ -22,7 +22,7 @@ class FCMClassifier : public virtual Classifier
 
 		void computeB();
 		void computeU();
-		Real computeJ();
+		Real computeJ() const;
 
 		//Asses & Merge functions for the sursegmentation
 		Real assess(std::vector<Real>& V);

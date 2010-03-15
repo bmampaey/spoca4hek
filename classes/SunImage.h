@@ -24,19 +24,18 @@ class SunImage : public Image<PixelType>
 	Coordinate suncenter;
 	double cdelt[2];
 	PixelType median, datap01, datap95;
-
+	std::vector<char*> header;
 	char date_obs_string[80];
 
 	public :
 
-		static const unsigned ALC = 1;
-		static const unsigned TakeLog = 2;
-		static const unsigned DivMedian = 3;
-		static const unsigned TakeSqrt = 4;
-		SunImage(const std::string& fitsFileName);
+		enum {None = 0, ALC = 1, TakeLog = 2, DivMedian = 3, TakeSqrt = 4, DivMode = 5};
+		SunImage(const std::string& filename);
 		SunImage(const long xAxes = 0, const long yAxes = 0, const double radius = 0., const double wavelength = 0.);
 		SunImage(const SunImage& i);
 		SunImage(const SunImage* i);
+		~SunImage();
+		
 
 		double Wavelength() const{return wavelength;}
 		double Median() const{return median;}
@@ -50,7 +49,9 @@ class SunImage : public Image<PixelType>
 		void nullifyAboveRadius(const Real radiusRatio = 1.0);
 		Real percentCorrection(const Real r) const;
 		void annulusLimbCorrection(const Real radiusRatio = 1.0, const Real minLimbRadius = 0.90);
-		void preprocessing(const unsigned type = 0, Real maxLimbRadius = 1.0, Real minLimbRadius = 0.90);
+		void ALCDivMedian(const Real radiusRatio = 1.0, const Real minLimbRadius = 0.90);
+		void ALCDivMode(const Real radiusRatio = 1.0, const Real minLimbRadius = 0.90);
+		void preprocessing(const int type = 0, Real maxLimbRadius = 1.0, Real minLimbRadius = 0.90);
 		void copyKeywords(const SunImage* i);
 		SunImage* writeFitsImage (const std::string& filename) ;
 

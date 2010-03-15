@@ -16,5 +16,8 @@
 std::ostream& operator<<(std::ostream& out, const std::vector<Real>& v);
 std::istream& operator>>(std::istream& in, std::vector<Real>& v);
 
+std::ostream& operator<<(std::ostream& out, const std::vector<unsigned>& v);
+std::istream& operator>>(std::istream& in, std::vector<unsigned>& v);
+
 std::string itos(const int& i);
 #endif

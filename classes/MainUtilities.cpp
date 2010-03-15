@@ -51,7 +51,7 @@ void fetchImagesFromFile(vector<SunImage*>& images, const vector<string>& sunIma
 	for (unsigned p = 0; p < sunImagesFileNames.size(); ++p)
 	{
 		#if defined(DEBUG) && DEBUG >= 1
-		if(sunImagesFileNames[p].find(".fits")==string::npos && sunImagesFileNames[p].find(".fts"))
+		if(sunImagesFileNames[p].find(".fits")==string::npos && sunImagesFileNames[p].find(".fts")==string::npos)
 		{
 			cerr<<sunImagesFileNames[p]<<" is not a fits file! (must end in .fits or .fts)"<<endl;
 		}
@@ -62,15 +62,12 @@ void fetchImagesFromFile(vector<SunImage*>& images, const vector<string>& sunIma
 	for (unsigned p = 0; p < sunImagesFileNames.size(); ++p)
 	{
 
-		if(preprocessingType == 0)
-			images[p]->nullifyAboveRadius(radiusRatio);
-		else
-			images[p]->preprocessing(preprocessingType,radiusRatio);
+		images[p]->preprocessing(preprocessingType,radiusRatio);
 
 		#if defined(DEBUG) && DEBUG >= 2
-		string fileName = outputFileName + "preprocessed.";
-		fileName +=  sunImagesFileNames[p].substr(sunImagesFileNames[p].rfind('/')!=string::npos?sunImagesFileNames[p].rfind('/')+1:0);
-		images[p]->writeFitsImage(fileName);
+		string filename = outputFileName + "preprocessed.";
+		filename +=  sunImagesFileNames[p].substr(sunImagesFileNames[p].rfind('/')!=string::npos?sunImagesFileNames[p].rfind('/')+1:0);
+		images[p]->writeFitsImage(filename);
 		#endif
 
 	}

@@ -61,7 +61,7 @@ unsigned Region::size() const
 	return numberPixels;
 }
 
-time_t Region::DateObs() const
+time_t Region::ObsDate() const
 {
 	return date_obs;
 }

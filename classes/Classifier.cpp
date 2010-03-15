@@ -20,7 +20,7 @@ void Classifier::checkImages(const vector<SunImage*>& images)
 	unsigned radius = unsigned(images[0]->SunRadius());
 	for (unsigned p = 1; p <  NUMBERWAVELENGTH; ++p)
 	{
-		if(images[p]->SunCenter() != Suncenter)
+		if( Suncenter.d2(images[p]->SunCenter()) > 2 )
 		{
 			cerr<<"Warning : Image "<<images[p]->Wavelength()<<" will be recentered to have the same sun centre than image "<<images[0]->Wavelength()<<endl;
 			images[p]->recenter(Suncenter);
@@ -64,7 +64,8 @@ void Classifier::addImages(const std::vector<SunImage*>& images)
 			validPixel = true;
 			for (unsigned p = 0; p <  NUMBERWAVELENGTH && validPixel; ++p)
 			{
-				if((xj.v[p] = images[p]->pixel(x, y)) == images[p]->nullvalue)
+				xj.v[p] = images[p]->pixel(x, y);
+				if(xj.v[p] == images[p]->nullvalue)
 					validPixel=false;
 			}
 			if(validPixel)
@@ -224,7 +225,7 @@ unsigned Classifier::sursegmentation(vector<RealFeature>& initB, unsigned Cmin)
 	#endif
 	
 	#if defined(DEBUG) && DEBUG >= 2
-	string fileName;
+	string filename;
 	Image<unsigned> * segmentedMap;
 	#endif
 
@@ -261,9 +262,9 @@ unsigned Classifier::sursegmentation(vector<RealFeature>& initB, unsigned Cmin)
 		newScore = assess(V);
 
 		#if defined(DEBUG) && DEBUG >= 2
-		fileName = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
+		filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
 		segmentedMap = crispSegmentedMap();
-		segmentedMap->writeFitsImage(fileName);
+		segmentedMap->writeFitsImage(filename);
 		delete segmentedMap;
 		#endif
 		#if defined(DEBUG) && DEBUG >= 3
@@ -337,9 +338,9 @@ unsigned Classifier::fixSursegmentation(vector<RealFeature>& initB, vector<RealF
 	U = newU;
 
 	#if defined(DEBUG) && DEBUG >= 2
-	string fileName = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
+	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
 	Image<unsigned> * segmentedMap = crispSegmentedMap();
-	segmentedMap->writeFitsImage(fileName);
+	segmentedMap->writeFitsImage(filename);
 	delete segmentedMap;
 	#endif
 	#if defined(DEBUG) && DEBUG >= 3
@@ -416,12 +417,12 @@ void Classifier::saveResults(SunImage* outImage)
 {
 	Image<unsigned> * segmentedMap = crispSegmentedMap();
 	vector<RegionStats*> regions;
-	string fileName;
+	string filename;
 	unsigned numberRegions;
 
 	#if defined(DEBUG) && DEBUG >= 2
-	fileName = outputFileName + "segmented." + itos(numberClasses) + "classes.fits";
-	segmentedMap->writeFitsImage(fileName);
+	filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits";
+	segmentedMap->writeFitsImage(filename);
 	#endif
 
 	for (unsigned i = 1; i <= numberClasses; ++i)
@@ -433,24 +434,24 @@ void Classifier::saveResults(SunImage* outImage)
 		string baseName = outputFileName + "class" + itos(i) + ".";
 
 		#if defined(DEBUG) && DEBUG >= 2
-		fileName = baseName + "uncleaned.fits";
-		outImage->writeFitsImage(fileName);
+		filename = baseName + "uncleaned.fits";
+		outImage->writeFitsImage(filename);
 		#endif
 
 		//We smooth the edges
 		outImage->dilateCircular(2,0)->erodeCircular(2,0);
 
 		#if defined(DEBUG) && DEBUG >= 2
-		fileName = baseName + "smoothed.uncleaned.fits";
-		outImage->writeFitsImage(fileName);
+		filename = baseName + "smoothed.uncleaned.fits";
+		outImage->writeFitsImage(filename);
 		#endif
 
 		//Let's find the connected regions
 		numberRegions = outImage->colorizeConnectedComponents(0);
 
 		#if defined(DEBUG) && DEBUG >= 2
-		fileName = baseName + "blobs.uncleaned.fits";
-		outImage->writeFitsImage(fileName);
+		filename = baseName + "blobs.uncleaned.fits";
+		outImage->writeFitsImage(filename);
 		#endif
 
 		//Let's get the connected regions stats
@@ -458,8 +459,8 @@ void Classifier::saveResults(SunImage* outImage)
 
 		#if defined(DEBUG) && DEBUG >= 2
 		//We output the regions stats
-		fileName = baseName + "regions.uncleaned.txt";
-		ofstream uncleanedResultsFile(fileName.c_str());
+		filename = baseName + "regions.uncleaned.txt";
+		ofstream uncleanedResultsFile(filename.c_str());
 		if (uncleanedResultsFile.good())
 		{
 			uncleanedResultsFile<<RegionStats::header()<<endl;
@@ -476,8 +477,8 @@ void Classifier::saveResults(SunImage* outImage)
 		#if defined(DEBUG) && DEBUG >= 2
 		//Let's draw the contours
 		outImage->drawContours();
-		fileName = baseName + "contours.uncleaned.fits";
-		outImage->writeFitsImage(fileName);
+		filename = baseName + "contours.uncleaned.fits";
+		outImage->writeFitsImage(filename);
 		#endif
 
 		//Let's remove the small regions (i.e. assimilated to bright points )
@@ -487,16 +488,16 @@ void Classifier::saveResults(SunImage* outImage)
 		outImage->tresholdConnectedComponents(minSize, 0);
 
 		#if defined(DEBUG) && DEBUG >= 2
-		fileName = baseName + "fits";
-		outImage->writeFitsImage(fileName);
+		filename = baseName + "fits";
+		outImage->writeFitsImage(filename);
 		#endif
 
 		//We smooth the edges
 		outImage->dilateCircular(2,0)->erodeCircular(2,0);
 
 		#if defined(DEBUG) && DEBUG >= 2
-		fileName = baseName + "smoothed.fits";
-		outImage->writeFitsImage(fileName);
+		filename = baseName + "smoothed.fits";
+		outImage->writeFitsImage(filename);
 		#endif
 
 
@@ -504,8 +505,8 @@ void Classifier::saveResults(SunImage* outImage)
 		numberRegions = outImage->colorizeConnectedComponents(0);
 
 		#if defined(DEBUG) && DEBUG >= 2
-		fileName = baseName + "blobs.fits";
-		outImage->writeFitsImage(fileName);
+		filename = baseName + "blobs.fits";
+		outImage->writeFitsImage(filename);
 		#endif
 
 		//Let's get the connected regions stats
@@ -513,8 +514,8 @@ void Classifier::saveResults(SunImage* outImage)
 
 		//We output the regions stats
 
-		fileName = baseName + "regions.txt";
-		ofstream resultsFile(fileName.c_str());
+		filename = baseName + "regions.txt";
+		ofstream resultsFile(filename.c_str());
 		if (resultsFile.good())
 		{
 			resultsFile<<RegionStats::header()<<endl;
@@ -522,6 +523,13 @@ void Classifier::saveResults(SunImage* outImage)
 				resultsFile<<*(regions[r])<<endl;
 		}
 		resultsFile.close();
+		
+		#if defined(DEBUG) && DEBUG >= 2
+		//Let's draw the contours
+		outImage->drawContours();
+		filename = baseName + "contours.fits";
+		outImage->writeFitsImage(filename);
+		#endif
 
 		#if defined(DEBUG) && DEBUG >= 2
 		//Let's draw the boxes
@@ -531,15 +539,8 @@ void Classifier::saveResults(SunImage* outImage)
 			outImage->drawBox(regions[r]->Id(), regions[r]->Boxmin(), regions[r]->Boxmax());
 		}
 
-		fileName = baseName + "boxes.fits";
-		outImage->writeFitsImage(fileName);
-		#endif
-
-		#if defined(DEBUG) && DEBUG >= 2
-		//Let's draw the contours
-		outImage->drawContours();
-		fileName = baseName + "contours.fits";
-		outImage->writeFitsImage(fileName);
+		filename = baseName + "boxes.fits";
+		outImage->writeFitsImage(filename);
 		#endif
 
 		#if defined(DEBUG) && DEBUG >= 2
@@ -550,8 +551,8 @@ void Classifier::saveResults(SunImage* outImage)
 			outImage->drawCross(regions[r]->Id(), regions[r]->Center(), 5);
 		}
 
-		fileName = baseName + "centers.fits";
-		outImage->writeFitsImage(fileName);
+		filename = baseName + "centers.fits";
+		outImage->writeFitsImage(filename);
 		#endif
 
 		//We cleanup
@@ -561,15 +562,15 @@ void Classifier::saveResults(SunImage* outImage)
 		#if defined(DEBUG) && DEBUG >= 2
 		//Let's get the fuzzyMaps
 		Image<Real>* map = fuzzyMap(i-1);
-		fileName = baseName + "fuzzy.fits";
-		map->writeFitsImage(fileName);
+		filename = baseName + "fuzzy.fits";
+		map->writeFitsImage(filename);
 		delete map;
 		#endif
 		#if defined(DEBUG) && DEBUG >= 2
 		//Let's get the normalized fuzzyMaps
 		Image<Real>* normalizedMap = normalizedFuzzyMap(i-1);
-		fileName = baseName + "fuzzy.normalized.fits";
-		normalizedMap->writeFitsImage(fileName);
+		filename = baseName + "fuzzy.normalized.fits";
+		normalizedMap->writeFitsImage(filename);
 		delete normalizedMap;
 		#endif
 	}
@@ -584,7 +585,7 @@ void Classifier::saveResults(SunImage* outImage)
 void Classifier::saveARmap(SunImage* outImage)
 {
 	Image<unsigned> * segmentedMap = crispSegmentedMap();
-	string fileName;
+	string filename;
 	unsigned ARclass = 0;
 	RealFeature maxB = 0;
 	// The Active Regions class has the biggest center
@@ -601,26 +602,31 @@ void Classifier::saveARmap(SunImage* outImage)
 	//We create a map of the class ARclass
 	outImage->bitmap(segmentedMap, ARclass);
 
-	//We color and erase small regions
+	delete segmentedMap;
+
+	//We erase small regions
 	unsigned minSize = unsigned(MIN_AR_SIZE / outImage->PixelArea());
 	outImage->tresholdConnectedComponents(minSize, 0);
 
 	#if defined(DEBUG) && DEBUG >= 2
 
-	fileName = outputFileName + "ARmap.details.fits";
-	outImage->writeFitsImage(fileName);
+	filename = outputFileName + "ARmap.details.fits";
+	outImage->writeFitsImage(filename);
 
 	#endif
 
 	//We agregate the blobs together
 	outImage->dilateCircular(12,0);
 
+	//We don't need the AR post limb anymore
+	outImage->nullifyAboveRadius(1.); 
+
 	outImage->colorizeConnectedComponents(0);
 
-	fileName = outputFileName + "ARmap.tracking.fits";
-	outImage->writeFitsImage(fileName);
+	filename = outputFileName + "ARmap.tracking.fits";
+	outImage->writeFitsImage(filename);
 
-	delete segmentedMap;
+	
 
 }
 
@@ -733,6 +739,7 @@ void Classifier::randomInit(unsigned C)
 		B[i]=X[rand() % numberValidPixels];
 
 	}
+	//We like our centers to be sorted
 	sort(B.begin(), B.end());
 }
 

@@ -37,8 +37,8 @@ class Region
 		Coordinate Center() const;
 		Coordinate FirstPixel() const;
 		unsigned size() const;
-		time_t DateObs() const;
-
+		time_t ObsDate() const;
+		
 		//various routines
 		void add(const unsigned& x, const unsigned& y);
 		void add(const Coordinate& c);

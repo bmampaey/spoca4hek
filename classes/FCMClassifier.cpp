@@ -12,6 +12,7 @@ FCMClassifier::FCMClassifier(Real fuzzifier)
 		exit(EXIT_FAILURE);
 	}
 	#endif
+	
 
 }
 
@@ -50,6 +51,7 @@ void FCMClassifier::computeU()
 	vector<Real> d2XjB(numberClasses);
 	unsigned i;
 	U.resize(numberValidPixels * numberClasses);
+	
 	for (unsigned j = 0 ; j < numberValidPixels ; ++j)
 	{
 		for (i = 0 ; i < numberClasses ; ++i)
@@ -89,7 +91,7 @@ void FCMClassifier::computeU()
 }
 
 
-Real FCMClassifier::computeJ()
+Real FCMClassifier::computeJ() const
 {
 	Real result = 0;
 
@@ -157,9 +159,9 @@ void FCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 	}
 
 	#if defined(DEBUG) && DEBUG >= 2
-	string fileName = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
+	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
 	Image<unsigned> * segmentedMap = crispSegmentedMap();
-	segmentedMap->writeFitsImage(fileName);
+	segmentedMap->writeFitsImage(filename);
 	delete segmentedMap;
 	#endif
 	#if defined(DEBUG) && DEBUG >= 3
@@ -180,9 +182,9 @@ void FCMClassifier::fixCentersClassification()
 	computeU();
 
 	#if defined(DEBUG) && DEBUG >= 2
-	string fileName = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
+	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
 	Image<unsigned> * segmentedMap = crispSegmentedMap();
-	segmentedMap->writeFitsImage(fileName);
+	segmentedMap->writeFitsImage(filename);
 	delete segmentedMap;
 	#endif
 	#if defined(DEBUG) && DEBUG >= 3

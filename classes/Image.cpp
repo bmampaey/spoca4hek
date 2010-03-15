@@ -85,65 +85,72 @@ Image<T>::Image(const long xAxes, const long yAxes)
 }
 
 
-//TODO Put error messages here
 template<class T>
-Image<T>::Image(const string& fitsFileName)
+Image<T>::Image(const string& filename)
 :nullvalue(numeric_limits<T>::has_infinity?numeric_limits<T>::infinity():numeric_limits<T>::max())
 {
 	int   status  = 0;
 	fitsfile  *fptr;
 
-	if (!fits_open_file(&fptr, fitsFileName.c_str(), READONLY, &status))
+	if (fits_open_file(&fptr, filename.c_str(), READONLY, &status))
 	{
-
-		fits_get_img_param(fptr, 2, &bitpix, &naxis, axes, &status);
-
-		if(typeid(T) == typeid(double))
-			datatype = TDOUBLE;
-		else if(typeid(T) == typeid(float))
-			datatype = TFLOAT;
-		else if(typeid(T) == typeid(long))
-			datatype = TLONG;
-		else if(typeid(T) == typeid(unsigned long))
-			datatype = TLONG;
-		else if(typeid(T) == typeid(short))
-			datatype = TSHORT;
-		else if(typeid(T) == typeid(unsigned short))
-			datatype = TSHORT;					  //Because imagemagick does not understand BSCALE and BZERO
-		//	datatype = TUSHORT;
-		else if(typeid(T) == typeid(int))
-			datatype = TINT;
-		else if(typeid(T) == typeid(unsigned int))
-			datatype = TINT;					  //Because imagemagick does not understand BSCALE and BZERO
-		//	datatype = TUINT;
-		else if(typeid(T) == typeid(char))
-			datatype = TBYTE;
-		else if(typeid(T) == typeid(signed char))
-			datatype = TSBYTE;
-		else
-			datatype = TDOUBLE;
-
-		numberPixels = Xaxes() * Yaxes();
-		pixels = new T[numberPixels];
-
-		fits_read_img(fptr, datatype, 1, numberPixels,const_cast<T*>(&nullvalue),pixels,&anynull, &status);
-
-		if (status)
-		{
-			cerr<<"Error reading image file "<<fitsFileName<<" :"<<endl;
-			fits_report_error(stderr, status);
-		}
-		fits_close_file(fptr, &status);
-	}
-	else
-	{
-		cerr<<"Error : Could not open fits File image "<<fitsFileName<<"."<<endl;
-		exit(EXIT_FAILURE);
-	}
-	if (status)
+		cerr<<"Error : opening file "<<filename<<" :"<< status <<endl;			
 		fits_report_error(stderr, status);
+		exit(EXIT_FAILURE);
+	} 
+
+	if (fits_get_img_param(fptr, 2, &bitpix, &naxis, axes, &status))
+	{
+		cerr<<"Error : reading image parameters from file "<<filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+		fits_close_file(fptr, &status);
+		exit(EXIT_FAILURE);
+	} 
+
+
+	//We determine the datatype from the template
+
+	if(typeid(T) == typeid(double))
+		datatype = TDOUBLE;
+	else if(typeid(T) == typeid(float))
+		datatype = TFLOAT;
+	else if(typeid(T) == typeid(long))
+		datatype = TLONG;
+	else if(typeid(T) == typeid(unsigned long))
+		datatype = TLONG;
+	else if(typeid(T) == typeid(short))
+		datatype = TSHORT;
+	else if(typeid(T) == typeid(unsigned short))
+		datatype = TSHORT;					  //Because imagemagick does not understand BSCALE and BZERO
+	//	datatype = TUSHORT;
+	else if(typeid(T) == typeid(int))
+		datatype = TINT;
+	else if(typeid(T) == typeid(unsigned int))
+		datatype = TINT;					  //Because imagemagick does not understand BSCALE and BZERO
+	//	datatype = TUINT;
+	else if(typeid(T) == typeid(char))
+		datatype = TBYTE;
+	else if(typeid(T) == typeid(signed char))
+		datatype = TSBYTE;
+	else
+		datatype = TDOUBLE;
+
+	numberPixels = Xaxes() * Yaxes();
+	pixels = new T[numberPixels];
+
+	if (fits_read_img(fptr, datatype, 1, numberPixels,const_cast<T*>(&nullvalue),pixels,&anynull, &status))
+	{
+		cerr<<"Error : reading image from file "<<filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+		fits_close_file(fptr, &status);
+		exit(EXIT_FAILURE);
+	} 
+	
+	fits_close_file(fptr, &status);
 
 	#if defined(DEBUG) && DEBUG >= 1
+
+	// We check that there is no lost of precision
 
 	switch(bitpix)
 	{
@@ -182,6 +189,7 @@ Image<T>::Image(const string& fitsFileName)
 			cerr<<"Error : Unknown fits File image data type."<<endl;
 
 	}
+	
 	#endif
 }
 
@@ -244,27 +252,40 @@ Image<T>* Image<T>::writeFitsImage (const string& filename)
 	remove(filename.c_str());
 
 	if (fits_create_file(&fptr, filename.c_str(), &status))
-		cerr<<"Error : Creating file with status "<< status <<endl;;
+	{
+		cerr<<"Error : creating file "<<filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+	} 
 
 	if ( fits_create_img(fptr,  bitpix, naxis, axes, &status) )
-		cerr<<"Error : Creating image with status "<< status <<endl;;
+	{
+		cerr<<"Error : creating image in file "<<filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+	} 
 
 	if ( fits_write_img(fptr, datatype, 1, numberPixels, pixels, &status) )
-		cerr<<"Error : Writing image with status "<< status <<endl;;
+	{
+		cerr<<"Error : writing pixels to file "<<filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+	} 
+
 
 	strcpy(comment, "naxis1");
 	if ( fits_update_key(fptr, TLONG, "NAXIS1", &(axes[0]) , comment, &status) )
-		cerr<<"Error : NAXIS1 = "<< status <<endl;
+	{
+		cerr<<"Error : writing keyword NAXIS1 to file "<<filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+	} 
 
 	strcpy(comment, "naxis2");
 	if ( fits_update_key(fptr, TLONG, "NAXIS2", &(axes[1]), comment, &status) )
-		cerr<<"Error : NAXIS2 = "<< status <<endl;
-
-	if ( fits_close_file(fptr, &status) )
-		cerr<<"Error : Closing file with status "<< status <<endl;
-
-	if (status)
+	{
+		cerr<<"Error : writing keyword NAXIS2 to file "<<filename<<" :"<< status <<endl;			
 		fits_report_error(stderr, status);
+	} 
+
+	fits_close_file(fptr, &status);
+
 	return this;
 
 }

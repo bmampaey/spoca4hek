@@ -30,7 +30,7 @@ class Image
 
 	public :
 		const T nullvalue;						  //nullvalue is the value of a non significatif pixel, it is set to the max. May be a problem if the picture is saturated
-		Image(const std::string& fitsFileName);
+		Image(const std::string& filename);
 		Image(const long xAxes = 0, const long yAxes = 0);
 		Image(const Image<T>& i);
 		Image(const Image<T>* i);

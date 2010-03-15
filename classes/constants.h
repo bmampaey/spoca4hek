@@ -38,6 +38,7 @@
 #define LIMB_CORRECTION BEN_CORR
 #endif
 
+
 // The function you want for the merging of 2 centers in sur segmentation
 // Acceptable values are MERGEVINCE  MERGEMEAN  MERGEMEANX  MERGEMAX  MERGECIS
 #if ! defined(MERGE)
@@ -71,6 +72,7 @@
 #define BEN_CORR 3
 #define CIS2_CORR 4
 
+
 #define MERGEVINCE 1
 #define MERGEMEAN 2
 #define MERGEMEANX 2
@@ -103,10 +105,38 @@
 
 #if INSTRUMENT==EIT
 #define PIXELTYPE TDOUBLE
+
+#define VINCE_CORR_R1  95
+#define CIS1_CORR_R1 90
+#define CIS1_CORR_R2 95
+#define BEN_CORR_R1 90
+#define BEN_CORR_R2 95
+#define BEN_CORR_R3 105
+#define BEN_CORR_R4 110
+
+
 #elif INSTRUMENT==EUVI
 #define PIXELTYPE TFLOAT
-#elif INSTRUMENT==EIT
+
+#define VINCE_CORR_R1  95
+#define CIS1_CORR_R1 90
+#define CIS1_CORR_R2 95
+#define BEN_CORR_R1 95
+#define BEN_CORR_R2 100
+#define BEN_CORR_R3 105
+#define BEN_CORR_R4 110
+
+#elif INSTRUMENT==AIA
 #define PIXELTYPE TUINT
+
+#define VINCE_CORR_R1  95
+#define CIS1_CORR_R1 90
+#define CIS1_CORR_R2 95
+#define BEN_CORR_R1 95
+#define BEN_CORR_R2 100
+#define BEN_CORR_R3 105
+#define BEN_CORR_R4 110
+
 #endif
 
 #if ! defined(PIXELTYPE)

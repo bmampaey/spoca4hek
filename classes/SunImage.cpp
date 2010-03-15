@@ -6,6 +6,13 @@ const Real PI = 3.14159265358979323846;
 const Real MIPI = 1.57079632679489661923;
 const Real BIPI = 6.28318530717958647692;
 
+
+SunImage::~SunImage()
+{
+	for (unsigned k = 0; k < header.size(); ++k)
+		delete header[k];
+}
+
 SunImage::SunImage(const long xAxes, const long yAxes, const double radius, const double wavelength)
 :Image<PixelType>(xAxes,yAxes),radius(radius),wavelength(wavelength),date_obs(0),median(1),datap01(0), datap95(numeric_limits<PixelType>::max())
 {
@@ -15,87 +22,95 @@ SunImage::SunImage(const long xAxes, const long yAxes, const double radius, cons
 }
 
 
-SunImage::SunImage(const string& fitsFileName)
-:Image<PixelType>(fitsFileName),median(1),datap01(0), datap95(numeric_limits<PixelType>::max())
+SunImage::SunImage(const string& filename)
+:Image<PixelType>(filename),median(1),datap01(0), datap95(numeric_limits<PixelType>::max())
 {
 	int   status  = 0;
 	fitsfile  *fptr;
 	char * comment = NULL  ;					  /**<By specifying NULL we say that we don't want the comments	*/
 
-	if (!fits_open_file(&fptr, fitsFileName.c_str(), READONLY, &status))
+	if (!fits_open_file(&fptr, filename.c_str(), READONLY, &status))
 	{
 
 		if (fits_read_key(fptr, TDOUBLE, "WAVELNTH", &wavelength,comment, &status))
 		{
-			cerr<<"Error reading image file "<<fitsFileName<<" :"<<endl;
-			cerr<<"Error reading key WAVELNTH : "<< status <<endl;
+			cerr<<"Error reading key WAVELNTH from file "<<filename<<" :"<< status <<endl;
 			fits_report_error(stderr, status);
 			status = 0;
 		}
 		if (fits_read_key(fptr, TINT, "CRPIX1", &(suncenter.x),comment, &status))
 		{
-			cerr<<"Error reading image file "<<fitsFileName<<" :"<<endl;			
-			cerr<<"Error reading key CRPIX1 : "<< status <<endl;
+			
+			cerr<<"Error reading key CRPIX1 from file "<<filename<<" :"<< status <<endl;
 			fits_report_error(stderr, status);
 			status = 0;
 		}
 		if (fits_read_key(fptr, TINT, "CRPIX2", &(suncenter.y), comment, &status))
 		{
-			cerr<<"Error reading image file "<<fitsFileName<<" :"<<endl;			
-			cerr<<"Error reading key CRPIX2 : "<< status <<endl;
+			
+			cerr<<"Error reading key CRPIX2 from file "<<filename<<" :"<< status <<endl;
 			fits_report_error(stderr, status);
 			status = 0;
 		}
 		if (fits_read_key(fptr, TDOUBLE, "CDELT1", &(cdelt[0]), comment, &status))
 		{
-			cerr<<"Error reading image file "<<fitsFileName<<" :"<<endl;			
-			cerr<<"Error reading key CDELT1 : "<< status <<endl;
+			
+			cerr<<"Error reading key CDELT1 from file "<<filename<<" :"<< status <<endl;
 			fits_report_error(stderr, status);
 			status = 0;
 		}
 		if (fits_read_key(fptr, TDOUBLE, "CDELT2", &(cdelt[1]), comment, &status))
 		{
-			cerr<<"Error reading image file "<<fitsFileName<<" :"<<endl;			
-			cerr<<"Error reading key CDELT2 : "<< status <<endl;
+			
+			cerr<<"Error reading key CDELT2 from file "<<filename<<" :"<< status <<endl;
 			fits_report_error(stderr, status);
 			status = 0;
 		}
 		#if INSTRUMENT==EIT
 		if (fits_read_key(fptr, TDOUBLE, "SOLAR_R", &radius, comment, &status))
 		{
-			cerr<<"Error reading image file "<<fitsFileName<<" :"<<endl;			
-			cerr<<"Error reading key SOLAR_R : "<< status <<endl;
+			
+			cerr<<"Error reading key SOLAR_R from file "<<filename<<" :"<< status <<endl;
 			fits_report_error(stderr, status);
 			status = 0;
 		}
 		#elif INSTRUMENT==EUVI
 		if (fits_read_key(fptr, TDOUBLE, "RSUN", &radius, comment, &status))
 		{
-			cerr<<"Error reading image file "<<fitsFileName<<" :"<<endl;			
-			cerr<<"Error reading key RSUN : "<< status <<endl;
+			
+			cerr<<"Error reading key RSUN from file "<<filename<<" :"<< status <<endl;
 			fits_report_error(stderr, status);
 			status = 0;
 		}
+		// EUVI express the radius in arc/sec
 		radius/=cdelt[0];
 		#elif INSTRUMENT==AIA
-
+		if (fits_read_key(fptr, TDOUBLE, "R_SUN", &radius, comment, &status))
+		{
+			
+			cerr<<"Error reading key R_SUN from file "<<filename<<" :"<< status <<endl;
+			fits_report_error(stderr, status);
+			status = 0;
+		}
 		#else
 		#error "INSTRUMENT is not defined"
 		#endif
-
+		
+		//The date of observation can be defined as DATE_OBS ou DATE-OBS
 		if (fits_read_key(fptr, TSTRING, "DATE-OBS", date_obs_string, comment, &status))
 		{
-			//HACK for eit images
+			
 			status = 0;
 			if (fits_read_key(fptr, TSTRING, "DATE_OBS", date_obs_string, comment, &status))
 			{
-				cerr<<"Error reading image file "<<fitsFileName<<" :"<<endl;
-				cerr<<"Error reading key DATE-OBS : "<< status <<endl;
+
+				cerr<<"Error reading key DATE-OBS from file "<<filename<<" :"<< status <<endl;
 				fits_report_error(stderr, status);
 				status = 0;
 			}
 			else
 			{
+				//Sometimes the date is appended with a z
 				char * letter;
 				if((letter = strpbrk (date_obs_string, "zZ")))
 					*letter = '\0';
@@ -111,27 +126,62 @@ SunImage::SunImage(const string& fitsFileName)
 		time.tm_mon = month -1;	//Because stupid c++ standard lib has the month going from 0-11
 		date_obs = mktime(&time);
 		
-		#if INSTRUMENT!=EIT
+		#if INSTRUMENT==EUVI || INSTRUMENT==AIA
 		if (fits_read_key(fptr, datatype, "DATAP01", &datap01,comment, &status))
 		{
-			cerr<<"Error reading image file "<<fitsFileName<<" :"<<endl;			
-			cerr<<"Error reading key DATAP01 : "<< status <<endl;
+			
+			cerr<<"Error reading key DATAP01 from file "<<filename<<" :"<< status <<endl;
 			fits_report_error(stderr, status);
 			status = 0;
 		}
 		if (fits_read_key(fptr, datatype, "DATAP95", &datap95,comment, &status))
 		{
-			cerr<<"Error reading image file "<<fitsFileName<<" :"<<endl;			
-			cerr<<"Error reading key DATAP95 : "<< status <<endl;
+			
+			cerr<<"Error reading key DATAP95 from file "<<filename<<" :"<< status <<endl;
+			fits_report_error(stderr, status);
+			status = 0;
+		}
+		#endif
+		
+		#if INSTRUMENT==AIA
+		if (fits_read_key(fptr, datatype, "DATAMEDN", &median,comment, &status))
+		{
+			
+			cerr<<"Error reading key DATAPMEDN from file "<<filename<<" :"<< status <<endl;
 			fits_report_error(stderr, status);
 			status = 0;
 		}
 		#endif
 
+		// We save all keywords for future usage
+		int numberKeys;
+		
+		if (fits_get_hdrspace(fptr, &numberKeys, NULL, &status))
+		{
+			
+			cerr<<"Error reading number of keywords from file "<<filename<<" :"<< status <<endl;
+			fits_report_error(stderr, status);
+		} 
+		
+		if (status == 0)
+		{
+			header.resize(numberKeys, NULL);
+			for (int k = 0; k < numberKeys; ++k)
+			{
+				header[k] = new char[81];
+				if(fits_read_record(fptr, k, header[k], &status))
+				{
+				
+					cerr<<"Error reading keyword from file "<<filename<<" :"<< status <<endl;
+					fits_report_error(stderr, status);
+				} 
+			}
+		}
+
 		fits_close_file(fptr, &status);
 	}
 	else
-		cerr<<"Error : Could not open fits File image "<<fitsFileName<<"."<<endl;
+		cerr<<"Error : Could not open fits File image "<<filename<<"."<<endl;
 
 }
 
@@ -142,6 +192,12 @@ SunImage::SunImage(const SunImage& i)
 	strncpy (date_obs_string, i.date_obs_string, 80);
 	cdelt[0] = i.cdelt[0];
 	cdelt[1] = i.cdelt[1];
+	header.resize(i.header.size(), NULL);
+	for (unsigned k = 0; k < i.header.size(); ++k)
+	{
+		header[k] = new char[81];
+		strncpy (header[k], i.header[k], 80);
+	}
 }
 
 
@@ -151,7 +207,12 @@ SunImage::SunImage(const SunImage* i)
 	strncpy (date_obs_string, i->date_obs_string, 80);
 	cdelt[0] = i->cdelt[0];
 	cdelt[1] = i->cdelt[1];
-
+	header.resize(i->header.size(), NULL);
+	for (unsigned k = 0; k < i->header.size(); ++k)
+	{
+		header[k] = new char[81];
+		strncpy (header[k], i->header[k], 80);
+	}
 }
 
 
@@ -159,65 +220,48 @@ SunImage* SunImage::writeFitsImage (const string& filename)
 {
 	fitsfile *fptr;
 	int status = 0;
-	char comment[100];
 	remove(filename.c_str());
 
 	if (fits_create_file(&fptr, filename.c_str(), &status))
-		cerr<<"Error : Creating file with status "<< status <<endl;;
+	{
+		cerr<<"Error : creating file "<<filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+	} 
 
 	if ( fits_create_img(fptr,  bitpix, naxis, axes, &status) )
-		cerr<<"Error : Creating image with status "<< status <<endl;;
+	{
+		cerr<<"Error : creating image in file "<<filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+	} 
 
 	if ( fits_write_img(fptr, datatype, 1, numberPixels, pixels, &status) )
-		cerr<<"Error : Writing image with status "<< status <<endl;;
+	{
+		cerr<<"Error : writing pixels to file "<<filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+	} 
 
-	strcpy(comment, "naxis1");
-	if ( fits_update_key(fptr, TLONG, "NAXIS1", &(axes[0]) , comment, &status) )
-		cerr<<"Error : writing keyword NAXIS1 = "<< status <<endl;
-
-	strcpy(comment, "naxis2");
-	if ( fits_update_key(fptr, TLONG, "NAXIS2", &(axes[1]), comment, &status) )
-		cerr<<"Error : writing keyword NAXIS2 = "<< status <<endl;
-
-	strcpy(comment, "crpix1");
-	if ( fits_update_key(fptr, TINT, "CRPIX1", &suncenter.x, comment, &status) )
-		cerr<<"Error : writing keyword CRPIX1 = "<< status <<endl;
-
-	strcpy(comment, "crpix2");
-	if ( fits_update_key(fptr, TINT, "CRPIX2", &suncenter.y, comment, &status) )
-		cerr<<"Error : writing keyword CRPIX2 = "<< status <<endl;
-
-	strcpy(comment, "solar_r");
-	#if INSTRUMENT==EIT
-	if ( fits_update_key(fptr, TDOUBLE, "SOLAR_R", &radius, comment, &status) )
-		cerr<<"Error : writing keyword SOLAR_R = "<< status <<endl;
-	#elif INSTRUMENT==EUVI
-	//TODO check if I have to multiply the radius by cdelt[0] again
-	if ( fits_update_key(fptr, TDOUBLE, "RSUN", &radius, comment, &status) )
-		cerr<<"Error : writing keyword RSUN = "<< status <<endl;
-
-	#elif INSTRUMENT==AIA
-
-	#else
-	#error "INSTRUMENT is not defined"
-	#endif
-
-	strcpy(comment, "wavelength");
-	if ( fits_update_key(fptr, TDOUBLE, "WAVELNTH", &wavelength, comment, &status) )
-		cerr<<"Error : writing keyword WAVELNTH = "<< status <<endl;
-
-	strcpy(comment, "date-obs");
-	if (fits_update_key(fptr, TSTRING, "DATE_OBS", date_obs_string, comment, &status))
-		cerr<<"Error : writing keyword DATE_OBS = "<< status <<endl;
-	strcpy(comment, "cdelt1");
-	if (fits_update_key(fptr, TDOUBLE, "CDELT1", &(cdelt[0]), comment, &status))
-		cerr<<"Error : writing keyword CDELT1 : "<< status <<endl;
-	strcpy(comment, "cdelt2");
-	if (fits_update_key(fptr, TDOUBLE, "CDELT2", &(cdelt[1]), comment, &status))
-		cerr<<"Error : writing keyword CDELT2 : "<< status <<endl;
-
+	for (unsigned k = 0; k < header.size(); ++k)
+	{
+		if(fits_write_record(fptr, header[k], &status))
+		{
+			cerr<<"Error : writing keyword to file "<<filename<<" :"<< status <<endl;			
+			fits_report_error(stderr, status);
+		} 
+	}
+	
+	if (fits_write_date(fptr, &status) )
+	{
+		cerr<<"Error : writing date to file "<<filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+	} 
+	
 	if ( fits_close_file(fptr, &status) )
-		cerr<<"Error : Closing file with status "<< status <<endl;
+	{
+		cerr<<"Error : closing file "<<filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+	} 
+
+	fits_close_file(fptr, &status);
 
 	return this;
 }
@@ -249,7 +293,7 @@ No Correction before r1, Full correction after r1 */
 inline Real SunImage::percentCorrection(const Real r)const
 {
 
-	const Real r1 = 0.95;
+	const Real r1 = VINCE_CORR_R1 / 100.;
 	if (r < r1)
 		return 0;
 	else
@@ -264,8 +308,8 @@ No Correction before r1, Full correction after r2, progressive correction in bet
 inline Real SunImage::percentCorrection(const Real r)const
 {
 
-	const Real r1 = 0.90;
-	const Real r2 = 0.95;
+	const Real r1 = CIS1_CORR_R1 / 100.;
+	const Real r2 = CIS1_CORR_R2 / 100.;
 	if (r < r1)
 		return 0;
 	else if (r >= r1 && r <= r2)
@@ -288,10 +332,10 @@ progressive correction following the descending phase of the sine between r3 and
 inline Real SunImage::percentCorrection(const Real r)const
 {
 
-	const Real r1 = 0.90;
-	const Real r2 = 0.95;
-	const Real r3 = 1.05;
-	const Real r4 = 1.10;
+	const Real r1 = BEN_CORR_R1 / 100.;
+	const Real r2 = BEN_CORR_R2 / 100.;
+	const Real r3 = BEN_CORR_R3 / 100.;
+	const Real r4 = BEN_CORR_R4 / 100.;
 	if (r <= r1 || r >= r4)
 		return 0;
 	else if (r >= r2 && r <= r3)
@@ -302,7 +346,7 @@ inline Real SunImage::percentCorrection(const Real r)const
 		Real phi = MIPI*(r1+r2)/(r1-r2);
 		return (sin((BIPI/T)*r + phi) + 1)/2;
 	}
-	else										  // (r => r3)
+	else // (r => r3)
 	{
 		Real T = 2*(r3-r4);
 		Real phi = - MIPI*(r3+r4)/(r3-r4);
@@ -412,53 +456,82 @@ PixelType quick_select(vector<PixelType>& arr, int n)
 #undef ELEM_SWAP
 
 void SunImage::annulusLimbCorrection(Real maxLimbRadius, Real minLimbRadius)
-{
-
+{						  
 	minLimbRadius *= radius;
 	maxLimbRadius *= radius;
 	Real minLimbRadius2 = minLimbRadius*minLimbRadius;
 	Real maxLimbRadius2 = maxLimbRadius*maxLimbRadius;
-	Real deltaR = 0.3;							  //This means that we consider the width of an annulus to be the size of a third of a pixel
-	vector<PixelType> onDiscList;
-	onDiscList.reserve(numberValidPixelsEstimate());
+	const Real deltaR = 1.0;	//This means that we consider the width of an annulus to be the size of a third of a pixel
 	vector<Real> annulusMean(unsigned((maxLimbRadius-minLimbRadius)/deltaR)+2,0);
 	vector<unsigned> annulusNbrPixels(unsigned((maxLimbRadius-minLimbRadius)/deltaR)+2,0);
 
 	PixelType* pixelValue;
 	Real pixelRadius2 = 0;
 	unsigned indice = 0;
-	for (unsigned y=0; y < Yaxes(); ++y)
+	if (median == 1) // I don't know the median value yet
 	{
-		for (unsigned x=0; x < Xaxes(); ++x)
+		vector<PixelType> onDiscList;
+		onDiscList.reserve(numberValidPixelsEstimate());
+		for (unsigned y=0; y < Yaxes(); ++y)
 		{
-
-			pixelValue = &pixel(x,y);
-			if ((*pixelValue) != nullvalue)
+			for (unsigned x=0; x < Xaxes(); ++x)
 			{
-				pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
 
-				if (pixelRadius2 <=  minLimbRadius2)
+				pixelValue = &pixel(x,y);
+				if ((*pixelValue) != nullvalue)
 				{
-					onDiscList.push_back((*pixelValue));
-				}
-				else if (pixelRadius2 <=  maxLimbRadius2)
-				{
-					indice = unsigned((sqrt(pixelRadius2) - minLimbRadius)/deltaR);
-					annulusMean.at(indice) = annulusMean.at(indice) + (*pixelValue);
-					annulusNbrPixels.at(indice) = annulusNbrPixels.at(indice) + 1;
-				}
+					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
 
+					if (pixelRadius2 <=  minLimbRadius2)
+					{
+						onDiscList.push_back((*pixelValue));
+					}
+					else if (pixelRadius2 <=  maxLimbRadius2)
+					{
+						indice = unsigned((sqrt(pixelRadius2)-minLimbRadius)/deltaR);
+						annulusMean.at(indice) = annulusMean.at(indice) + (*pixelValue);
+						annulusNbrPixels.at(indice) = annulusNbrPixels.at(indice) + 1;
+					}
+
+				}
+			}
+		}
+
+		median = quick_select(onDiscList, onDiscList.size());
+		#if defined(DEBUG) && DEBUG >= 3
+		cout<<"Image preprocessing found median: "<<median<<endl;
+		#endif
+	}
+	else
+	{
+		for (unsigned y=0; y < Yaxes(); ++y)
+		{
+			for (unsigned x=0; x < Xaxes(); ++x)
+			{
+				pixelValue = &pixel(x,y);
+				if ((*pixelValue) != nullvalue)
+				{
+					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
+
+					if (pixelRadius2 >  minLimbRadius2 && pixelRadius2 <=  maxLimbRadius2)
+					{
+						indice = unsigned((sqrt(pixelRadius2)-minLimbRadius)/deltaR);
+						annulusMean.at(indice) = annulusMean.at(indice) + (*pixelValue);
+						annulusNbrPixels.at(indice) = annulusNbrPixels.at(indice) + 1;
+					}
+
+				}
 			}
 		}
 	}
 
-	median = quick_select(onDiscList, onDiscList.size());
-
+	// We calculate the mean value of each annulus
 	for (unsigned i=0; i<annulusMean.size(); ++i)
 	{
 		if(annulusNbrPixels.at(i)>0)
 			annulusMean.at(i) = annulusMean.at(i) / Real(annulusNbrPixels.at(i));
 	}
+	// We correct the limb
 	for (unsigned y=0; y < Yaxes(); ++y)
 	{
 		for (unsigned x=0; x < Xaxes(); ++x)
@@ -467,16 +540,11 @@ void SunImage::annulusLimbCorrection(Real maxLimbRadius, Real minLimbRadius)
 			if ((*pixelValue) != nullvalue)
 			{
 				pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
-
-				if (pixelRadius2 < minLimbRadius2)// We don't correct
-				{
-				}
-												  // We don't take the pixel into account
-				else if (maxLimbRadius2 < pixelRadius2)
+				if (maxLimbRadius2 < pixelRadius2)
 				{
 					(*pixelValue) = nullvalue;
 				}
-				else							  //We correct the limb
+				else if (pixelRadius2 > minLimbRadius2)	  //We correct the limb
 				{
 					Real pixelRadius = sqrt(pixelRadius2);
 					Real fraction = percentCorrection(pixelRadius/radius);
@@ -491,123 +559,223 @@ void SunImage::annulusLimbCorrection(Real maxLimbRadius, Real minLimbRadius)
 
 }
 
-
-void SunImage::preprocessing(const unsigned type, Real maxLimbRadius, Real minLimbRadius)
-{
+void SunImage::ALCDivMedian(Real maxLimbRadius, Real minLimbRadius)
+{						  
 	minLimbRadius *= radius;
 	maxLimbRadius *= radius;
 	Real minLimbRadius2 = minLimbRadius*minLimbRadius;
 	Real maxLimbRadius2 = maxLimbRadius*maxLimbRadius;
-	Real deltaR = 0.3;
-	vector<PixelType> onDiscList;
-	onDiscList.reserve(numberValidPixelsEstimate());
+	const Real deltaR = 1.0;	//This means that we consider the width of an annulus to be the size of a third of a pixel
 	vector<Real> annulusMean(unsigned((maxLimbRadius-minLimbRadius)/deltaR)+2,0);
 	vector<unsigned> annulusNbrPixels(unsigned((maxLimbRadius-minLimbRadius)/deltaR)+2,0);
 
 	PixelType* pixelValue;
 	Real pixelRadius2 = 0;
 	unsigned indice = 0;
+	if (median == 1) // I don't know the median value yet
+	{
+		vector<PixelType> onDiscList;
+		onDiscList.reserve(numberValidPixelsEstimate());
+		for (unsigned y=0; y < Yaxes(); ++y)
+		{
+			for (unsigned x=0; x < Xaxes(); ++x)
+			{
+
+				pixelValue = &pixel(x,y);
+				if ((*pixelValue) != nullvalue)
+				{
+					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
+
+					if (pixelRadius2 <=  minLimbRadius2)
+					{
+						onDiscList.push_back((*pixelValue));
+					}
+					else if (pixelRadius2 <=  maxLimbRadius2)
+					{
+						indice = unsigned((sqrt(pixelRadius2)-minLimbRadius)/deltaR);
+						annulusMean.at(indice) = annulusMean.at(indice) + (*pixelValue);
+						annulusNbrPixels.at(indice) = annulusNbrPixels.at(indice) + 1;
+					}
+
+				}
+			}
+		}
+
+		median = quick_select(onDiscList, onDiscList.size());
+		#if defined(DEBUG) && DEBUG >= 3
+		cout<<"Image preprocessing found median: "<<median<<endl;
+		#endif
+	}
+	else
+	{
+		for (unsigned y=0; y < Yaxes(); ++y)
+		{
+			for (unsigned x=0; x < Xaxes(); ++x)
+			{
+				pixelValue = &pixel(x,y);
+				if ((*pixelValue) != nullvalue)
+				{
+					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
+
+					if (pixelRadius2 >  minLimbRadius2 && pixelRadius2 <=  maxLimbRadius2)
+					{
+						indice = unsigned((sqrt(pixelRadius2)-minLimbRadius)/deltaR);
+						annulusMean.at(indice) = annulusMean.at(indice) + (*pixelValue);
+						annulusNbrPixels.at(indice) = annulusNbrPixels.at(indice) + 1;
+					}
+
+				}
+			}
+		}
+	}
+
+	// We calculate the mean value of each annulus
+	for (unsigned i=0; i<annulusMean.size(); ++i)
+	{
+		if(annulusNbrPixels.at(i)>0)
+			annulusMean.at(i) = annulusMean.at(i) / Real(annulusNbrPixels.at(i));
+	}
+	// We correct the limb
 	for (unsigned y=0; y < Yaxes(); ++y)
 	{
 		for (unsigned x=0; x < Xaxes(); ++x)
 		{
-
 			pixelValue = &pixel(x,y);
 			if ((*pixelValue) != nullvalue)
 			{
 				pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
-
-				if (pixelRadius2 <=  minLimbRadius2)
+				if (maxLimbRadius2 < pixelRadius2)
 				{
-					onDiscList.push_back((*pixelValue));
+					(*pixelValue) = nullvalue;
 				}
-				else if (pixelRadius2 <=  maxLimbRadius2)
+				else if (pixelRadius2 > minLimbRadius2)	  //We correct the limb
 				{
-					indice = unsigned((sqrt(pixelRadius2)-minLimbRadius)/deltaR);
-					annulusMean.at(indice) = annulusMean.at(indice) + (*pixelValue);
-					annulusNbrPixels.at(indice) = annulusNbrPixels.at(indice) + 1;
+					Real pixelRadius = sqrt(pixelRadius2);
+					Real fraction = percentCorrection(pixelRadius/radius);
+					indice = unsigned((pixelRadius-minLimbRadius)/deltaR);
+					(*pixelValue) = (1. - fraction) * (*pixelValue) / median + (fraction * (*pixelValue)) / annulusMean.at(indice);
+
+				}
+				else
+				{
+					(*pixelValue) = (*pixelValue) / median;
 				}
 
 			}
 		}
 	}
 
-	median = quick_select(onDiscList, onDiscList.size());
+}
 
+void SunImage::ALCDivMode(Real maxLimbRadius, Real minLimbRadius)
+{						  
+	minLimbRadius *= radius;
+	maxLimbRadius *= radius;
+	Real minLimbRadius2 = minLimbRadius*minLimbRadius;
+	Real maxLimbRadius2 = maxLimbRadius*maxLimbRadius;
+	const Real deltaR = 1.0;	//This means that we consider the width of an annulus to be the size of a third of a pixel
+	vector<Real> annulusMean(unsigned((maxLimbRadius-minLimbRadius)/deltaR)+2,0);
+	vector<unsigned> annulusNbrPixels(unsigned((maxLimbRadius-minLimbRadius)/deltaR)+2,0);
+
+	// I need to construct a quick histogram to find the mode
+	const Real binSize = 5;
+	vector<unsigned> histo(1024, 0);
+
+	PixelType* pixelValue;
+	Real pixelRadius2 = 0;
+	unsigned indice = 0;
+	if (median == 1) // I don't know the median value yet
+	{
+		vector<PixelType> onDiscList;
+		onDiscList.reserve(numberValidPixelsEstimate());
+		for (unsigned y=0; y < Yaxes(); ++y)
+		{
+			for (unsigned x=0; x < Xaxes(); ++x)
+			{
+
+				pixelValue = &pixel(x,y);
+				if ((*pixelValue) != nullvalue)
+				{
+					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
+
+					if (pixelRadius2 <=  minLimbRadius2)
+					{
+						onDiscList.push_back((*pixelValue));
+						unsigned bin = unsigned((*pixelValue)/binSize);
+						if (bin >= histo.size())
+							histo.resize(bin + 1024, 0);
+						++histo[bin];
+					}
+					else if (pixelRadius2 <=  maxLimbRadius2)
+					{
+						indice = unsigned((sqrt(pixelRadius2)-minLimbRadius)/deltaR);
+						annulusMean.at(indice) = annulusMean.at(indice) + (*pixelValue);
+						annulusNbrPixels.at(indice) = annulusNbrPixels.at(indice) + 1;
+					}
+
+				}
+			}
+		}
+
+		median = quick_select(onDiscList, onDiscList.size());
+		#if defined(DEBUG) && DEBUG >= 3
+		cout<<"Image preprocessing found median: "<<median<<endl;
+		#endif
+	}
+	else
+	{
+		for (unsigned y=0; y < Yaxes(); ++y)
+		{
+			for (unsigned x=0; x < Xaxes(); ++x)
+			{
+				pixelValue = &pixel(x,y);
+				if ((*pixelValue) != nullvalue)
+				{
+					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
+
+					if (pixelRadius2 <=  minLimbRadius2)
+					{
+						unsigned bin = unsigned((*pixelValue)/binSize);
+						if (bin >= histo.size())
+							histo.resize(bin + 1024, 0);
+						++histo[bin];
+					}
+					else if (pixelRadius2 <=  maxLimbRadius2)
+					{
+						indice = unsigned((sqrt(pixelRadius2)-minLimbRadius)/deltaR);
+						annulusMean.at(indice) = annulusMean.at(indice) + (*pixelValue);
+						annulusNbrPixels.at(indice) = annulusNbrPixels.at(indice) + 1;
+					}
+
+				}
+			}
+		}
+	}
+
+	// We search for the mode
+	unsigned max = 0;
+	Real mode = 0;
+	for (unsigned h = 0; h < histo.size(); ++h)
+	{
+		if (max < histo[h])
+		{
+			max = histo[h];
+			mode = h;
+		}
+	}
+	mode = mode * binSize + (binSize / 2);
+	#if defined(DEBUG) && DEBUG >= 3
+	cout<<"Image preprocessing found mode: "<<mode<<endl;
+	#endif
+
+	// We calculate the mean value of each annulus
 	for (unsigned i=0; i<annulusMean.size(); ++i)
 	{
 		if(annulusNbrPixels.at(i)>0)
 			annulusMean.at(i) = annulusMean.at(i) / Real(annulusNbrPixels.at(i));
 	}
 
-	if(type == DivMedian)
-	{
-		for (unsigned y=0; y < Yaxes(); ++y)
-		{
-			for (unsigned x=0; x < Xaxes(); ++x)
-			{
-				pixelValue = &pixel(x,y);
-				if ((*pixelValue) != nullvalue)
-				{
-					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
-												  //Division of the picture by its median value
-					if (pixelRadius2 < minLimbRadius2)
-					{
-						(*pixelValue) = ((*pixelValue) / median);
-					}
-												  // We don't take the pixel into account
-					else if (maxLimbRadius2 < pixelRadius2)
-					{
-						(*pixelValue) = nullvalue;
-					}
-					else						  //We correct the limb
-					{
-						Real pixelRadius = sqrt(pixelRadius2);
-						Real fraction = percentCorrection(pixelRadius/radius);
-						indice = unsigned((pixelRadius-minLimbRadius)/deltaR);
-						(*pixelValue) = (1. - fraction) * (*pixelValue) / median + (fraction * (*pixelValue)) / annulusMean.at(indice);
-
-					}
-
-				}
-			}
-		}
-	}
-	else if(type == TakeLog)
-	{
-		for (unsigned y=0; y < Yaxes(); ++y)
-		{
-			for (unsigned x=0; x < Xaxes(); ++x)
-			{
-				pixelValue = &pixel(x,y);
-				if ((*pixelValue) != nullvalue)
-				{
-					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
-												  //We take the log of the picture
-					if (pixelRadius2 < minLimbRadius2)
-					{
-						(*pixelValue) = log((*pixelValue));
-					}
-												  // We don't take the pixel into account
-					else if (maxLimbRadius2 < pixelRadius2)
-					{
-						(*pixelValue) = nullvalue;
-					}
-					else						  //We correct the limb
-					{
-						Real pixelRadius = sqrt(pixelRadius2);
-						Real fraction = percentCorrection(pixelRadius/radius);
-						indice = unsigned((pixelRadius-minLimbRadius)/deltaR);
-						(*pixelValue) = log(((1. - fraction) * (*pixelValue) + (fraction * (*pixelValue) * median) / annulusMean.at(indice)));
-
-					}
-
-				}
-			}
-		}
-	}
-	else if(type == TakeSqrt)
-		for (unsigned y=0; y < Yaxes(); ++y)
+	for (unsigned y=0; y < Yaxes(); ++y)
 	{
 		for (unsigned x=0; x < Xaxes(); ++x)
 		{
@@ -615,56 +783,69 @@ void SunImage::preprocessing(const unsigned type, Real maxLimbRadius, Real minLi
 			if ((*pixelValue) != nullvalue)
 			{
 				pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
-				if (pixelRadius2 < minLimbRadius2)//We take the sqrt of the picture
-				{
-					(*pixelValue) = sqrt((*pixelValue));
-				}
-												  // We don't take the pixel into account
-				else if (maxLimbRadius2 < pixelRadius2)
+				if (maxLimbRadius2 < pixelRadius2)
 				{
 					(*pixelValue) = nullvalue;
 				}
-				else							  //We correct the limb
+				else
 				{
-					Real pixelRadius = sqrt(pixelRadius2);
-					Real fraction = percentCorrection(pixelRadius/radius);
-					indice = unsigned((pixelRadius-minLimbRadius)/deltaR);
-					(*pixelValue) = sqrt(((1. - fraction) * (*pixelValue) + (fraction * (*pixelValue) * median) / annulusMean.at(indice)));
+					if (pixelRadius2 > minLimbRadius2)	  //We correct the limb
+					{
+						Real pixelRadius = sqrt(pixelRadius2);
+						Real fraction = percentCorrection(pixelRadius/radius);
+						indice = unsigned((pixelRadius-minLimbRadius)/deltaR);
+						(*pixelValue) = (1. - fraction) * (*pixelValue) + (fraction * (*pixelValue) * median) / annulusMean.at(indice);
 
+					}
+					(*pixelValue) /= mode;
 				}
 
 			}
 		}
 	}
-	else
-		for (unsigned y=0; y < Yaxes(); ++y)
+
+}
+
+
+void SunImage::preprocessing(const int type, Real maxLimbRadius, Real minLimbRadius)
+{
+
+	switch (type)
 	{
-		for (unsigned x=0; x < Xaxes(); ++x)
-		{
-			pixelValue = &pixel(x,y);
-			if ((*pixelValue) != nullvalue)
+		case None:
+			nullifyAboveRadius(maxLimbRadius);
+		break;
+		case ALC:
+			annulusLimbCorrection(maxLimbRadius, minLimbRadius);
+		break;
+		case TakeLog:
+			annulusLimbCorrection(maxLimbRadius, minLimbRadius);
+			for (unsigned j=0; j < numberPixels; ++j)
+			if (pixels[j] <= 0)
+				pixels[j] = nullvalue;
+			else
+				pixels[j] = pixels[j] != nullvalue ? log(pixels[j]) : pixels[j];
+		break;
+		case DivMedian:
+			ALCDivMedian(maxLimbRadius, minLimbRadius);
+		break;
+		case TakeSqrt:
+			annulusLimbCorrection(maxLimbRadius, minLimbRadius);
+			for (unsigned j=0; j < numberPixels; ++j)
 			{
-				pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
-
-				if (pixelRadius2 < minLimbRadius2)// We don't correct
-				{
-				}
-												  // We don't take the pixel into account
-				else if (maxLimbRadius2 < pixelRadius2)
-				{
-					(*pixelValue) = nullvalue;
-				}
-				else							  //We correct the limb
-				{
-					Real pixelRadius = sqrt(pixelRadius2);
-					Real fraction = percentCorrection(pixelRadius/radius);
-					indice = unsigned((pixelRadius-minLimbRadius)/deltaR);
-					(*pixelValue) = (1. - fraction) * (*pixelValue) + (fraction * (*pixelValue) * median) / annulusMean.at(indice);
-
-				}
-
+				if (pixels[j] < 0)
+					pixels[j] = pixels[j] != nullvalue ? -sqrt(-pixels[j]) : pixels[j];
+				else
+					pixels[j] = pixels[j] != nullvalue ? sqrt(pixels[j]) : pixels[j];
 			}
-		}
+		break;
+		case DivMode:
+			ALCDivMode(maxLimbRadius, minLimbRadius);
+		break;
+		
+		default:
+			cerr<<"Unknown preprocessing type."<<endl;
+			exit(EXIT_FAILURE);
 	}
 
 }
