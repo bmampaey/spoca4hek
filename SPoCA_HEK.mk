@@ -4,19 +4,16 @@ LFLAGS=-l cfitsio
 DFLAGS=-DINSTRUMENT=EUVI -DDEBUG=0 -DNUMBERWAVELENGTH=2
 
 all:bin/SPoCA_HEK.x
-clean: rm bin/SPoCA_HEK.x objects/SPoCA_HEK.o objects/RegionStats.o objects/Region.o objects/MainUtilities.o objects/ArgumentHelper.o objects/FeatureVector.o objects/HistogramFCMClassifier.o objects/FCMClassifier.o objects/Classifier.o objects/Image.o objects/SunImage.o objects/tools.o
+clean: rm bin/SPoCA_HEK.x objects/SPoCA_HEK.o objects/Region.o objects/MainUtilities.o objects/ArgumentHelper.o objects/FeatureVector.o objects/HistogramFCMClassifier.o objects/FCMClassifier.o objects/Classifier.o objects/RegionStats.o objects/Image.o objects/SunImage.o objects/tools.o
 
 
-bin/SPoCA_HEK.x : SPoCA_HEK.mk objects/SPoCA_HEK.o objects/RegionStats.o objects/Region.o objects/MainUtilities.o objects/ArgumentHelper.o objects/FeatureVector.o objects/HistogramFCMClassifier.o objects/FCMClassifier.o objects/Classifier.o objects/Image.o objects/SunImage.o objects/tools.o
-	$(CC) $(CFLAGS) $(DFLAGS) objects/SPoCA_HEK.o objects/RegionStats.o objects/Region.o objects/MainUtilities.o objects/ArgumentHelper.o objects/FeatureVector.o objects/HistogramFCMClassifier.o objects/FCMClassifier.o objects/Classifier.o objects/Image.o objects/SunImage.o objects/tools.o $(LFLAGS) -o bin/SPoCA_HEK.x
+bin/SPoCA_HEK.x : SPoCA_HEK.mk objects/SPoCA_HEK.o objects/Region.o objects/MainUtilities.o objects/ArgumentHelper.o objects/FeatureVector.o objects/HistogramFCMClassifier.o objects/FCMClassifier.o objects/Classifier.o objects/RegionStats.o objects/Image.o objects/SunImage.o objects/tools.o
+	$(CC) $(CFLAGS) $(DFLAGS) objects/SPoCA_HEK.o objects/Region.o objects/MainUtilities.o objects/ArgumentHelper.o objects/FeatureVector.o objects/HistogramFCMClassifier.o objects/FCMClassifier.o objects/Classifier.o objects/RegionStats.o objects/Image.o objects/SunImage.o objects/tools.o $(LFLAGS) -o bin/SPoCA_HEK.x
 
-objects/SPoCA_HEK.o : SPoCA_HEK.mk programs/SPoCA_HEK.cpp classes/tools.h classes/constants.h classes/SunImage.h classes/HistogramFCMClassifier.h classes/FeatureVector.h dsr/ArgumentHelper.h classes/MainUtilities.h classes/RegionStats.h classes/Coordinate.h
+objects/SPoCA_HEK.o : SPoCA_HEK.mk programs/SPoCA_HEK.cpp classes/tools.h classes/constants.h classes/SunImage.h classes/HistogramFCMClassifier.h classes/FeatureVector.h dsr/ArgumentHelper.h classes/MainUtilities.h classes/Region.h classes/Coordinate.h
 	$(CC) -c $(CFLAGS) $(DFLAGS) programs/SPoCA_HEK.cpp -o objects/SPoCA_HEK.o
 
-objects/RegionStats.o : SPoCA_HEK.mk classes/RegionStats.cpp classes/Region.h classes/FeatureVector.h classes/Coordinate.h
-	$(CC) -c $(CFLAGS) $(DFLAGS) classes/RegionStats.cpp -o objects/RegionStats.o
-
-objects/Region.o : SPoCA_HEK.mk classes/Region.cpp classes/Coordinate.h
+objects/Region.o : SPoCA_HEK.mk classes/Region.cpp classes/constants.h classes/Coordinate.h classes/SunImage.h
 	$(CC) -c $(CFLAGS) $(DFLAGS) classes/Region.cpp -o objects/Region.o
 
 objects/MainUtilities.o : SPoCA_HEK.mk classes/MainUtilities.cpp classes/FeatureVector.h classes/SunImage.h
@@ -36,6 +33,9 @@ objects/FCMClassifier.o : SPoCA_HEK.mk classes/FCMClassifier.cpp classes/Image.h
 
 objects/Classifier.o : SPoCA_HEK.mk classes/Classifier.cpp classes/tools.h classes/constants.h classes/Image.h classes/SunImage.h classes/FeatureVector.h classes/RegionStats.h classes/Coordinate.h
 	$(CC) -c $(CFLAGS) $(DFLAGS) classes/Classifier.cpp -o objects/Classifier.o
+
+objects/RegionStats.o : SPoCA_HEK.mk classes/RegionStats.cpp classes/constants.h classes/Region.h classes/Coordinate.h classes/SunImage.h
+	$(CC) -c $(CFLAGS) $(DFLAGS) classes/RegionStats.cpp -o objects/RegionStats.o
 
 objects/Image.o : SPoCA_HEK.mk classes/Image.cpp classes/fitsio.h classes/longnam.h classes/tools.h classes/constants.h classes/Coordinate.h
 	$(CC) -c $(CFLAGS) $(DFLAGS) classes/Image.cpp -o objects/Image.o

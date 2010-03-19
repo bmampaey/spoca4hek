@@ -39,10 +39,21 @@ class Coordinate
 			y += c.y;
 			return *this;
 		}
+		Coordinate& operator-=(const Coordinate& c)
+		{
+			x -= c.x;
+			y -= c.y;
+			return *this;
+		}
 		Coordinate operator+(const Coordinate& c) const
 		{
-			Coordinate result(c);
-			return result+=(*this);
+			Coordinate result(*this);
+			return result+=(c);
+		}
+		Coordinate operator-(const Coordinate& c) const
+		{
+			Coordinate result(*this);
+			return result-=(c);
 		}
 		double d2(const Coordinate& c) const
 		{

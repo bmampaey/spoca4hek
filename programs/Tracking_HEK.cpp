@@ -33,52 +33,7 @@ inline bool compare(const SunImage* a, const SunImage* b)
 }
 
 
-// Extraction of the regions from a connected component colored Map
-vector<Region*> getRegions(const SunImage* ARmap)
-{
-	vector<Region*> regions(1024, NULL);
-
-	//Let's get the connected regions stats
-	for (unsigned j = 0; j < ARmap->NumberPixels(); ++j)
-	{
-
-		if(ARmap->pixel(j) != ARmap->nullvalue)
-		{
-			unsigned pixelValue = unsigned(ARmap->pixel(j));
-			//We check the array size before
-			if(pixelValue >= regions.size())
-				regions.resize(pixelValue + 1024, NULL);
-			// If the regions does not yet exist we create it
-			if (!regions[pixelValue])
-			{
-				regions[pixelValue] = new Region(ARmap->ObsDate(),pixelValue);
-			}
-			// We add the pixel to the region
-			regions[pixelValue]->add(j % ARmap->Xaxes(), unsigned(j / ARmap->Xaxes()));
-		}
-
-	}
-
-	//We cleanup the null regions
-	vector<Region*>::iterator r1 = regions.begin();
-	while (r1 != regions.end())
-	{
-		if(!(*r1))
-		{
-			vector<Region*>::iterator r2 = r1;
-			while( r2 != regions.end() && !(*r2))
-				++r2;
-			r1 = regions.erase(r1,r2);
-		}
-		else
-			++r1;
-	}
-
-	return regions;
-
-}
-
-
+// Compute the number of pixels common to 2 regions from 2 images
 unsigned overlay(SunImage* image1, const Region* region1, SunImage* image2, const Region* region2)
 {
 	unsigned intersectPixels = 0;
@@ -187,8 +142,8 @@ bool path(const RegionGraph::node* n, const Region* r)
 // Output a graph in the dot format
 void ouputGraph(const RegionGraph& g, const vector<vector<Region*> >& regions, const string graphName)
 {
-	string fileName = outputFileName + graphName + ".dot";
-	ofstream graphFile(fileName.c_str());
+	string filename = outputFileName + graphName + ".dot";
+	ofstream graphFile(filename.c_str());
 	if (graphFile.good())
 	{
 
@@ -230,13 +185,13 @@ void ouputGraph(const RegionGraph& g, const vector<vector<Region*> >& regions, c
 
 
 // Output regions in the region format
-void ouputRegions(const vector<vector<Region*> >& regions, string fileName)
+void ouputRegions(const vector<vector<Region*> >& regions, string filename)
 {
-	fileName = outputFileName + fileName;
-	ofstream regionFile(fileName.c_str());
+	filename = outputFileName + filename;
+	ofstream regionFile(filename.c_str());
 	if (regionFile.good())
 	{
-		regionFile<<Region::header()<<endl<<endl;
+		regionFile<<Region::header<<endl<<endl;
 		for (unsigned s = 0; s < regions.size(); ++s)
 		{
 			for (unsigned r = 0; r < regions[s].size(); ++r)
@@ -257,7 +212,7 @@ int main(int argc, const char **argv)
 	cout<<setiosflags(ios::fixed);
 	#endif
 
-	string fileName;
+	string filename;
 	vector<string> sunImagesFileNames;
 	newColor = 0;
 	unsigned delta_time = 3600, overlap = 1;
@@ -287,6 +242,7 @@ int main(int argc, const char **argv)
 	//We ordonate the images according to time
 	sort(images.begin(), images.end(), compare);
 
+	#if defined(DEBUG) && DEBUG >= 1
 	//We remove the ones that have duplicate time
 	vector<SunImage*>::iterator s1 = images.begin();
 	vector<SunImage*>::iterator s2 = images.begin() + 1;
@@ -302,7 +258,8 @@ int main(int argc, const char **argv)
 		}
 		s2 = s1 + 1;
 	}
-
+	#endif
+	
 	// We get the regions out of the images
 	vector<vector<Region*> > regions;
 	for (unsigned s = 0; s < images.size(); ++s)
@@ -318,6 +275,7 @@ int main(int argc, const char **argv)
 		if(newColor < regions[0][r]->Color())
 			newColor = regions[0][r]->Color();
 	}
+	
 
 	#if defined(DEBUG) && DEBUG >= 2
 	// We output the regions found
@@ -336,9 +294,9 @@ int main(int argc, const char **argv)
 	}
 
 	// We create the edges of the graph
-	// According to Cis be create an edge between 2 nodes
+	// According to Cis we create an edge between 2 nodes
 	// if their time difference is smaller than some value and
-	// if they overlay
+	// if they overlay and
 	// if there is not already a path between them
 
 	
@@ -394,7 +352,7 @@ int main(int argc, const char **argv)
 
 
 	#if defined(DEBUG) && DEBUG >= 2
-	// We color all images and output them
+	// We color the first images and output them
 	for (unsigned s = 0; s < images.size() - overlap; ++s)
 	{
 		for (unsigned r = 0; r < regions[s].size(); ++r)
@@ -402,12 +360,12 @@ int main(int argc, const char **argv)
 			if(images[s]->pixel(regions[s][r]->FirstPixel()) != regions[s][r]->Color())
 				images[s]->propagateColor(regions[s][r]->Color(), regions[s][r]->FirstPixel());
 		}
-		fileName = sunImagesFileNames[s];
-		images[s]->writeFitsImage(fileName);
+		filename = sunImagesFileNames[s];
+		images[s]->writeFitsImage(filename);
 
 	}
 	#endif
-	//We color the last images and output it
+	//We color the last images and output them
 	for (unsigned s = images.size() - overlap; s < images.size(); ++s)
 	{
 		for (unsigned r = 0; r < regions[s].size(); ++r)
@@ -415,8 +373,8 @@ int main(int argc, const char **argv)
 			if(images[s]->pixel(regions[s][r]->FirstPixel()) != regions[s][r]->Color())
 				images[s]->propagateColor(regions[s][r]->Color(), regions[s][r]->FirstPixel());
 		}
-		fileName = sunImagesFileNames[s];
-		images[s]->writeFitsImage(fileName);
+		filename = sunImagesFileNames[s];
+		images[s]->writeFitsImage(filename);
 		delete images[s];
 
 	}
@@ -424,7 +382,7 @@ int main(int argc, const char **argv)
 	unsigned s = images.size() - 1;
 	for (unsigned r = 0; r < regions[s].size(); ++r)
 	{
-		cout<<regions[s][r]->Center()<<"\t"<<regions[s][r]->Boxmin()<<"\t"<<regions[s][r]->Boxmax()<<"\t"<<regions[s][r]->Id()<<"\t"<<regions[s][r]->size()<<"\t"<<regions[s][r]->Label()<<"\t"<<regions[s][r]->DateObs()<<"\t"<<regions[s][r]->Color()<<endl;
+		cout<<*(regions[s][r])<<endl;
 		
 	}
 

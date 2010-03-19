@@ -69,9 +69,9 @@ class Classifier
 		virtual Image<Real>* normalizedFuzzyMap(const unsigned i);
 		void saveResults(SunImage* outImage);
 		void saveARmap(SunImage* outImage);
-		std::vector<RegionStats*> getRegions(const SunImage* colorizedComponentsMap, unsigned numberRegions);
 		std::vector<PixelFeature> percentiles(std::vector<Real>);
 		std::vector<RealFeature> getB();
+		SunImage* getImage(unsigned p);
 
 		//Function to initialise the centers
 		virtual void init(const std::vector<RealFeature>& initB);

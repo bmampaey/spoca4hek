@@ -9,7 +9,9 @@
 #include <time.h>
 #include <string>
 
+#include "constants.h"
 #include "Coordinate.h"
+#include "SunImage.h"
 
 class Region
 {
@@ -19,6 +21,11 @@ class Region
 		unsigned long color;
 		Coordinate first, boxmin, boxmax, center;
 		unsigned numberPixels;
+		
+	protected :
+		//Update routines
+		void add(const unsigned& x, const unsigned& y);
+		void add(const Coordinate& pixelCoordinate);
 
 	public :
 		//Constructors
@@ -36,19 +43,18 @@ class Region
 		Coordinate Boxmax() const;
 		Coordinate Center() const;
 		Coordinate FirstPixel() const;
-		unsigned size() const;
+		unsigned NumberPixels() const;
 		time_t ObsDate() const;
-		
-		//various routines
-		void add(const unsigned& x, const unsigned& y);
-		void add(const Coordinate& c);
 		std::string Label() const;
 
 	public :
 
-		static const char * header();
+		static const std::string header;
 		friend std::ostream& operator<<(std::ostream& out, const Region& r);
-		friend std::istream& operator>>(std::istream& in, Region& r);
+		friend std::vector<Region*> getRegions(const SunImage* colorizedComponentsMap);
 
 };
+
+std::vector<Region*> getRegions(const SunImage* colorizedComponentsMap);
+
 #endif

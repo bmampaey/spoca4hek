@@ -5,15 +5,22 @@
 #include <limits>
 #include <math.h>
 #include <iostream>
+#include "constants.h"
 #include "Region.h"
-#include "FeatureVector.h"
 #include "Coordinate.h"
+#include "SunImage.h"
 
 class RegionStats : public Region
 {
 
 	private :
-		RealFeature m1, m2, m3, m4, minPixel, maxPixel;
+		Real m1, m2, m3, m4, minIntensity, maxIntensity, totalIntensity, area_Raw, area_RawUncert, area_AtDiskCenter, area_AtDiskCenterUncert, numberContourPixels;
+		
+	private :
+		//Update routines
+		void add(const Coordinate& pixelCoordinate, const PixelType& pixelIntensity, const Coordinate relativePixelCoordinate, const bool atBorder, const double R);
+		void update(const PixelType& pixelIntensity);
+
 
 	public :
 		//Constructors
@@ -21,17 +28,26 @@ class RegionStats : public Region
 		RegionStats(const time_t& date_obs);
 		RegionStats(const time_t& date_obs, const unsigned id, const unsigned long color = 0);
 
-		//various routines
-		void add(const PixelFeature& fv, const Coordinate& c);
-		void update(const PixelFeature& fv);
 
-		RealFeature mean() const;
-		RealFeature skewness() const;
-		RealFeature kurtosis() const;
+		Real Mean() const;
+		Real Variance() const;
+		Real Skewness() const;
+		Real Kurtosis() const;
+		Real MinIntensity() const;
+		Real MaxIntensity() const;
+		Real TotalIntensity() const;
+		Real Area_Raw() const;
+		Real Area_RawUncert() const;
+		Real Area_AtDiskCenter() const;
+		Real Area_AtDiskCenterUncert() const;
 
 	public :
-		static const char * header();
+		static const std::string header;
 		friend std::ostream& operator<<(std::ostream& out, const RegionStats& r);
+		friend std::vector<RegionStats*> getRegions(const SunImage* colorizedComponentsMap, const SunImage* image);
 
 };
+
+std::vector<RegionStats*> getRegions(const SunImage* colorizedComponentsMap, const SunImage* image);
+
 #endif

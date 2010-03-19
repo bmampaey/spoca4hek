@@ -36,10 +36,14 @@ void Region::setColor(const unsigned long& color)
 
 
 Coordinate Region::Boxmin() const
-{return boxmin;}
+{
+	return boxmin;
+}
 
 Coordinate Region::Boxmax() const
-{return boxmax;}
+{
+	return boxmax;
+}
 
 Coordinate Region::Center() const
 {
@@ -56,7 +60,7 @@ Coordinate Region::FirstPixel() const
 }
 
 
-unsigned Region::size() const
+unsigned Region::NumberPixels() const
 {
 	return numberPixels;
 }
@@ -83,9 +87,9 @@ void Region::add(const unsigned& x, const unsigned& y)
 }
 
 
-void Region::add(const Coordinate& c)
+void Region::add(const Coordinate& pixelCoordinate)
 {
-	this->add(c.x, c.y);
+	this->add(pixelCoordinate.x, pixelCoordinate.y);
 }
 
 
@@ -99,21 +103,67 @@ string Region::Label() const
 }
 
 
-const char * Region::header ()
-{return "id\tcolor\tdate_obs\tnumberPixels\t(1stPix.x,\t1stPix.y)\t(boxmin.x,\tboxmin.y)\t(boxmax.x,\tboxmax.y)\t(center.x,\tcenter.y)";}
+static const string Region::header = "(center.x,center.y)\t(boxmin.x,boxmin.y)\t(boxmax.x,boxmax.y)\tid\tnumberPixels\tlabel\tdate_obs\tcolor";
 
 ostream& operator<<(ostream& out, const Region& r)
 {
-	out<<r.id<<"\t"<<r.color<<"\t"<<r.date_obs<<"\t"<<r.numberPixels<<"\t"
-		<<r.first<<"\t"<<r.boxmin<<"\t"<<r.boxmax<<"\t"<<r.center;
+	
+	out<<r.Center()<<"\t"<<r.Boxmin()<<"\t"<<r.Boxmax()<<"\t"<<r.Id()<<"\t"<<r.NumberPixels()<<"\t"<<r.Label()<<"\t"<<r.ObsDate()<<"\t"<<r.Color();
 	return out;
 }
 
-
-istream& operator>>(istream& in, Region& r)
+// Extraction of the regions from a connected component colored Map
+vector<Region*> getRegions(const SunImage* colorizedComponentsMap)
 {
-	char separator;
-	in>>r.id>>separator>>r.color>>separator>>r.date_obs>>separator>>r.numberPixels>>separator
-		>>r.first>>separator>>r.boxmin>>separator>>r.boxmax>>separator>>r.center;
-	return in;
+	vector<Region*> regions;
+
+	unsigned id = 0;
+	
+	//Let's get the connected regions
+	for (unsigned y = 0; y < colorizedComponentsMap->Yaxes(); ++y)
+	{
+		for (unsigned x = 0; x < colorizedComponentsMap->Xaxes(); ++x)
+		{
+			if(colorizedComponentsMap->pixel(x,y) != colorizedComponentsMap->nullvalue)
+			{
+				unsigned color = unsigned(colorizedComponentsMap->pixel(x,y));
+				
+				//We check the array size before
+				if(color >= regions.size())
+					regions.resize(color + 100, NULL);
+					
+				// If the regions does not yet exist we create it
+				if (!regions[color])
+				{
+					regions[color] = new Region(colorizedComponentsMap->ObsDate(),id, 0);
+					++id;
+				}
+				
+				// We add the pixel to the region
+				regions[color]->add(Coordinate(x,y));
+			}
+		}
+
+	}
+	
+
+	//We cleanup the null regions
+	vector<Region*>::iterator r1 = regions.begin();
+	while (r1 != regions.end())
+	{
+		if(!(*r1))
+		{
+			vector<Region*>::iterator r2 = r1;
+			while( r2 != regions.end() && !(*r2))
+				++r2;
+			r1 = regions.erase(r1,r2);
+		}
+		else
+			++r1;
+	}
+
+	return regions;
+
 }
+
+

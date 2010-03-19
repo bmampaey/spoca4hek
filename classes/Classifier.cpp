@@ -16,17 +16,16 @@ void Classifier::checkImages(const vector<SunImage*>& images)
 		exit(EXIT_FAILURE);
 	}
 	#endif
-	Coordinate Suncenter = images[0]->SunCenter();
-	unsigned radius = unsigned(images[0]->SunRadius());
+	Coordinate sunCenter = images[0]->SunCenter();
 	for (unsigned p = 1; p <  NUMBERWAVELENGTH; ++p)
 	{
-		if( Suncenter.d2(images[p]->SunCenter()) > 2 )
+		if( sunCenter.d2(images[p]->SunCenter()) > 2 )
 		{
 			cerr<<"Warning : Image "<<images[p]->Wavelength()<<" will be recentered to have the same sun centre than image "<<images[0]->Wavelength()<<endl;
-			images[p]->recenter(Suncenter);
+			images[p]->recenter(sunCenter);
 		}
 		#if defined(DEBUG) && DEBUG >= 1
-		if(unsigned(images[p]->SunRadius()) != radius)
+		if( abs(images[p]->SunRadius() - images[0]->SunRadius()) > 1 )
 		{
 			cerr<<"Error : Image "<<images[p]->Wavelength()<<" does not have the same sun radius than image "<<images[0]->Wavelength()<<endl;
 			exit(EXIT_FAILURE);
@@ -37,7 +36,7 @@ void Classifier::checkImages(const vector<SunImage*>& images)
 }
 
 
-void Classifier::addImages(const std::vector<SunImage*>& images)
+void Classifier::addImages(const vector<SunImage*>& images)
 {
 
 	checkImages(images);
@@ -454,24 +453,24 @@ void Classifier::saveResults(SunImage* outImage)
 		outImage->writeFitsImage(filename);
 		#endif
 
-		//Let's get the connected regions stats
-		regions = getRegions(outImage, numberRegions);
+		//Let's get the connected regions
+		SunImage * image = getImage(i - 1); //Will be deallocated after the cleanup of small regions
 
 		#if defined(DEBUG) && DEBUG >= 2
+		regions = getRegions(outImage, image);
 		//We output the regions stats
 		filename = baseName + "regions.uncleaned.txt";
 		ofstream uncleanedResultsFile(filename.c_str());
 		if (uncleanedResultsFile.good())
 		{
-			uncleanedResultsFile<<RegionStats::header()<<endl;
+			uncleanedResultsFile<<RegionStats::header<<endl;
 			for(unsigned r = 0; r < regions.size() && uncleanedResultsFile.good(); ++r)
+			{
 				uncleanedResultsFile<<*(regions[r])<<endl;
+				delete regions[r];
+			}
 		}
 		uncleanedResultsFile.close();
-
-		//We cleanup
-		for(unsigned r = 0; r < regions.size(); ++r)
-			delete regions[r];
 		#endif
 
 		#if defined(DEBUG) && DEBUG >= 2
@@ -509,18 +508,22 @@ void Classifier::saveResults(SunImage* outImage)
 		outImage->writeFitsImage(filename);
 		#endif
 
-		//Let's get the connected regions stats
-		regions = getRegions(outImage, numberRegions);
-
+		//Let's get the connected regions
+		regions = getRegions(outImage, image);
+		
+		delete image;
+		
 		//We output the regions stats
 
 		filename = baseName + "regions.txt";
 		ofstream resultsFile(filename.c_str());
 		if (resultsFile.good())
 		{
-			resultsFile<<RegionStats::header()<<endl;
+			resultsFile<<RegionStats::header<<endl;
 			for(unsigned r = 0; r < regions.size() && resultsFile.good(); ++r)
+			{
 				resultsFile<<*(regions[r])<<endl;
+			}
 		}
 		resultsFile.close();
 		
@@ -632,64 +635,6 @@ void Classifier::saveARmap(SunImage* outImage)
 
 
 
-vector<RegionStats*> Classifier::getRegions(const SunImage* colorizedComponentsMap, unsigned numberRegions)
-{
-	vector<RegionStats*> regions(numberRegions + 1, NULL);
-
-	//The region 0 is the summary of all other regions
-	regions[0] = new RegionStats(colorizedComponentsMap->ObsDate(),0);
-
-	//Let's get the connected regions stats
-	for (unsigned j = 0; j < numberValidPixels; ++j)
-	{
-
-		if(colorizedComponentsMap->pixel(coordinates[j]) != colorizedComponentsMap->nullvalue)
-		{
-			unsigned pixelValue = unsigned(colorizedComponentsMap->pixel(coordinates[j]));
-			//We check the array size before
-			if(pixelValue >= regions.size())
-				regions.resize(pixelValue + 1024, NULL);
-			// If the regions does not yet exist we create it
-			if (!regions[pixelValue])
-			{
-				regions[pixelValue] = new RegionStats(colorizedComponentsMap->ObsDate(),pixelValue);
-			}
-			// We add the pixel to the region
-			regions[pixelValue]->add(X[j], coordinates[j]);
-			regions[0]->add(X[j],coordinates[j]);
-		}
-
-	}
-
-	for (unsigned j = 0; j < numberValidPixels; ++j)
-	{
-
-		if(colorizedComponentsMap->pixel(coordinates[j]) != colorizedComponentsMap->nullvalue)
-		{
-			unsigned pixelValue = unsigned(colorizedComponentsMap->pixel(coordinates[j]));
-			regions[pixelValue]->update(X[j]);
-			regions[0]->update(X[j]);
-		}
-	}
-
-	//We cleanup the null regions
-	vector<RegionStats*>::iterator r1 = regions.begin();
-	while (r1 != regions.end())
-	{
-		if(!(*r1))
-		{
-			vector<RegionStats*>::iterator r2 = r1;
-			while( r2 != regions.end() && !(*r2))
-				++r2;
-			r1 = regions.erase(r1,r2);
-		}
-		else
-			++r1;
-	}
-
-	return regions;
-
-}
 
 
 vector<PixelFeature> Classifier::percentiles(vector<Real> percentileValues)
@@ -717,6 +662,22 @@ vector<PixelFeature> Classifier::percentiles(vector<Real> percentileValues)
 vector<RealFeature> Classifier::getB()
 {
 	return B;
+}
+
+
+
+SunImage* Classifier::getImage(unsigned p)
+{
+
+	SunImage* image = new SunImage(Xaxes, Yaxes);
+	image->zero();
+	for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+	{
+		image->pixel(coordinates[j]) = X[j].v[p];
+	}
+
+	return image;
+
 }
 
 

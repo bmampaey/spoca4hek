@@ -57,6 +57,7 @@ class FeatureVector
 				result.v[p] = v[p] * value;
 			return result;
 		}
+		//Multiplication element by element
 		FeatureVector<T, N> operator*(const FeatureVector<T, N>& fv) const
 		{
 			FeatureVector<T, N> result;
@@ -71,6 +72,7 @@ class FeatureVector
 				result.v[p] = v[p] / value;
 			return result;
 		}
+		//Division element by element
 		FeatureVector<Real, N> operator/(const FeatureVector<T, N>& fv) const
 		{
 			FeatureVector<Real, N> result;
@@ -100,6 +102,7 @@ class FeatureVector
 			for (unsigned p = 0; p < N; ++p)
 				v[p] += fv.v[p];
 		}
+		//Multiplication element by element
 		void operator *= (const FeatureVector<T, N>& fv)
 		{
 			for (unsigned p = 0; p < N; ++p)
@@ -118,16 +121,23 @@ class FeatureVector
 
 };
 
-template<class T, unsigned N>
-std::ostream& operator<<(std::ostream& out, const FeatureVector<T, N>& fv);
-template<class T, unsigned N>
-std::istream& operator>>(std::istream& in, FeatureVector<T, N>& fv);
+//Euclidian distance between 2 FeatureVector  
 template<class T, class T2, unsigned N>
 Real d2(const FeatureVector<T, N>& pixel, const FeatureVector<T2, N>& centre);
 template<class T, class T2, unsigned N>
 Real d(const FeatureVector<T, N>& pixel, const FeatureVector<T2, N>& centre);
+
+//Sqrt of a FeatureVector element by element
 template<class T, unsigned N>
 FeatureVector<Real, N> sqrt(const FeatureVector<T, N>& fv);
+
+//Input\Output of a FeatureVector
+template<class T, unsigned N>
+std::ostream& operator<<(std::ostream& out, const FeatureVector<T, N>& fv);
+template<class T, unsigned N>
+std::istream& operator>>(std::istream& in, FeatureVector<T, N>& fv);
+
+//Input\Output of a vector of FeatureVector
 template<class T, unsigned N>
 std::ostream& operator<<(std::ostream& out, const std::vector<FeatureVector<T, N> >& v);
 template<class T, unsigned N>

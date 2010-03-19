@@ -279,6 +279,10 @@ void SunImage::nullifyAboveRadius(const Real radiusRatio)
 		{
 			if ((x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y)> radius2)
 				pixel(x,y) = nullvalue;
+			#if defined(DEBUG) && DEBUG >= 1
+			if (pixel(x,y) < 0)
+				pixel(x,y) = nullvalue;
+			#endif
 
 		}
 	}
@@ -478,6 +482,12 @@ void SunImage::annulusLimbCorrection(Real maxLimbRadius, Real minLimbRadius)
 			{
 
 				pixelValue = &pixel(x,y);
+				#if defined(DEBUG) && DEBUG >= 1
+				if ((*pixelValue) < 0)
+				{
+					(*pixelValue) = nullvalue;
+				}
+				#endif
 				if ((*pixelValue) != nullvalue)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
@@ -509,6 +519,12 @@ void SunImage::annulusLimbCorrection(Real maxLimbRadius, Real minLimbRadius)
 			for (unsigned x=0; x < Xaxes(); ++x)
 			{
 				pixelValue = &pixel(x,y);
+				#if defined(DEBUG) && DEBUG >= 1
+				if ((*pixelValue) < 0)
+				{
+					(*pixelValue) = nullvalue;
+				}
+				#endif
 				if ((*pixelValue) != nullvalue)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
@@ -582,6 +598,12 @@ void SunImage::ALCDivMedian(Real maxLimbRadius, Real minLimbRadius)
 			{
 
 				pixelValue = &pixel(x,y);
+				#if defined(DEBUG) && DEBUG >= 1
+				if ((*pixelValue) < 0)
+				{
+					(*pixelValue) = nullvalue;
+				}
+				#endif
 				if ((*pixelValue) != nullvalue)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
@@ -613,6 +635,12 @@ void SunImage::ALCDivMedian(Real maxLimbRadius, Real minLimbRadius)
 			for (unsigned x=0; x < Xaxes(); ++x)
 			{
 				pixelValue = &pixel(x,y);
+				#if defined(DEBUG) && DEBUG >= 1
+				if ((*pixelValue) < 0)
+				{
+					(*pixelValue) = nullvalue;
+				}
+				#endif
 				if ((*pixelValue) != nullvalue)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
@@ -694,6 +722,12 @@ void SunImage::ALCDivMode(Real maxLimbRadius, Real minLimbRadius)
 			{
 
 				pixelValue = &pixel(x,y);
+				#if defined(DEBUG) && DEBUG >= 1
+				if ((*pixelValue) < 0)
+				{
+					(*pixelValue) = nullvalue;
+				}
+				#endif
 				if ((*pixelValue) != nullvalue)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
@@ -729,6 +763,12 @@ void SunImage::ALCDivMode(Real maxLimbRadius, Real minLimbRadius)
 			for (unsigned x=0; x < Xaxes(); ++x)
 			{
 				pixelValue = &pixel(x,y);
+				#if defined(DEBUG) && DEBUG >= 1
+				if ((*pixelValue) < 0)
+				{
+					(*pixelValue) = nullvalue;
+				}
+				#endif
 				if ((*pixelValue) != nullvalue)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);

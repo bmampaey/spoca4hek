@@ -13,7 +13,7 @@
 #include "../classes/FeatureVector.h"
 #include "../dsr/ArgumentHelper.h"
 #include "../classes/MainUtilities.h"
-#include "../classes/RegionStats.h"
+#include "../classes/Region.h"
 #include "../classes/Coordinate.h"
 
 using namespace std;
@@ -56,7 +56,7 @@ int main(int argc, const char **argv)
 	arguments.new_named_double('r',"radiusratio","radiusratio","The ratio of the radius of the sun that will be processed",radiusRatio);
 	arguments.new_named_double('p',"precision","precision","The precision to be reached to stop the SPoCA classification.",precision);
 	arguments.new_named_unsigned_int('I', "maxNumberIteration", "maxNumberIteration", "The maximal number of iteration for the SPoCA classification.", maxNumberIteration);
-	arguments.new_named_unsigned_int('P', "preprocessingType", "preprocessingType", "The type of preprocessing to apply to the sun images.\n\tNullifyAboveRadius(default) = 0, AnnulusLimbCorrection(ALC) = 1, ALC+TakeLog = 2, ALC+DivMedian = 3, ALC+TakeSqrt = 4", preprocessingType);
+	arguments.new_named_unsigned_int('P', "preprocessingType", "preprocessingType", "The type of preprocessing to apply to the sun images.\n\tNo preprocessing = 0, AnnulusLimbCorrection(ALC) = 1, ALC+TakeLog = 2, ALC+DivMedian = 3, ALC+TakeSqrt = 4, ALC+DivMode = 5", preprocessingType);
 	arguments.new_named_double('f',"fuzzifier","fuzzifier","The fuzzifier (m).",fuzzifier);
 	arguments.new_named_string('z',"binSize","binSize", "The width of the bin.\n\tList of number separated by commas, and no spaces. ex -z 1.2,1.3", sbinSize);
 	arguments.set_string_vector("fitsFileName1 fitsFileName2 ...", "The name of the fits files containing the images of the sun.", sunImagesFileNames);
@@ -169,36 +169,5 @@ int main(int argc, const char **argv)
 	//We save the AR map for tracking
 	F.saveARmap(images[0]);
 	
-	
-	/* No need for Warning anymore -> We remove the output for the regions out of limb
-	//We get the regions to output the ones beyond the radius
-	vector<RegionStats*> regions = F.getRegions(images[0], 0);
-
-	double sunRadius2 = images[0]->SunRadius() * images[0]->SunRadius();
-	Coordinate sunCenter = images[0]->SunCenter();
-	for (unsigned r = 1; r < regions.size(); ++r)
-	{
-		if(sunCenter.d2(regions[r]->Center()) > sunRadius2)
-		{
-			cout<<regions[r]->Center()<<"\t"<<regions[r]->Boxmin()<<"\t"<<regions[r]->Boxmax()<<"\t"<<regions[r]->Id()<<"\t"<<regions[r]->size()<<"\t"<<regions[r]->Label()<<"\t"<<regions[s][r]->DateObs()<<endl;
-		}
-	}
-
-	#if defined(DEBUG) && DEBUG >= 2
-	//Let's draw the centers of the AR beyond radius for verification
-	images[0]->zero();
-	for (unsigned r = 1; r < regions.size(); ++r)
-	{
-		if(sunCenter.d2(regions[r]->Center()) > sunRadius2)
-		{
-			images[0]->drawCross(regions[r]->Id(), regions[r]->Center(), 5);
-		}
-	}
-
-	string fileName = outputFileName + "ARbeyondRadius.centers.fits";
-	images[0]->writeFitsImage(fileName);
-	#endif
-
-	*/
 	return EXIT_SUCCESS;
 }

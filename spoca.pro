@@ -78,10 +78,10 @@ SWITCH runMode OF
 	'Construct':	BEGIN
 				
 				spoca_lastrun_number = 0
-				write_events_last = SYSTIME(/SECONDS)
+				last_written_event = 0 ; This implies that we always write events on the first run
 				numActiveEvents = 0
 				last_color_assigned = 0
-				status = {spoca_lastrun_number : spoca_lastrun_number, write_events_last : write_events_last, numActiveEvents : numActiveEvents, last_color_assigned : last_color_assigned}
+				status = {spoca_lastrun_number : spoca_lastrun_number, last_written_event : last_written_event, numActiveEvents : numActiveEvents, last_color_assigned : last_color_assigned}
 				BREAK
 
    			END
@@ -100,7 +100,7 @@ SWITCH runMode OF
    			END 
    	'Normal':	BEGIN ; We read the status
 				spoca_lastrun_number = status.spoca_lastrun_number
-				write_events_last = status.write_events_last
+				last_written_event = status.last_written_event
 				numActiveEvents = status.numActiveEvents
 				last_color_assigned = status.last_color_assigned
 				BREAK
@@ -126,7 +126,7 @@ ENDSWITCH
 IF (debug GT 0) THEN BEGIN
 	PRINT, 'Status :'
 	PRINT, 'spoca_lastrun_number : ' , spoca_lastrun_number
-	PRINT, 'write_events_last : ', write_events_last
+	PRINT, 'last_written_event : ', last_written_event
 	PRINT, 'numActiveEvents : ', numActiveEvents
 	PRINT, 'last_color_assigned : ', last_color_assigned
 ENDIF
@@ -238,7 +238,7 @@ wcs = fitshead2wcs(header)
 
 FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN 
 
-	; The output of SpoCA is (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) id size label date_obs
+	; The output of SpoCA is (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) id numberpixels label date_obs
 	output = strsplit( spoca_output[k] , ' 	(),', /EXTRACT) 
 	; We parse the output
 	cartesian_x = FLOAT(output[0:4:2])
@@ -247,7 +247,7 @@ FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN
 	cartesian[0,*]=cartesian_x
 	cartesian[1,*]=cartesian_y
 	id = output[6]
-	size = output[7]
+	numberpixels = output[7]
 	label = output[8]
 	date_obs = output[9] 
 	
@@ -312,7 +312,7 @@ FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN
 	event.required.Event_Coord2 = hpc_y[0]
 	event.required.Event_C1Error = 0 ; TBD
 	event.required.Event_C2Error = 0 ; TBD
-	event.optional.Event_Npixels = size
+	event.optional.Event_Npixels = numberpixels
 	event.optional.Event_PixelUnit = 'DN/s' ; ??? TBC for AIA
 	event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA' ; 
 
@@ -395,25 +395,12 @@ ENDIF
 ; We update the number of Active events we follow
 numActiveEvents = N_ELEMENTS(tracking_output)
 
-
-; We check if it is time to write events to the hek
-events_write_deltat = SYSTIME(/SECONDS) -  write_events_last
-
-IF events_write_deltat LT writeEventsFrequency THEN BEGIN
-	IF (debug GT 0) THEN BEGIN
-		PRINT,  STRING(events_write_deltat) + ' seconds elapsed since last events write, going to Finish'
-	ENDIF
-	GOTO, Finish
-ENDIF ELSE BEGIN
-	IF (debug GT 0) THEN BEGIN
-		PRINT, STRING(events_write_deltat) + ' seconds elapsed since last events write, writing to the HEK'
-	ENDIF
-	write_events_last = SYSTIME(/SECONDS)
-ENDELSE
-
-
 ; We allocate space for the events
-tracking_events = strarr(N_ELEMENTS(tracking_output))
+tracking_events = strarr(numActiveEvents)
+
+; We will need the date of the last found event
+
+last_found_event = 0
 
 ; We need the header of one of the image to transform the coordinates
 ; Depends witch AR we decide to output from tracking, if it is the ones from the last image, THEN it is not necessary to update the header and stuff
@@ -425,7 +412,7 @@ wcs = fitshead2wcs(header)
 
 FOR k = 0, N_ELEMENTS(tracking_output) - 1 DO BEGIN 
 
-	; The output of Tracking is (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) id size label date_obs color	
+	; The output of Tracking is (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) id numberpixels label date_obs color	
 	output = strsplit( tracking_output[k] , ' 	(),', /EXTRACT) 
 	; We parse the output
 	cartesian_x = FLOAT(output[0:4:2])
@@ -434,7 +421,7 @@ FOR k = 0, N_ELEMENTS(tracking_output) - 1 DO BEGIN
 	cartesian[0,*]=cartesian_x
 	cartesian[1,*]=cartesian_y
 	id = output[6]
-	size = output[7]
+	numberpixels = output[7]
 	label = output[8]
 	date_obs = output[9]
 	color = output[10]
@@ -498,7 +485,7 @@ FOR k = 0, N_ELEMENTS(tracking_output) - 1 DO BEGIN
 	event.required.Event_Coord2 = hpc_y[0]
 	event.required.Event_C1Error = 0 ; TBD
 	event.required.Event_C2Error = 0 ; TBD
-	event.optional.Event_Npixels = size
+	event.optional.Event_Npixels = numberpixels
 	event.optional.Event_PixelUnit = 'DN/s' ; ??? TBC for AIA
 	event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA' ; 
 
@@ -521,6 +508,9 @@ FOR k = 0, N_ELEMENTS(tracking_output) - 1 DO BEGIN
 	IF color GT last_color_assigned THEN BEGIN
 		last_color_assigned = color
 	ENDIF
+
+	; We update the date of the last found event
+	IF date_obs GT last_found_event THEN last_found_event = date_obs
 
 ENDFOR 
 
@@ -546,19 +536,36 @@ IF (N_ELEMENTS(ARmaps) GE trackingNumberImages) THEN BEGIN
 	ENDIF
 ENDIF
 
-; We concatenate events from spoca and tracking
+; We return events from spoca
 IF N_ELEMENTS(spoca_events) GT 0 THEN BEGIN
 	events = spoca_events
 ENDIF
 
-IF N_ELEMENTS(tracking_events) GT 0 THEN BEGIN
+; We return events from tracking if it is time to write the tracking events to the hek
+
+events_write_deltat = last_found_event - last_written_event
+
+IF N_ELEMENTS(tracking_events) GT 0 && events_write_deltat GE writeEventsFrequency THEN BEGIN
+	
+	IF (debug GT 0) THEN BEGIN
+		PRINT, STRING(events_write_deltat) + ' seconds elapsed since last events write, writting to the HEK'
+	ENDIF
+	
+	last_written_event = last_found_event
+
 	IF N_ELEMENTS(events) GT 0 THEN BEGIN
 		events = [ events , tracking_events ]
 	ENDIF ELSE BEGIN
 		events = tracking_events
 	ENDELSE
-ENDIF
- 
+	
+ENDIF ELSE BEGIN
+
+	IF (debug GT 0) THEN BEGIN
+		PRINT,  STRING(events_write_deltat) + ' seconds elapsed since last events written, not writting yet'
+	ENDIF
+
+ENDELSE
 
 ; This may need to change
 imageRejected = 0
@@ -566,7 +573,7 @@ imageRejected = 0
 ; We save the variables for next run
 
 status.spoca_lastrun_number = spoca_lastrun_number
-status.write_events_last = write_events_last
+status.last_written_event = last_written_event
 status.numActiveEvents = numActiveEvents
 status.last_color_assigned = last_color_assigned
 

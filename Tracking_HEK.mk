@@ -22,7 +22,7 @@ objects/FeatureVector.o : Tracking_HEK.mk classes/FeatureVector.cpp classes/cons
 objects/ArgumentHelper.o : Tracking_HEK.mk dsr/ArgumentHelper.cpp 
 	$(CC) -c $(CFLAGS) $(DFLAGS) dsr/ArgumentHelper.cpp -o objects/ArgumentHelper.o
 
-objects/Region.o : Tracking_HEK.mk classes/Region.cpp classes/Coordinate.h
+objects/Region.o : Tracking_HEK.mk classes/Region.cpp classes/constants.h classes/Coordinate.h classes/SunImage.h
 	$(CC) -c $(CFLAGS) $(DFLAGS) classes/Region.cpp -o objects/Region.o
 
 objects/SunImage.o : Tracking_HEK.mk classes/SunImage.cpp classes/fitsio.h classes/longnam.h classes/Image.h classes/Coordinate.h

@@ -56,6 +56,7 @@
 #define MIN_AR_SIZE 1500
 #endif
 
+
 // The type of the pixel values of the images. This will overide the type set by the instrument.
 // Acceptable values are TBYTE TSBYTE TUSHORT TSHORT TUINT TINT TULONG TLONG TFLOAT TLONGLONG TDOUBLE
 
