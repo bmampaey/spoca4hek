@@ -52,7 +52,7 @@ void RegionStats::add(const Coordinate& pixelCoordinate, const PixelType& pixelI
 	if (pixelArea <= HIGGINS_FACTOR)
 	{
 		area_AtDiskCenter += R0R2 * pixelArea;
-		area_AtDiskCenterUncert += (( 2 *  DR0R0DRR * pixelArea2 + abs(relativePixelCoordinate.x) + abs(relativePixelCoordinate.y) ) * R0R2 * (pixelArea * pixelArea * pixelArea)) / (R * R);	
+		area_AtDiskCenterUncert += (( 2 *  DR0R0DRR * pixelArea2 + relativePixelCoordinate.x + relativePixelCoordinate.y ) * R0R2 * (pixelArea * pixelArea * pixelArea)) / (R * R);	
 	}
 	else 
 	{
@@ -142,7 +142,7 @@ Real RegionStats::Area_AtDiskCenterUncert() const
 }
 
 
-static const string Region::header = Region::header + "MinIntensity\tMaxIntensity\tMean\tVariance\tSkewness\tKurtosis\tTotalIntensity\tArea_Raw\tArea_RawUncert\tArea_AtDiskCenter\tArea_AtDiskCenterUncert";
+const string RegionStats::header = Region::header + "MinIntensity\tMaxIntensity\tMean\tVariance\tSkewness\tKurtosis\tTotalIntensity\tArea_Raw\tArea_RawUncert\tArea_AtDiskCenter\tArea_AtDiskCenterUncert";
 
 ostream& operator<<(ostream& out, const RegionStats& r)
 {
@@ -183,8 +183,10 @@ vector<RegionStats*> getRegions(const SunImage* colorizedComponentsMap, const Su
 				//Is the pixel in the contour (<=> there is a neighboor pixel != pixel color)
 				bool atBorder = colorizedComponentsMap->pixel(x-1,y) != color || colorizedComponentsMap->pixel(x+1,y) != color || colorizedComponentsMap->pixel(x,y-1) != color || colorizedComponentsMap->pixel(x,y+1) != color;
 				
+				Coordinate relativePixelCoordinate(sunCenter.x > x ? sunCenter.x - x : x - sunCenter.x, sunCenter.y > y ? sunCenter.y - y : y - sunCenter.y);
+				
 				// We add the pixel to the region
-				regions[color]->add(Coordinate(x,y), image->pixel(x, y), sunCenter - Coordinate(x,y), atBorder, sunRadius);
+				regions[color]->add(Coordinate(x,y), image->pixel(x, y), relativePixelCoordinate, atBorder, sunRadius);
 			}
 		}
 

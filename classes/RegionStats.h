@@ -3,7 +3,7 @@
 #define RegionStats_H
 
 #include <limits>
-#include <math.h>
+#include <cmath>
 #include <iostream>
 #include "constants.h"
 #include "Region.h"

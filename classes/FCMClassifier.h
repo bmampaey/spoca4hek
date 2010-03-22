@@ -3,7 +3,7 @@
 #define FCMClassifier_H
 
 #include <iostream>
-#include <math.h>
+#include <cmath>
 #include <ctime>
 #include <cstdlib>
 #include <algorithm>

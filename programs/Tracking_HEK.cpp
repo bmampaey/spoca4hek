@@ -5,7 +5,7 @@
 #include <string>
 #include <fenv.h>
 #include <iomanip>
-#include <time.h>
+#include <ctime>
 #include <algorithm>
 
 #include "../classes/tools.h"
@@ -378,17 +378,10 @@ int main(int argc, const char **argv)
 		delete images[s];
 
 	}
-	// We output the regions of the last image
-	unsigned s = images.size() - 1;
-	for (unsigned r = 0; r < regions[s].size(); ++r)
-	{
-		cout<<*(regions[s][r])<<endl;
-		
-	}
 
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"Last color assigned "<<newColor<<endl;
-	#endif
+	//We output the number of Active Events, the date of the last found event, and the last color assigned
+	cout<<regions[images.size() - 1].size()<<" "<<images[images.size() - 1]->DS79()<<" "<<newColor<<endl;
+
 
 	return EXIT_SUCCESS;
 }

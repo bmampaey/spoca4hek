@@ -6,7 +6,7 @@ outputStatusFilename = "spoca.sav"
 write_file = 1
 
 outputDirectory = "results/"
-writeEventsFrequency = 0
+writeEventsFrequency = 14400
 cCodeLocation = "bin/"
 spocaArgsPreprocessing = '3'
 spocaArgsNumberclasses ='4'

@@ -61,15 +61,11 @@ class Coordinate
 		}
 
 	public :
+		static const Coordinate Max;
 		friend std::ostream& operator<<(std::ostream& out, const Coordinate& c);
 		friend std::istream& operator>>(std::istream& in, Coordinate& c);
 
 };
 
-namespace C
-{
 
-	const Coordinate Max(std::numeric_limits<unsigned>::max(), std::numeric_limits<unsigned>::max());
-
-}
 #endif

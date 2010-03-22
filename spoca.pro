@@ -78,7 +78,7 @@ SWITCH runMode OF
 	'Construct':	BEGIN
 				
 				spoca_lastrun_number = 0
-				last_written_event = 0 ; This implies that we always write events on the first run
+				last_written_event = 0LL ; This implies that we always write events on the first run
 				numActiveEvents = 0
 				last_color_assigned = 0
 				status = {spoca_lastrun_number : spoca_lastrun_number, last_written_event : last_written_event, numActiveEvents : numActiveEvents, last_color_assigned : last_color_assigned}
@@ -173,9 +173,14 @@ IF N_ELEMENTS(trackingArgsDeltat) EQ 0 THEN trackingArgsDeltat = '21600' ; It is
 IF N_ELEMENTS(trackingNumberImages) EQ 0 THEN trackingNumberImages = 9
 IF N_ELEMENTS(trackingOverlap) EQ 0 THEN trackingOverlap = 3
 
+; RegionStats parameters
+
+regionstats_bin = cCodeLocation + 'RegionStats_HEK.x'
+regionstatsArgsPreprocessing = spocaArgsPreprocessing
+
 
 IF (debug GT 0) THEN BEGIN
-	PRINT, endl, "*********************************************************"
+	PRINT, endl, "********END OF PARAMETERS CHECK BEGINNING OF SPOCA*******"
 ENDIF
 
 
@@ -210,139 +215,21 @@ IF (spoca_exit NE 0) THEN BEGIN
 	error = [ error, spoca_errors ]
 	; TODO Should we cleanup  ???
 	
+	IF (debug GT 0) THEN BEGIN
+		PRINT , "SPoCA exited with error : ", spoca_exit, endl, spoca_errors
+	ENDIF
+	
 ENDIF
 
 
-; As output of spoca we receive the AR out of the limb for warning (they are not tracked)
 
 IF (debug GT 0) THEN BEGIN
-	PRINT, 'Spoca Output is : ', endl + spoca_output
-ENDIF
-
-
-; We check that output is not null
-
-IF (N_ELEMENTS(spoca_output) LT 1 || STRLEN(spoca_output[0]) LE 1 ) THEN BEGIN
-	IF (debug GT 0) THEN BEGIN
-		PRINT, 'Spoca Output is void, going to Tracking'
-	ENDIF
-	GOTO, Tracking
-ENDIF
-
-; We allocate space for the events
-spoca_events = strarr(N_ELEMENTS(spoca_output))
-
-; We need the header of one of the image to transform the coordinates
-header = headfits(image1)
-wcs = fitshead2wcs(header)
-
-FOR k = 0, N_ELEMENTS(spoca_output) - 1 DO BEGIN 
-
-	; The output of SpoCA is (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) id numberpixels label date_obs
-	output = strsplit( spoca_output[k] , ' 	(),', /EXTRACT) 
-	; We parse the output
-	cartesian_x = FLOAT(output[0:4:2])
-	cartesian_y = FLOAT(output[1:5:2])
-	cartesian = FLTARR(2,N_ELEMENTS(cartesian_x))
-	cartesian[0,*]=cartesian_x
-	cartesian[1,*]=cartesian_y
-	id = output[6]
-	numberpixels = output[7]
-	label = output[8]
-	date_obs = output[9] 
-	
-	IF (debug GT 0) THEN BEGIN
-		PRINT , "cartesians coordinates for the region ", k
-		PRINT, cartesian
-	ENDIF
-	
-	; We convert the cartesian pixel coodinates into WCS
-
-        wcs_coord = WCS_GET_COORD(wcs, cartesian)
-        
-	; We convert the WCS coodinates into helioprojective cartesian
-	WCS_CONVERT_FROM_COORD, wcs, wcs_coord, 'HPC', /ARCSECONDS, hpc_x, hpc_y
-	
-	IF (debug GT 0) THEN BEGIN
-		PRINT , "x, y, z HPC coordinates for the region ", k
-		PRINT, hpc_x
-		PRINT, hpc_y
-	ENDIF
-	
-	; Create an Hek event and fill it
-		
-	event = struct4event('AR')
-	
-	event.required.OBS_Observatory = 'STEREO'
-	event.required.OBS_Instrument = 'EUVI'
-	event.required.OBS_ChannelID = 'EUVI 171, EUVI 195'
-	event.required.OBS_MeanWavel = 171; ??? There should be 2 values, one for 195 also
-	event.required.OBS_WavelUnit = 'Angstroms'
-
-	event.required.FRM_Name = 'SPoCA'
-	event.optional.FRM_VersionNumber = 1
-	event.required.FRM_Identifier = 'vdelouille'
-	event.required.FRM_Institute ='ROB'
-	event.required.FRM_HumanFlag = 'F'
-        ;temp disabled by rt due to stupid 255 character limit, 
-	event.required.FRM_ParamSet = 'image1 : calibrated image 171 A' $
-		+ ', image2 : calibrated image 195 A' $
-		+ ', dilation_factor= 12' $
-		+ ', initialisation_type= FCM' $
-		+ ', numerical_precision= double'; $
-		;+ ', spocaArgsPreprocessing=' + spocaArgsPreprocessing $
-		;+ ', spocaArgsNumberclasses=' + spocaArgsNumberclasses $
-		;+ ', spocaArgsPrecision='  + spocaArgsPrecision $
-		;+ ', spocaArgsBinsize='  + spocaArgsBinsize $
-		;+ ', trackingArgsDeltat=' + trackingArgsDeltat $
-		;+ ', trackingNumberImages=' + STRING(trackingNumberImages, FORMAT='(I)') $
-		;+ ', trackingOverlap=' + STRING(trackingOverlap, FORMAT='(I)') 
-
-
-	event.required.FRM_DateRun = anytim(sys2ut(), /ccsds)
-	event.required.FRM_Contact = 'veronique.delouille@sidc.be'
-	event.required.FRM_URL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA'
-
-	event.required.Event_StartTime = anytim(date_obs, /ccsds) 
-	event.required.Event_EndTime = anytim(date_obs, /ccsds) 
-	;event.optional.Event_Expires = anytim(sys2ut(), /ccsds)  
-	event.required.Event_CoordSys = 'UTC-HPC-TOPO'
-	event.required.Event_CoordUnit = 'arcsec,arcsec'
-	event.required.Event_Coord1 = hpc_x[0]
-	event.required.Event_Coord2 = hpc_y[0]
-	event.required.Event_C1Error = 0 ; TBD
-	event.required.Event_C2Error = 0 ; TBD
-	event.optional.Event_Npixels = numberpixels
-	event.optional.Event_PixelUnit = 'DN/s' ; ??? TBC for AIA
-	event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA' ; 
-
-	event.required.BoundBox_C1LL = hpc_x[1]
-	event.required.BoundBox_C2LL = hpc_y[1]
-	event.required.BoundBox_C1UR = hpc_x[2]
-	event.required.BoundBox_C2UR = hpc_y[2]
-	
-	
-	; We write the VOevent
-	
-	IF KEYWORD_SET(write_file) THEN BEGIN
-		export_event, event, /write, suff=label, buff=buff
-	ENDIF ELSE BEGIN
-		export_event, event, suffix=label, buff=buff
-	ENDELSE
-	
-	spoca_events[k]=STRJOIN(buff, /SINGLE) ;
-
-
-ENDFOR 
-
-IF (debug GT 0) THEN BEGIN
-	PRINT, endl, "*********************************************************"
+	PRINT, endl, "********END OF SPOCA BEGINNING OF TRACKING*******"
 ENDIF
 
 
 ; --------- We take care of the tracking -----------------
 
-Tracking:	; Label for the case spoca_output is empty
 
 ARmaps = FILE_SEARCH(outputDirectory, '*ARmap.tracking.fits', /TEST_READ, /TEST_REGULAR , /TEST_WRITE  ) 
 
@@ -376,9 +263,13 @@ IF (tracking_exit NE 0) THEN BEGIN
 	error = [ error, tracking_errors ]
 	; What do we do in case of error ?
 	
+	IF (debug GT 0) THEN BEGIN
+		PRINT , "Tracking exited with error : ", tracking_exit, endl, tracking_errors
+	ENDIF
+	
 ENDIF
 
-; As output of tracking we receive the AR intra limb 
+; As output of Tracking we receive the number of AR intra limb and their obs_date 
 IF (debug GT 0) THEN BEGIN
 	PRINT, 'Tracking Output is :', endl + tracking_output
 ENDIF
@@ -386,34 +277,119 @@ ENDIF
 
 ; We check that output is not null
 IF (N_ELEMENTS(tracking_output) LT 1 || STRLEN(tracking_output[0]) LE 1 ) THEN BEGIN
+
+	error = [ error, 'Error No output from Tracking']	
+	RETURN
+	
+ENDIF ELSE BEGIN
+
+	; The output of Tracking is numActiveEvents last_found_event last_color_assigned
+	output = strsplit( tracking_output[0] , ' 	(),', /EXTRACT) 
+	numActiveEvents = LONG(output[0])
+	last_found_event = LONG64(output[1])
+	last_color_assigned = LONG(output[2])
+	
+ENDELSE
+
+
+IF (debug GT 0) THEN BEGIN
+	PRINT, endl, "********END OF TRACKING BEGINNING OF REGIONSTATS*******"
+ENDIF
+
+; --------- We take care of the computing of the Regions Stats -----------------
+
+; We run RegionsStats if it is time to write the events to the hek and that we have at least 1 active event
+
+events_write_deltat = last_found_event - last_written_event
+
+IF events_write_deltat LT writeEventsFrequency THEN BEGIN
+	
+	
 	IF (debug GT 0) THEN BEGIN
-		PRINT, 'Tracking Output is void, going to Finish'
+		PRINT,  STRING(events_write_deltat) + ' seconds elapsed since last events written, not running RegionStats yet'
+	ENDIF
+	GOTO, Finish
+	
+ENDIF ELSE BEGIN
+
+	IF (debug GT 0) THEN BEGIN
+		PRINT, STRING(events_write_deltat) + ' seconds elapsed since last events write, running RegionStats'
+	ENDIF
+
+ENDELSE
+
+
+IF numActiveEvents EQ 0 THEN BEGIN
+
+	IF (debug GT 0) THEN BEGIN
+		PRINT, 'No active event, going to Finish'
+	ENDIF
+
+	last_written_event = last_found_event	; Even if there is no event to write, it was time to write them
+	GOTO, Finish
+ENDIF
+
+
+regionstats_args =	' -P ' + regionstatsArgsPreprocessing + $
+			' -M ' + ARmaps[N_ELEMENTS(ARmaps) - 1] + $
+			' ' + image1
+
+IF (debug GT 0) THEN BEGIN
+
+	PRINT, 'About to run : ' , regionstats_bin + regionstats_args
+	
+ENDIF
+
+; We call RegionsStats with the correct arguments
+
+SPAWN, regionstats_bin + regionstats_args, regionstats_output, regionstats_errors, EXIT_STATUS=regionstats_exit 
+
+; In case of error
+IF (regionstats_exit NE 0) THEN BEGIN
+
+	error = [ error, 'Error executing '+ regionstats_bin + regionstats_args ]
+	error = [ error, regionstats_errors ]
+	; TODO Should we cleanup  ???
+	
+	IF (debug GT 0) THEN BEGIN
+		PRINT , "RegionsStats exited with error : ", regionstats_exit, endl, regionstats_errors
+	ENDIF
+	
+ENDIF
+
+; As output of RegionStats we receive the stats on the AR intra limb 
+IF (debug GT 0) THEN BEGIN
+	PRINT, 'RegionStats Output is :', endl + regionstats_output
+ENDIF
+
+
+; We check that output is not null, This should not be the case because we know that the numActiveEvents > 0
+IF (N_ELEMENTS(regionstats_output) LT 1 || STRLEN(regionstats_output[0]) LE 1 ) THEN BEGIN
+	IF (debug GT 0) THEN BEGIN
+		PRINT, 'ERROR RegionStats Output is void, going to Finish'
 	ENDIF
 	GOTO, Finish
 ENDIF
 
-; We update the number of Active events we follow
-numActiveEvents = N_ELEMENTS(tracking_output)
 
 ; We allocate space for the events
-tracking_events = strarr(numActiveEvents)
+events = strarr(N_ELEMENTS(regionstats_output))
 
-; We will need the date of the last found event
-
-last_found_event = 0
 
 ; We need the header of one of the image to transform the coordinates
-; Depends witch AR we decide to output from tracking, if it is the ones from the last image, THEN it is not necessary to update the header and stuff
-; otherwise we do have to know which header to load 
 
 header = headfits(image1)
 wcs = fitshead2wcs(header)
 
+distance_observer_sun = 149597.871
+earth_orbit_eccentricity = 0.0167
+yearly_maximal_error = distance_observer_sun * earth_orbit_eccentricity
 
-FOR k = 0, N_ELEMENTS(tracking_output) - 1 DO BEGIN 
 
-	; The output of Tracking is (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) id numberpixels label date_obs color	
-	output = strsplit( tracking_output[k] , ' 	(),', /EXTRACT) 
+FOR k = 0, N_ELEMENTS(regionstats_output) - 1 DO BEGIN 
+
+	; The output of RegionStats is (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) id numberpixels label date_obs color minintensity maxintensity mean variance skewness kurtosis totalintensity area_raw area_rawuncert area_atdiskcenter area_atdiskcenteruncert
+	output = strsplit( regionstats_output[k] , ' 	(),', /EXTRACT) 
 	; We parse the output
 	cartesian_x = FLOAT(output[0:4:2])
 	cartesian_y = FLOAT(output[1:5:2])
@@ -421,10 +397,21 @@ FOR k = 0, N_ELEMENTS(tracking_output) - 1 DO BEGIN
 	cartesian[0,*]=cartesian_x
 	cartesian[1,*]=cartesian_y
 	id = output[6]
-	numberpixels = output[7]
+	numberpixels = LONG(output[7])
 	label = output[8]
-	date_obs = output[9]
-	color = output[10]
+	date_obs = LONG64(output[9])
+	color = LONG(output[10])
+	minintensity = FLOAT(output[11])
+	maxintensity = FLOAT(output[12])
+	mean = FLOAT(output[13])
+	variance = FLOAT(output[14])
+	skewness = FLOAT(output[15])
+	kurtosis = FLOAT(output[16])
+	totalintensity = FLOAT(output[17])
+	area_raw = FLOAT(output[18])
+	area_rawuncert = FLOAT(output[19])
+	area_atdiskcenter = FLOAT(output[20])
+	area_atdiskcenteruncert = FLOAT(output[21])
 	
 	IF (debug GT 0) THEN BEGIN
 		PRINT , "cartesians coordinates for the region ", k
@@ -476,23 +463,27 @@ FOR k = 0, N_ELEMENTS(tracking_output) - 1 DO BEGIN
 	event.required.FRM_Contact = 'veronique.delouille@sidc.be'
 	event.required.FRM_URL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA'
 
-	event.required.Event_StartTime = anytim(date_obs - writeEventsFrequency, /ccsds) ; The start time is the previous time we observed an event
+	event.required.Event_StartTime = anytim(last_written_event, /ccsds) ; The start time is the previous time we ran RegionStats
 	event.required.Event_EndTime = anytim(date_obs, /ccsds)  
-	;event.optional.Event_Expires = anytim(sys2ut(), /ccsds)  
+	  
 	event.required.Event_CoordSys = 'UTC-HPC-TOPO'
 	event.required.Event_CoordUnit = 'arcsec,arcsec'
 	event.required.Event_Coord1 = hpc_x[0]
 	event.required.Event_Coord2 = hpc_y[0]
-	event.required.Event_C1Error = 0 ; TBD
-	event.required.Event_C2Error = 0 ; TBD
-	event.optional.Event_Npixels = numberpixels
-	event.optional.Event_PixelUnit = 'DN/s' ; ??? TBC for AIA
-	event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA' ; 
-
+	event.required.Event_C1Error = 3600 * !RADEG / yearly_maximal_error * (1 + hpc_x[0] * yearly_maximal_error / distance_observer_sun)
+	event.required.Event_C2Error = 3600 * !RADEG / yearly_maximal_error * (1 + hpc_y[0] * yearly_maximal_error / distance_observer_sun)	
 	event.required.BoundBox_C1LL = hpc_x[1]
 	event.required.BoundBox_C2LL = hpc_y[1]
 	event.required.BoundBox_C1UR = hpc_x[2]
 	event.required.BoundBox_C2UR = hpc_y[2]
+	
+	event.optional.Event_Npixels = numberpixels
+	event.optional.Event_PixelUnit = 'DN/s' ; ??? TBC for AIA
+	event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA' ; 
+	event.optional.FRM_SpecificID = color
+
+	
+	
 	
 	; We write the VOevent
 	
@@ -502,19 +493,15 @@ FOR k = 0, N_ELEMENTS(tracking_output) - 1 DO BEGIN
 		export_event, event, suffix=label, buff=buff
 	ENDELSE
 	
-	tracking_events[k]=STRJOIN(buff, /SINGLE) ;
+	events[k]=STRJOIN(buff, /SINGLE) ;
 	
-	; We update the last color assigned
-	IF color GT last_color_assigned THEN BEGIN
-		last_color_assigned = color
-	ENDIF
-
-	; We update the date of the last found event
-	IF date_obs GT last_found_event THEN last_found_event = date_obs
 
 ENDFOR 
 
-Finish :	; Label for the case tracking_output is empty, or if not enough images where present for the tracking
+last_written_event = last_found_event ; We update the time we wrote an event
+
+
+Finish :	; Label for the case not enough images were present for the tracking, or if we do not write 
 
 ; --------- We finish up -----------------
 
@@ -536,36 +523,7 @@ IF (N_ELEMENTS(ARmaps) GE trackingNumberImages) THEN BEGIN
 	ENDIF
 ENDIF
 
-; We return events from spoca
-IF N_ELEMENTS(spoca_events) GT 0 THEN BEGIN
-	events = spoca_events
-ENDIF
 
-; We return events from tracking if it is time to write the tracking events to the hek
-
-events_write_deltat = last_found_event - last_written_event
-
-IF N_ELEMENTS(tracking_events) GT 0 && events_write_deltat GE writeEventsFrequency THEN BEGIN
-	
-	IF (debug GT 0) THEN BEGIN
-		PRINT, STRING(events_write_deltat) + ' seconds elapsed since last events write, writting to the HEK'
-	ENDIF
-	
-	last_written_event = last_found_event
-
-	IF N_ELEMENTS(events) GT 0 THEN BEGIN
-		events = [ events , tracking_events ]
-	ENDIF ELSE BEGIN
-		events = tracking_events
-	ENDELSE
-	
-ENDIF ELSE BEGIN
-
-	IF (debug GT 0) THEN BEGIN
-		PRINT,  STRING(events_write_deltat) + ' seconds elapsed since last events written, not writting yet'
-	ENDIF
-
-ENDELSE
 
 ; This may need to change
 imageRejected = 0

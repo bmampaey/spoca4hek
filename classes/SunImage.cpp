@@ -984,3 +984,16 @@ SunImage* SunImage::rotate(const unsigned t)
 	return img;
 
 }
+
+int SunImage::DS79() const
+{
+	// The times in IDL are specified as the number of seconds since 1 Jan 1979 00:00:00
+	tm time;
+	time.tm_year = 1979;
+	time.tm_mon = 0; //Because stupid c++ standard lib has the month going from 0-11
+	time.tm_mday = 1;
+	time.tm_hour = time.tm_min = time.tm_sec = 0;
+	time_t time0 = mktime(&time);
+	
+	return int(difftime(date_obs, time0));
+}

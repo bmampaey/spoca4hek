@@ -6,7 +6,7 @@
 #include <limits>
 #include <typeinfo>
 #include <vector>
-#include <math.h>
+#include <cmath>
 #include <string.h>
 #include <stdio.h>
 

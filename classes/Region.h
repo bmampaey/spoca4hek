@@ -6,7 +6,7 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
-#include <time.h>
+#include <ctime>
 #include <string>
 
 #include "constants.h"
@@ -46,6 +46,9 @@ class Region
 		unsigned NumberPixels() const;
 		time_t ObsDate() const;
 		std::string Label() const;
+		
+		// The date as the number of seconds since 1 Jan 1979 00:00:00 (for IDL)
+		int DS79() const;
 
 	public :
 

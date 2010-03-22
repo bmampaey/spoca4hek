@@ -8,10 +8,10 @@
 #include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
+#include <cmath>
 
 #include "constants.h"
-#include "Coordinate.h"
+
 
 std::ostream& operator<<(std::ostream& out, const std::vector<Real>& v);
 std::istream& operator>>(std::istream& in, std::vector<Real>& v);

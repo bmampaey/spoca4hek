@@ -6,9 +6,9 @@
 #include <limits>
 #include <typeinfo>
 #include <vector>
-#include <math.h>
+#include <cmath>
 #include <string>
-#include <time.h>
+#include <ctime>
 
 #include "fitsio.h"
 #include "longnam.h"
@@ -54,6 +54,9 @@ class SunImage : public Image<PixelType>
 		void preprocessing(const int type = 0, Real maxLimbRadius = 1.0, Real minLimbRadius = 0.90);
 		void copyKeywords(const SunImage* i);
 		SunImage* writeFitsImage (const std::string& filename) ;
+		
+		// The date as the number of seconds since 1 Jan 1979 00:00:00 (for IDL)
+		int DS79() const;
 
 		Real angularSpeed(Real latitude);
 		unsigned newPos(Real x, Real y, const Real t);
