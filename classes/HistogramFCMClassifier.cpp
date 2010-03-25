@@ -48,13 +48,12 @@ inline unsigned HistogramFCMClassifier::insert(const HistoPixelFeature& xj)
 }
 
 
-void HistogramFCMClassifier::addImages(const std::vector<SunImage*>& images, RealFeature binSize)
+void HistogramFCMClassifier::addImages(const std::vector<SunImage*>& images, const RealFeature& binSize)
 {
 
 	//I will need the images in the end to show the classification anyway
 	Classifier::addImages(images);
 	PixelFeature xj;
-	//TODO Optimize the allocation of HistoX by precaclculating the size with the percentiles of the image.
 	for (unsigned j = 0; j < numberValidPixels; ++j)
 	{
 		for (unsigned p = 0; p <  NUMBERWAVELENGTH; ++p)
@@ -69,9 +68,12 @@ void HistogramFCMClassifier::addImages(const std::vector<SunImage*>& images, Rea
 	//Be carefull here
 	numberValidPixels = HistoX.size();
 	#if defined(DEBUG) && DEBUG >= 2
-	#include <fstream>
 	string filename = outputFileName + "histogram.txt";
 	ofstream histoFile(filename.c_str());
+	//We save the binSize and the number of bins
+	for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
+			histoFile<<binSize.v[p]<<" ";
+	histoFile<<HistoX.size()<<endl;
 	for (unsigned j = 0; j < numberValidPixels && histoFile.good(); ++j)
 	{
 		for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
@@ -84,6 +86,94 @@ void HistogramFCMClassifier::addImages(const std::vector<SunImage*>& images, Rea
 
 }
 
+void HistogramFCMClassifier::initHistogram(const std::string& histogramFilename, RealFeature& binSize, bool reset)
+{
+	ifstream histoFile(histogramFilename.c_str());
+	stringstream histoStream;
+	vector<char> buffer;
+	//We put the file into a stringstream for rapidity
+	if (histoFile)
+	{
+		// We get the size of the file   
+		histoFile.seekg(0,ios::end);
+		streampos length = histoFile.tellg();
+		histoFile.seekg(0,ios::beg);
+		buffer.resize(length);
+
+		//We read the whole file into the buffer.
+		histoFile.read(&buffer[0],length);
+
+		// We create the string stream.
+		histoStream.rdbuf()->pubsetbuf(&buffer[0],length);
+
+	}
+	else
+	{
+		cerr<<"Error : file "<<histogramFilename<<" not found."<<endl;
+		return;
+	}
+	histoFile.close();
+	
+	//We initialise the histogram
+	unsigned numberBins = 0;
+	for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
+		histoStream>>binSize.v[p];
+		
+	histoStream>>numberBins;
+	
+	HistoX.resize(numberBins);
+
+	if (!reset)
+	{
+		for (unsigned j = 0; j < numberBins && histoStream.good(); ++j)
+		{
+			for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
+				histoStream>>HistoX[j].v[p];
+			histoStream>>HistoX[j].c;
+		}
+	}
+	else
+	{
+		unsigned garbage;
+		for (unsigned j = 0; j < numberBins && histoStream.good(); ++j)
+		{
+			for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
+				histoStream>>HistoX[j].v[p];
+			histoStream>>garbage;
+		}
+
+	}
+	
+}
+
+void HistogramFCMClassifier::saveHistogram(const std::string& histogramFilename, const RealFeature& binSize)
+{
+	ofstream histoFile(histogramFilename.c_str());
+	if (histoFile)
+	{
+		//We save the binSize and the number of bins
+		for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
+				histoFile<<binSize.v[p]<<" ";
+		histoFile<<HistoX.size()<<endl;
+		
+		//We save the Histogram
+		for (unsigned j = 0; j < numberValidPixels && histoFile.good(); ++j)
+		{
+			for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
+				histoFile<<HistoX[j].v[p]<<" ";
+			histoFile<<HistoX[j].c<<endl;
+		}
+
+	}
+	else
+	{
+		cerr<<"Error : Could not open file "<<histogramFilename<<" for writing."<<endl;
+
+	}
+	
+
+	histoFile.close();
+}
 
 //Because the numberValidPixels of X is not the same as numberValidPixels of HistoX
 void HistogramFCMClassifier::saveResults(SunImage* outImage)
@@ -389,3 +479,6 @@ void HistogramFCMClassifier::merge(unsigned i1, unsigned i2)
 	U.erase(U.begin() + i2 * numberValidPixels, U.begin() + (i2 + 1)  * numberValidPixels);
 }
 #endif
+
+
+

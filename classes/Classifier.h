@@ -15,7 +15,7 @@
 #include "Image.h"
 #include "SunImage.h"
 #include "FeatureVector.h"
-#include "RegionStats.h"
+#include "Region.h"
 #include "Coordinate.h"
 
 class Classifier

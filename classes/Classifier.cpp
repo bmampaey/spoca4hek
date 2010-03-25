@@ -15,23 +15,21 @@ void Classifier::checkImages(const vector<SunImage*>& images)
 		cerr<<"Error : The number of images to initialize the Classifier must be equal to "<<NUMBERWAVELENGTH<<endl;
 		exit(EXIT_FAILURE);
 	}
-	#endif
+	
 	Coordinate sunCenter = images[0]->SunCenter();
 	for (unsigned p = 1; p <  NUMBERWAVELENGTH; ++p)
 	{
 		if( sunCenter.d2(images[p]->SunCenter()) > 2 )
 		{
-			cerr<<"Warning : Image "<<images[p]->Wavelength()<<" will be recentered to have the same sun centre than image "<<images[0]->Wavelength()<<endl;
-			images[p]->recenter(sunCenter);
+			cerr<<"Warning : Image "<<images[p]->Wavelength()<<" does not have the same sun centre than image "<<images[0]->Wavelength()<<endl;
 		}
-		#if defined(DEBUG) && DEBUG >= 1
 		if( abs(images[p]->SunRadius() - images[0]->SunRadius()) > 1 )
 		{
-			cerr<<"Error : Image "<<images[p]->Wavelength()<<" does not have the same sun radius than image "<<images[0]->Wavelength()<<endl;
+			cerr<<"Warning : Image "<<images[p]->Wavelength()<<" does not have the same sun radius than image "<<images[0]->Wavelength()<<endl;
 			exit(EXIT_FAILURE);
 		}
-		#endif
 	}
+	#endif
 
 }
 
@@ -415,7 +413,7 @@ Image<Real>* Classifier::normalizedFuzzyMap(const unsigned i)
 void Classifier::saveResults(SunImage* outImage)
 {
 	Image<unsigned> * segmentedMap = crispSegmentedMap();
-	vector<RegionStats*> regions;
+	vector<Region*> regions;
 	string filename;
 	unsigned numberRegions;
 
@@ -453,17 +451,16 @@ void Classifier::saveResults(SunImage* outImage)
 		outImage->writeFitsImage(filename);
 		#endif
 
-		//Let's get the connected regions
-		SunImage * image = getImage(i - 1); //Will be deallocated after the cleanup of small regions
+		
 
 		#if defined(DEBUG) && DEBUG >= 2
-		regions = getRegions(outImage, image);
-		//We output the regions stats
+		//Let's get the connected regions info
+		regions = getRegions(outImage);
 		filename = baseName + "regions.uncleaned.txt";
 		ofstream uncleanedResultsFile(filename.c_str());
 		if (uncleanedResultsFile.good())
 		{
-			uncleanedResultsFile<<RegionStats::header<<endl;
+			uncleanedResultsFile<<Region::header<<endl;
 			for(unsigned r = 0; r < regions.size() && uncleanedResultsFile.good(); ++r)
 			{
 				uncleanedResultsFile<<*(regions[r])<<endl;
@@ -508,18 +505,14 @@ void Classifier::saveResults(SunImage* outImage)
 		outImage->writeFitsImage(filename);
 		#endif
 
-		//Let's get the connected regions
-		regions = getRegions(outImage, image);
-		
-		delete image;
-		
-		//We output the regions stats
+		//Let's get the connected regions info
+		regions = getRegions(outImage);
 
 		filename = baseName + "regions.txt";
 		ofstream resultsFile(filename.c_str());
 		if (resultsFile.good())
 		{
-			resultsFile<<RegionStats::header<<endl;
+			resultsFile<<Region::header<<endl;
 			for(unsigned r = 0; r < regions.size() && resultsFile.good(); ++r)
 			{
 				resultsFile<<*(regions[r])<<endl;

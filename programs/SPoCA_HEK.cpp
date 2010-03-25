@@ -33,7 +33,7 @@ int main(int argc, const char **argv)
 
 	unsigned initNumberClasses =  3, maxNumberIteration = 100, preprocessingType = 1;
 	double radiusRatio = 1.31, precision = 0.001, fuzzifier = 2;
-	string centersFileName, sbinSize;
+	string centersFileName, sbinSize, histogramFile;
 	vector<string> sunImagesFileNames;
 
 	vector<SunImage*> images;
@@ -58,6 +58,7 @@ int main(int argc, const char **argv)
 	arguments.new_named_unsigned_int('I', "maxNumberIteration", "maxNumberIteration", "The maximal number of iteration for the SPoCA classification.", maxNumberIteration);
 	arguments.new_named_unsigned_int('P', "preprocessingType", "preprocessingType", "The type of preprocessing to apply to the sun images.\n\tNo preprocessing = 0, AnnulusLimbCorrection(ALC) = 1, ALC+TakeLog = 2, ALC+DivMedian = 3, ALC+TakeSqrt = 4, ALC+DivMode = 5", preprocessingType);
 	arguments.new_named_double('f',"fuzzifier","fuzzifier","The fuzzifier (m).",fuzzifier);
+	arguments.new_named_string('H',"histogramFile","histogramFile", "The name of a file containing a histogram\n\tThe first line must be the binSize followed by the number of bins (supersedes the binSize argument).", histogramFile);
 	arguments.new_named_string('z',"binSize","binSize", "The width of the bin.\n\tList of number separated by commas, and no spaces. ex -z 1.2,1.3", sbinSize);
 	arguments.set_string_vector("fitsFileName1 fitsFileName2 ...", "The name of the fits files containing the images of the sun.", sunImagesFileNames);
 	arguments.set_description(programDescription.c_str());
@@ -81,13 +82,16 @@ int main(int argc, const char **argv)
 		cerr<<"Error : "<<sunImagesFileNames.size()<<" fits image file given as parameter, "<<NUMBERWAVELENGTH<<" must be given!"<<endl;
 		return EXIT_FAILURE;
 	}
-	
-	if(sbinSize.empty())
+
+	//We declare the type of Classifier we want
+	HistogramFCMClassifier F(fuzzifier);
+
+	//We initialise the histogram
+	if(!histogramFile.empty())
 	{
-		cerr<<"No binSize given as parameter."<<endl;
-		return EXIT_FAILURE;
+		F.initHistogram(histogramFile, binSize, true);
 	}
-	else
+	else if(!sbinSize.empty())
 	{
 		istringstream Z(sbinSize);
 		Z>>binSize;
@@ -97,42 +101,47 @@ int main(int argc, const char **argv)
 			return EXIT_FAILURE;
 		}
 	}
+	else
+	{
+		cerr<<"No binSize and no histogram file given as parameter."<<endl;
+		return EXIT_FAILURE;
+	}
+
+
+
+	//We fetch the wavelength and the initial centers from the centers file
+	if(! centersFileName.empty())
+	{
+		readCentersFromFile(B, wavelengths, centersFileName);
+		#if defined(DEBUG) && DEBUG >= 1
+		if(B.size() != initNumberClasses)
+		{
+			cerr<<"Error : The initial number of classes is different than the number of centers read in the center file."<<endl;
+			return EXIT_FAILURE;
+		}
+		#endif
+	}
+	
 
 	//We read and preprocess the sun images
 	fetchImagesFromFile(images, sunImagesFileNames, preprocessingType, radiusRatio);
 
-	//We declare the type of Classifier we want
-	HistogramFCMClassifier F(fuzzifier);
-
-	//We initialise the initial centers initB from the centers file
-	if(! centersFileName.empty())
+	if(B.size() == initNumberClasses)
 	{
-		readCentersFromFile(B, wavelengths, centersFileName);
-		if(B.size() != initNumberClasses)
-		{
-			cerr<<"Error : The initial number of classes is different than the number of centers read in the center file."<<endl;
-			for (unsigned p = 0; p< NUMBERWAVELENGTH; ++p)
-				wavelengths.v[p] = images[p]->Wavelength();
-		}
-		else //The order of the sun images must follow the order of the wavelengths
-		{
-			ordonateImages(images, wavelengths);
-		}
-
+		//The order of the sun images must follow the order of the wavelengths
+		ordonateImages(images, wavelengths);
 	}
 	else
 	{
-		#if defined(DEBUG) && DEBUG >= 3
-		cout<<"No centers file given as parameter, centers will be initialised ramdomly."<<endl;
-		#endif
+		cerr<<"Centers will be initialised ramdomly."<<endl;
 		for (unsigned p = 0; p< NUMBERWAVELENGTH; ++p)
 			wavelengths.v[p] = images[p]->Wavelength();
-
 	}
+
 
 	//We add the images to the classifier
 	F.addImages(images, binSize);
-
+	
 	if(B.size() == initNumberClasses)
 	{
 		F.init(B);
@@ -168,6 +177,12 @@ int main(int argc, const char **argv)
 
 	//We save the AR map for tracking
 	F.saveARmap(images[0]);
+	
+		//We save the Histogram
+	if(!histogramFile.empty())
+	{
+		F.saveHistogram(histogramFile, binSize);
+	}
 	
 	return EXIT_SUCCESS;
 }

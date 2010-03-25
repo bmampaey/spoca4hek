@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <algorithm>
 #include <string>
+#include <fstream>
 
 #include "Image.h"
 #include "SunImage.h"
@@ -34,7 +35,7 @@ class HistogramFCMClassifier : public virtual FCMClassifier
 	public :
 		//Constructors & Destructors
 		HistogramFCMClassifier(Real fuzzifier = 2.);
-		void addImages(const std::vector<SunImage*>& images, RealFeature binSize);
+		void addImages(const std::vector<SunImage*>& images, const RealFeature& binSize);
 
 		//Classification functions
 		void classification(Real precision = 1., unsigned maxNumberIteration = 100);
@@ -42,5 +43,9 @@ class HistogramFCMClassifier : public virtual FCMClassifier
 		//Utilities functions for outputing results
 		void saveResults(SunImage* outImage);
 		void saveARmap(SunImage* outImage);
+		
+		//Function to initialise/save the Histogram
+		void initHistogram(const std::string& histogramFilename, RealFeature& binSize, bool reset = true);
+		void saveHistogram(const std::string& histogramFilename, const RealFeature& binSize);
 };
 #endif

@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-Wall -fkeep-inline-functions -g
+CFLAGS=-Wall -fkeep-inline-functions -O3
 LFLAGS=-l cfitsio
 DFLAGS=-DINSTRUMENT=EUVI -DDEBUG=0 -DNUMBERWAVELENGTH=2
 

@@ -378,8 +378,18 @@ int main(int argc, const char **argv)
 
 	}
 
-	//We output the number of Active Events, the date of the last found event, and the last color assigned
-	cout<<regions[images.size() - 1].size()<<" "<<images[images.size() - 1]->DS79()<<" "<<newColor<<endl;
+	//We output the last color assigned
+	cout<<newColor<<endl;
+	//We output the regions
+	for (unsigned s = 0; s + overlap < images.size(); ++s)
+	{
+		cout<<"IMAGE "<<sunImagesFileNames[s]<<endl;
+		for (unsigned r = 0; r < regions[s].size(); ++r)
+		{
+			cout<<*(regions[s][r])<<endl;
+		}
+		cout<<"ENDIMAGE"<<endl;
+	}
 
 
 	return EXIT_SUCCESS;

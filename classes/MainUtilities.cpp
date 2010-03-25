@@ -48,6 +48,8 @@ void ordonateImages(vector<SunImage*>& images, const RealFeature& wavelengths)
 
 void fetchImagesFromFile(vector<SunImage*>& images, const vector<string>& sunImagesFileNames, const unsigned  preprocessingType, const double radiusRatio)
 {
+
+	// We read the files
 	for (unsigned p = 0; p < sunImagesFileNames.size(); ++p)
 	{
 		#if defined(DEBUG) && DEBUG >= 1
@@ -59,10 +61,17 @@ void fetchImagesFromFile(vector<SunImage*>& images, const vector<string>& sunIma
 		images.push_back(new SunImage(sunImagesFileNames[p]));
 
 	}
+	// We preprocess and align the images
+	Coordinate sunCenter = images[0]->SunCenter();
 	for (unsigned p = 0; p < sunImagesFileNames.size(); ++p)
 	{
-
 		images[p]->preprocessing(preprocessingType,radiusRatio);
+
+		if( sunCenter.d2(images[p]->SunCenter()) > 2 )
+		{
+			cerr<<"Warning : Image "<<sunImagesFileNames[p]<<" will be recentered to have the same sun centre than image "<<sunImagesFileNames[0]<<endl;
+			images[p]->recenter(sunCenter);
+		}
 
 		#if defined(DEBUG) && DEBUG >= 2
 		string filename = outputFileName + "preprocessed.";

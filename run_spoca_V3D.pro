@@ -1,24 +1,23 @@
-PRO test_spoca
+PRO run_spoca_V3D
 
-files = FILE_SEARCH('/home/benjamin/data/stereo/dataset/', '*A.fts', /TEST_READ, /TEST_REGULAR)
-inputStatusFilename = "spoca.sav"
-outputStatusFilename = "spoca.sav"
+files = FILE_SEARCH('/home/benjamin/data/eit/200305', '*.fits', /TEST_READ, /TEST_REGULAR)
+inputStatusFilename = "spoca_V3D.sav"
+outputStatusFilename = "spoca_V3D.sav"
 write_file = 1
 
 outputDirectory = "results/"
-writeEventsFrequency = 14400
 cCodeLocation = "bin/"
-spocaArgsPreprocessing = '3'
-spocaArgsNumberclasses ='4'
+spocaArgsPreprocessing = '5'
+spocaArgsNumberclasses ='3'
 spocaArgsPrecision = '0.000000001'
 spocaArgsBinsize = '0.1,0.1'
-trackingArgsDeltat = '21600'
+trackingArgsDeltat = '86400'
 trackingNumberImages = 9
 trackingOverlap = 3
 
 
 
-spoca, image171 = files[0], image195 = files[1], $
+spoca_V3D, image171 = files[0], image195 = files[1], $
 	events = events, $
 	write_file = write_file, $
 	error = error, $
@@ -27,9 +26,7 @@ spoca, image171 = files[0], image195 = files[1], $
 	runMode = 'Construct', $
 	inputStatusFilename = inputStatusFilename, $
 	outputStatusFilename = outputStatusFilename, $
-	numActiveEvents = numActiveEvents, $
 	outputDirectory = outputDirectory, $
-	writeEventsFrequency = writeEventsFrequency, $
 	cCodeLocation = cCodeLocation, $
 	spocaArgsPreprocessing = spocaArgsPreprocessing, $
 	spocaArgsNumberclasses = spocaArgsNumberclasses, $
@@ -41,7 +38,7 @@ spoca, image171 = files[0], image195 = files[1], $
 
 FOR i=1, (N_ELEMENTS(files)/2 - 2) DO BEGIN
 
-spoca, image171 = files[i*2], image195 = files[i*2+1], $
+spoca_V3D, image171 = files[i*2], image195 = files[i*2+1], $
 	events = events, $
 	write_file = write_file, $
 	error = error, $
@@ -50,9 +47,7 @@ spoca, image171 = files[i*2], image195 = files[i*2+1], $
 	runMode = 'Normal', $
 	inputStatusFilename = inputStatusFilename, $
 	outputStatusFilename = inputStatusFilename, $
-	numActiveEvents = numActiveEvents, $
 	outputDirectory = outputDirectory, $
-	writeEventsFrequency = writeEventsFrequency, $
 	cCodeLocation = cCodeLocation, $
 	spocaArgsPreprocessing = spocaArgsPreprocessing, $
 	spocaArgsNumberclasses = spocaArgsNumberclasses, $
@@ -64,7 +59,7 @@ spoca, image171 = files[i*2], image195 = files[i*2+1], $
 
 ENDFOR
 
-spoca, image171 = '', image195 = '', $
+spoca_V3D, image171 = '', image195 = '', $
 	events = events, $
 	write_file = write_file, $
 	error = error, $
@@ -73,9 +68,7 @@ spoca, image171 = '', image195 = '', $
 	runMode = 'Clear Events', $
 	inputStatusFilename = inputStatusFilename, $
 	outputStatusFilename = inputStatusFilename, $
-	numActiveEvents = numActiveEvents, $
 	outputDirectory = outputDirectory, $
-	writeEventsFrequency = writeEventsFrequency, $
 	cCodeLocation = cCodeLocation, $
 	spocaArgsPreprocessing = spocaArgsPreprocessing, $
 	spocaArgsNumberclasses = spocaArgsNumberclasses, $
