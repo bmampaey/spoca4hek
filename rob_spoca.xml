@@ -8,7 +8,7 @@
     <Description>Run the SPoCA Algorithm for detecting AR on EIT/EUVI/AIA images</Description>
     <ImageInput>
         <ImageRequirement>
-            <ParamName>image1</ParamName>
+            <ParamName>image171</ParamName>
             <Optional>false</Optional>
             <ImageChoice>
                 <Instrument>EUVI</Instrument>
@@ -17,7 +17,7 @@
             </ImageChoice>
         </ImageRequirement>
         <ImageRequirement>
-            <ParamName>image2</ParamName>
+            <ParamName>image195</ParamName>
             <Optional>false</Optional>
             <ImageChoice>
                 <Instrument>EUVI</Instrument>

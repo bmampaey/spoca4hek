@@ -1,6 +1,6 @@
 ; +
 ; Description:
-;	IDL code to call spoca_V3D and the tracking
+;	IDL code to call spoca and the tracking
 ; Author:
 ; 	Benjamin Mampaey
 ; Date:
@@ -35,7 +35,7 @@
 ; 
 
 
-PRO SPoCA_V3D, image171=image171, image195=image195, $
+PRO SPoCA, image171=image171, image195=image195, $
 	events = events, $
 	write_file = write_file, $
 	error = error, $
@@ -44,7 +44,9 @@ PRO SPoCA_V3D, image171=image171, image195=image195, $
 	runMode = runMode, $
 	inputStatusFilename = inputStatusFilename, $
 	outputStatusFilename = outputStatusFilename, $
+	numActiveEvents = numActiveEvents, $
 	outputDirectory = outputDirectory, $
+	writeEventsFrequency = writeEventsFrequency, $
 	cCodeLocation = cCodeLocation, $
 	spocaArgsPreprocessing = spocaArgsPreprocessing, $
 	spocaArgsNumberclasses = spocaArgsNumberclasses, $
@@ -75,14 +77,11 @@ ENDIF
 SWITCH runMode OF 
 	'Construct':	BEGIN
 				
-				; We create the color list
-				numbercolors = 256
-				colorlist=STRARR(numbercolors)
-				seed=1978
-				FOR c = 0l, numbercolors - 1 DO colorlist[c] = 'C ' + STRING(c, FORMAT='(I3)') + ' ' + STRING(RANDOMU(seed), FORMAT='(F10)') + ' ' + STRING(RANDOMU(seed), FORMAT='(F10)') + ' ' + STRING(RANDOMU(seed), FORMAT='(F10)')
 				spoca_lastrun_number = 0
+				last_written_event = 0LL ; This implies that we always write events on the first run
+				numActiveEvents = 0
 				last_color_assigned = 0
-				status = {spoca_lastrun_number : spoca_lastrun_number, last_color_assigned : last_color_assigned, colorlist: colorlist, numbercolors : numbercolors  }
+				status = {spoca_lastrun_number : spoca_lastrun_number, last_written_event : last_written_event, numActiveEvents : numActiveEvents, last_color_assigned : last_color_assigned}
 				BREAK
 
    			END
@@ -99,26 +98,24 @@ SWITCH runMode OF
 				ENDELSE
 				; I don't break because now I am in normal mode
    			END 
-   	
-   	'Clear Events':	BEGIN
-				; TODO close out events (altought I don't think we have that)
-				trackingNumberImages = 0
-				trackingOverlap = 0
-				spoca_lastrun_number = status.spoca_lastrun_number
-				last_color_assigned = status.last_color_assigned
-				numbercolors = status.numbercolors
-				colorlist = status.colorlist
-				GOTO, Tracking
-			END
-			
    	'Normal':	BEGIN ; We read the status
 				spoca_lastrun_number = status.spoca_lastrun_number
+				last_written_event = status.last_written_event
+				numActiveEvents = status.numActiveEvents
 				last_color_assigned = status.last_color_assigned
-				numbercolors = status.numbercolors
-				colorlist = status.colorlist
 				BREAK
    			END 
 
+	'Clear Events':	BEGIN
+				; TODO close out events (altought I don't think we have that)
+				ARmaps = FILE_SEARCH(outputDirectory, '*ARmap.tracking.fits', /TEST_READ, /TEST_REGULAR , /TEST_WRITE  )
+				IF (debug GT 0) THEN BEGIN
+					PRINT, "Clear Events called"
+					PRINT , "Deleting all remaining ARmaps : ", endl + ARmaps
+				ENDIF
+		
+				FILE_DELETE, ARmaps , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug 
+			END
 			
 	ELSE:		BEGIN
 				error = [ error, "I just don't know what to do with myself. runMode is " + runMode ]
@@ -129,6 +126,8 @@ ENDSWITCH
 IF (debug GT 0) THEN BEGIN
 	PRINT, 'Status :'
 	PRINT, 'spoca_lastrun_number : ' , spoca_lastrun_number
+	PRINT, 'last_written_event : ', last_written_event
+	PRINT, 'numActiveEvents : ', numActiveEvents
 	PRINT, 'last_color_assigned : ', last_color_assigned
 ENDIF
 
@@ -153,17 +152,31 @@ ENDIF
 
 
 IF N_ELEMENTS(outputDirectory) EQ 0 THEN outputDirectory = 'results/'
+IF N_ELEMENTS(writeEventsFrequency) EQ 0 THEN writeEventsFrequency = 4 * 3600
 IF N_ELEMENTS(cCodeLocation) EQ 0 THEN cCodeLocation = 'bin/'
 
 ; SPoCA parameters
 
-spoca_bin = cCodeLocation + 'SPoCA_V3D.x'
+spoca_bin = cCodeLocation + 'SPoCA_HEK.x'
 
 IF N_ELEMENTS(spocaArgsPreprocessing) EQ 0 THEN spocaArgsPreprocessing = '3'  
 IF N_ELEMENTS(spocaArgsNumberclasses) EQ 0 THEN spocaArgsNumberclasses = '4'
 IF N_ELEMENTS(spocaArgsPrecision) EQ 0 THEN spocaArgsPrecision = '0.000000001'
 IF N_ELEMENTS(spocaArgsBinsize) EQ 0 THEN spocaArgsBinsize = '0.01,0.01'
 spoca_args_centersfile = outputDirectory + 'centers.txt'
+
+
+; Tracking parameters
+
+tracking_bin = cCodeLocation + 'Tracking_HEK.x'
+IF N_ELEMENTS(trackingArgsDeltat) EQ 0 THEN trackingArgsDeltat = '21600' ; It is in seconds
+IF N_ELEMENTS(trackingNumberImages) EQ 0 THEN trackingNumberImages = 9
+IF N_ELEMENTS(trackingOverlap) EQ 0 THEN trackingOverlap = 3
+
+; GetRegionStats parameters
+
+getregionstats_bin = cCodeLocation + 'GetRegionStats_HEK.x'
+getregionstatsArgsPreprocessing = '1' ; We only do Annulus Limb Correction here
 
 
 IF (debug GT 0) THEN BEGIN
@@ -173,7 +186,7 @@ ENDIF
 
 ; --------- We take care of running spoca -----------------
 
-; We initialise correctly the arguments for SPoCA_V3D
+; We initialise correctly the arguments for SPoCA_HEK
 
 ++spoca_lastrun_number
 
@@ -217,14 +230,6 @@ ENDIF
 
 ; --------- We take care of the tracking -----------------
 
-Tracking :
-
-; Tracking parameters
-
-tracking_bin = cCodeLocation + 'Tracking_V3D.x'
-IF N_ELEMENTS(trackingArgsDeltat) EQ 0 THEN trackingArgsDeltat = '21600' ; It is in seconds
-IF N_ELEMENTS(trackingNumberImages) EQ 0 THEN trackingNumberImages = 9
-IF N_ELEMENTS(trackingOverlap) EQ 0 THEN trackingOverlap = 3
 
 ARmaps = FILE_SEARCH(outputDirectory, '*ARmap.tracking.fits', /TEST_READ, /TEST_REGULAR , /TEST_WRITE  ) 
 
@@ -276,91 +281,137 @@ IF (N_ELEMENTS(tracking_output) LT 1 || STRLEN(tracking_output[0]) LE 1 ) THEN B
 	error = [ error, 'Error No output from Tracking']	
 	RETURN
 	
-ENDIF 
+ENDIF ELSE BEGIN
 
-; The first output of Tracking is the last_color_assigned
-output = strsplit( tracking_output[0] , ' 	(),', /EXTRACT) 
-last_color_assigned = LONG(output[0])
+	; The output of Tracking is numActiveEvents last_found_event last_color_assigned
+	output = strsplit( tracking_output[0] , ' 	(),', /EXTRACT) 
+	numActiveEvents = LONG(output[0])
+	last_found_event = LONG64(output[1])
+	last_color_assigned = LONG(output[2])
+	
+ENDELSE
 
-; The files to write the results
 
-monochromeresults = 50
-rainbowresults = 51
-OPENW , monochromeresults, 'monochromeresults.txt', /APPEND
+IF (debug GT 0) THEN BEGIN
+	PRINT, endl, "********END OF TRACKING / BEGINNING OF GETREGIONSTATS*******"
+ENDIF
 
-OPENW, rainbowresults, 'rainbowresults.txt', /APPEND
+; --------- We take care of the computing of the Regions Stats -----------------
 
-; The rest of the tracking output are the regions
+; We run RegionsStats if it is time to write the events to the hek and that we have at least 1 active event
 
-FOR k = 1, N_ELEMENTS(tracking_output) - 1 DO BEGIN 
+events_write_deltat = last_found_event - last_written_event
 
-	PRINT, "Caring for line ", tracking_output[k]
+IF events_write_deltat LT writeEventsFrequency THEN BEGIN
+	
+	
+	IF (debug GT 0) THEN BEGIN
+		PRINT,  STRING(events_write_deltat) + ' seconds elapsed since last events written, not running GetRegionStats yet'
+	ENDIF
+	GOTO, Finish
+	
+ENDIF ELSE BEGIN
 
-	IF STRMATCH( tracking_output[k], "*ENDIMAGE*" , /FOLD_CASE ) THEN BEGIN
-		PRINT, "Found ENDIMAGE"
-		PRINTF, monochromeresults, blockheader, endl, 'C 0 0.0 0.0 1.0', endl, STRJOIN(monochromeblock, endl, /SINGLE), endl, 'ENDIMAGE'
-		PRINTF,rainbowresults, blockheader, endl, STRJOIN(colorlist, endl, /SINGLE), endl,  STRJOIN(rainbowblock, endl, /SINGLE), endl, 'ENDIMAGE'
-		
-		CONTINUE
+	IF (debug GT 0) THEN BEGIN
+		PRINT, STRING(events_write_deltat) + ' seconds elapsed since last events write, running GetRegionStats'
 	ENDIF
 
-	IF STRMATCH( tracking_output[k], "*IMAGE*" , /FOLD_CASE ) THEN BEGIN
-		PRINT, "Found IMAGE"
-		; We need the header of the image to transform the coordinates
-		output = strsplit( tracking_output[k] , ' 	(),', /EXTRACT)
-		image = output[1]
-		PRINT, "Image ", image
-		header = headfits(image)
-		wcs = fitshead2wcs(header)
-		kdate_obs = FXPAR(header,'DATE-OBS')
-		IF !err LT 0 THEN kdate_obs = FXPAR(header,'DATE_OBS')
-		IF !err LT 0 THEN PRINT, "ERROR : could not find DATE_OBS nor DATE-OBS keyword in file ", image
-		output = STRSPLIT( kdate_obs , '-Tt:.Zz', /EXTRACT) 
-		date_obs = STRJOIN( output[0:4] , '', /SINGLE ) 
-		
-		kinstrument = FXPAR(header,'INSTRUME')
-		IF !err LT 0 THEN PRINT, "ERROR : could not find INSTRUME keyword in file ", image
-		IF STRMATCH( kinstrument, "*EIT*" , /FOLD_CASE ) THEN BEGIN
-			observatory = '1'
-			instrument = '2'
-		ENDIF
-		
-		IF STRMATCH( kinstrument, "*EUVI*" , /FOLD_CASE ) THEN BEGIN
-		
-			instrument = '3'
-			kobservatory = FXPAR(header,'OBSRVTRY')
-			IF !err LT 0 THEN PRINT, "ERROR : could not find OBSRVTRY keyword in file ", image
+ENDELSE
 
-			IF STRMATCH( kobservatory, "*STEREO_A*" , /FOLD_CASE ) THEN BEGIN
-				observatory = '2'
-			ENDIF
-			
-			IF STRMATCH( kobservatory, "*STEREO_B*" , /FOLD_CASE ) THEN BEGIN
-				observatory = '3'
-			ENDIF
-		ENDIF
-		
-		imagetype = '6' ; i.e. 171 
-		algo = 'SPOCA'
-		monochromeblock=STRARR(1)
-		rainbowblock=STRARR(1)
-		blockheader="IMAGE " + observatory + instrument + imagetype + date_obs + ' ' + algo 
-		print, blockheader
-		  
-		CONTINUE
-	ENDIF 
 
-	PRINT, "Found REGION"
+IF numActiveEvents EQ 0 THEN BEGIN
 
-	; The output of a region is (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) id numberpixels label date_obs color
-	output = strsplit( tracking_output[k] , ' 	(),', /EXTRACT) 
+	IF (debug GT 0) THEN BEGIN
+		PRINT, 'No active event, going to Finish'
+	ENDIF
+
+	last_written_event = last_found_event	; Even if there is no event to write, it was time to write them
+	GOTO, Finish
+ENDIF
+
+
+getregionstats_args =	' -P ' + getregionstatsArgsPreprocessing + $
+			' -M ' + ARmaps[N_ELEMENTS(ARmaps) - 1] + $
+			' ' + image171
+
+IF (debug GT 0) THEN BEGIN
+
+	PRINT, 'About to run : ' , getregionstats_bin + getregionstats_args
+	
+ENDIF
+
+; We call RegionsStats with the correct arguments
+
+SPAWN, getregionstats_bin + getregionstats_args, getregionstats_output, getregionstats_errors, EXIT_STATUS=getregionstats_exit 
+
+; In case of error
+IF (getregionstats_exit NE 0) THEN BEGIN
+
+	error = [ error, 'Error executing '+ getregionstats_bin + getregionstats_args ]
+	error = [ error, getregionstats_errors ]
+	; TODO Should we cleanup  ???
+	
+	IF (debug GT 0) THEN BEGIN
+		PRINT , "RegionsStats exited with error : ", getregionstats_exit, endl, getregionstats_errors
+	ENDIF
+	
+ENDIF
+
+; As output of GetRegionStats we receive the stats on the AR intra limb 
+IF (debug GT 0) THEN BEGIN
+	PRINT, 'GetRegionStats Output is :', endl + getregionstats_output
+ENDIF
+
+
+; We check that output is not null, This should not be the case because we know that the numActiveEvents > 0
+IF (N_ELEMENTS(getregionstats_output) LT 1 || STRLEN(getregionstats_output[0]) LE 1 ) THEN BEGIN
+	IF (debug GT 0) THEN BEGIN
+		PRINT, 'ERROR GetRegionStats Output is void, going to Finish'
+	ENDIF
+	GOTO, Finish
+ENDIF
+
+
+; We allocate space for the events
+events = strarr(N_ELEMENTS(getregionstats_output))
+
+
+; We need the header of one of the image to transform the coordinates
+
+header = headfits(image171)
+wcs = fitshead2wcs(header)
+
+distance_observer_sun = 149597.871
+earth_orbit_eccentricity = 0.0167
+yearly_maximal_error = distance_observer_sun * earth_orbit_eccentricity
+
+
+FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN 
+
+	; The output of GetRegionStats is (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) id numberpixels label date_obs color minintensity maxintensity mean variance skewness kurtosis totalintensity area_raw area_rawuncert area_atdiskcenter area_atdiskcenteruncert
+	output = strsplit( getregionstats_output[k] , ' 	(),', /EXTRACT) 
 	; We parse the output
 	cartesian_x = FLOAT(output[0:4:2])
 	cartesian_y = FLOAT(output[1:5:2])
 	cartesian = FLTARR(2,N_ELEMENTS(cartesian_x))
 	cartesian[0,*]=cartesian_x
 	cartesian[1,*]=cartesian_y
-	feature_tag = output[10]
+	id = output[6]
+	numberpixels = LONG(output[7])
+	label = output[8]
+	date_obs = LONG64(output[9])
+	color = LONG(output[10])
+	minintensity = FLOAT(output[11])
+	maxintensity = FLOAT(output[12])
+	mean = FLOAT(output[13])
+	variance = FLOAT(output[14])
+	skewness = FLOAT(output[15])
+	kurtosis = FLOAT(output[16])
+	totalintensity = FLOAT(output[17])
+	area_raw = FLOAT(output[18])
+	area_rawuncert = FLOAT(output[19])
+	area_atdiskcenter = FLOAT(output[20])
+	area_atdiskcenteruncert = FLOAT(output[21])
 	
 	IF (debug GT 0) THEN BEGIN
 		PRINT , "cartesians coordinates for the region ", k
@@ -370,29 +421,85 @@ FOR k = 1, N_ELEMENTS(tracking_output) - 1 DO BEGIN
 	; We convert the cartesian pixel coodinates into WCS
         wcs_coord = WCS_GET_COORD(wcs, cartesian)
         
-	; We convert the WCS coodinates into stonyhurst heliographics 
-	WCS_CONVERT_FROM_COORD, wcs, wcs_coord, 'HG', hpc_x, hpc_y
+	; We convert the WCS coodinates into helioprojective cartesian
+	WCS_CONVERT_FROM_COORD, wcs, wcs_coord, 'HPC', /ARCSECONDS, hpc_x, hpc_y
 	
 	IF (debug GT 0) THEN BEGIN
 		PRINT , "x, y, z HPC coordinates for the region ", k
 		PRINT, hpc_x
 		PRINT, hpc_y
 	ENDIF
-	color = '0'
-	region = 'AR' + ' ' + color + ' ' + STRING(hpc_x[0]) + ' ' + STRING(hpc_y[0]) + ' ' +  feature_tag
-	monochromeblock = [monochromeblock, region]
-	PRINT, 'monochrome ', region
 	
-	color = STRING(LONG(feature_tag) MOD numbercolors, FORMAT='(I3)')
-	region = 'AR' + ' ' + color + ' ' + STRING(hpc_x[0]) + ' ' + STRING(hpc_y[0]) + ' ' +  feature_tag
-	rainbowblock = [rainbowblock, region]
-	PRINT, 'rainbow ', region
+	; Create an Hek event and fill it
+		
+	event = struct4event('AR')
+
+	event.required.OBS_Observatory = 'STEREO'
+	event.required.OBS_Instrument = 'EUVI'
+	event.required.OBS_ChannelID = 'EUVI 171, EUVI 195'
+	event.required.OBS_MeanWavel = 171; ??? There should be 2 values, one for 195 also
+	event.required.OBS_WavelUnit = 'Angstroms'
+
+	event.required.FRM_Name = 'SPoCA'
+	event.optional.FRM_VersionNumber = 1
+	event.required.FRM_Identifier = 'vdelouille'
+	event.required.FRM_Institute ='ROB'
+	event.required.FRM_HumanFlag = 'F'
+	event.required.FRM_ParamSet = 'image171 : calibrated image 171 A' $
+		+ ', image195 : calibrated image 195 A' $
+		+ ', dilation_factor= 12' $
+		+ ', initialisation_type= FCM' $
+		+ ', numerical_precision= double'; $
+		;+ ', spocaArgsPreprocessing=' + spocaArgsPreprocessing $
+		;+ ', spocaArgsNumberclasses=' + spocaArgsNumberclasses $
+		;+ ', spocaArgsPrecision='  + spocaArgsPrecision $
+		;+ ', spocaArgsBinsize='  + spocaArgsBinsize $
+		;+ ', trackingArgsDeltat=' + trackingArgsDeltat $
+		;+ ', trackingNumberImages=' + STRING(trackingNumberImages, FORMAT='(I)') $
+		;+ ', trackingOverlap=' + STRING(trackingOverlap, FORMAT='(I)') 
+
+
+	event.required.FRM_DateRun = anytim(sys2ut(), /ccsds)
+	event.required.FRM_Contact = 'veronique.delouille@sidc.be'
+	event.required.FRM_URL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA'
+
+	event.required.Event_StartTime = anytim(last_written_event, /ccsds) ; The start time is the previous time we ran GetRegionStats
+	event.required.Event_EndTime = anytim(date_obs, /ccsds)  
+	  
+	event.required.Event_CoordSys = 'UTC-HPC-TOPO'
+	event.required.Event_CoordUnit = 'arcsec,arcsec'
+	event.required.Event_Coord1 = hpc_x[0]
+	event.required.Event_Coord2 = hpc_y[0]
+	event.required.Event_C1Error = 3600 * !RADEG / yearly_maximal_error * (1 + hpc_x[0] * yearly_maximal_error / distance_observer_sun)
+	event.required.Event_C2Error = 3600 * !RADEG / yearly_maximal_error * (1 + hpc_y[0] * yearly_maximal_error / distance_observer_sun)	
+	event.required.BoundBox_C1LL = hpc_x[1]
+	event.required.BoundBox_C2LL = hpc_y[1]
+	event.required.BoundBox_C1UR = hpc_x[2]
+	event.required.BoundBox_C2UR = hpc_y[2]
+	
+	event.optional.Event_Npixels = numberpixels
+	event.optional.Event_PixelUnit = 'DN/s' ; ??? TBC for AIA
+	event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA' ; 
+	event.optional.FRM_SpecificID = color
+
+	
+	
+	
+	; We write the VOevent
+	
+	IF KEYWORD_SET(write_file) THEN BEGIN
+		export_event, event, /write, suff=label, buff=buff
+	ENDIF ELSE BEGIN
+		export_event, event, suffix=label, buff=buff
+	ENDELSE
+	
+	events[k]=STRJOIN(buff, /SINGLE) ;
 	
 
 ENDFOR 
 
+last_written_event = last_found_event ; We update the time we wrote an event
 
-CLOSE, monochromeresults, rainbowresults
 
 Finish :	; Label for the case not enough images were present for the tracking, or if we do not write 
 
@@ -424,8 +531,8 @@ imageRejected = 0
 ; We save the variables for next run
 
 status.spoca_lastrun_number = spoca_lastrun_number
-status.numbercolors = numbercolors
-status.colorlist = colorlist
+status.last_written_event = last_written_event
+status.numActiveEvents = numActiveEvents
 status.last_color_assigned = last_color_assigned
 
 SAVE, status , DESCRIPTION='Spoca last run status variable at ' + SYSTIME() , FILENAME=outputStatusFilename, VERBOSE = debug
