@@ -14,25 +14,27 @@ class RegionStats : public Region
 {
 
 	private :
-		Real m1, m2, m3, m4, minIntensity, maxIntensity, totalIntensity, area_Raw, area_RawUncert, area_AtDiskCenter, area_AtDiskCenterUncert, numberContourPixels;
+		Real m1, m2, m3, m4, minIntensity, maxIntensity, totalIntensity, centerxError, centeryError, area_Raw, area_RawUncert, area_AtDiskCenter, area_AtDiskCenterUncert, numberContourPixels;
 		
 	private :
 		//Update routines
-		void add(const Coordinate& pixelCoordinate, const PixelType& pixelIntensity, const Coordinate relativePixelCoordinate, const bool atBorder, const double R);
+		void add(const Coordinate& pixelCoordinate, const PixelType& pixelIntensity, const Coordinate sunCenter, const bool atBorder, const double R);
 		void update(const PixelType& pixelIntensity);
 
 
 	public :
 		//Constructors
 		RegionStats();
-		RegionStats(const time_t& date_obs);
-		RegionStats(const time_t& date_obs, const unsigned id, const unsigned long color = 0);
+		RegionStats(const time_t& observationTime);
+		RegionStats(const time_t& observationTime, const unsigned id, const unsigned long color = 0);
 
 
 		Real Mean() const;
 		Real Variance() const;
 		Real Skewness() const;
 		Real Kurtosis() const;
+		Real CenterxError() const;
+		Real CenteryError() const;
 		Real MinIntensity() const;
 		Real MaxIntensity() const;
 		Real TotalIntensity() const;

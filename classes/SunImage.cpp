@@ -14,7 +14,7 @@ SunImage::~SunImage()
 }
 
 SunImage::SunImage(const long xAxes, const long yAxes, const double radius, const double wavelength)
-:Image<PixelType>(xAxes,yAxes),radius(radius),wavelength(wavelength),date_obs(0),median(1),datap01(0), datap95(numeric_limits<PixelType>::max())
+:Image<PixelType>(xAxes,yAxes),radius(radius),wavelength(wavelength),observationTime(0),median(1),datap01(0), datap95(numeric_limits<PixelType>::max())
 {
 	suncenter.x = xAxes/2;
 	suncenter.y = yAxes/2;
@@ -96,12 +96,12 @@ SunImage::SunImage(const string& filename)
 		#error "INSTRUMENT is not defined"
 		#endif
 		
-		//The date of observation can be defined as DATE_OBS ou DATE-OBS
-		if (fits_read_key(fptr, TSTRING, "DATE-OBS", date_obs_string, comment, &status))
+		//The date of observation can be defined as observationTime ou DATE-OBS
+		if (fits_read_key(fptr, TSTRING, "DATE-OBS", date_obs, comment, &status))
 		{
 			
 			status = 0;
-			if (fits_read_key(fptr, TSTRING, "DATE_OBS", date_obs_string, comment, &status))
+			if (fits_read_key(fptr, TSTRING, "observationTime", date_obs, comment, &status))
 			{
 
 				cerr<<"Error reading key DATE-OBS from file "<<filename<<" :"<< status <<endl;
@@ -112,19 +112,20 @@ SunImage::SunImage(const string& filename)
 			{
 				//Sometimes the date is appended with a z
 				char * letter;
-				if((letter = strpbrk (date_obs_string, "zZ")))
+				if((letter = strpbrk (date_obs, "zZ")))
 					*letter = '\0';
 			}
 		}
-		//We convert DATE_OBS to time
+		//We convert observationTime to time
 		tm time;
 		double seconds;
 		int month;
-		if (fits_str2time(date_obs_string, &(time.tm_year), &(month), &(time.tm_mday), &(time.tm_hour), &(time.tm_min), &seconds, &status))
-			cerr<<"Error converting date_obs_string to time : "<< status <<endl;
+		if (fits_str2time(date_obs, &(time.tm_year), &(month), &(time.tm_mday), &(time.tm_hour), &(time.tm_min), &seconds, &status))
+			cerr<<"Error converting date_obs to time : "<< status <<endl;
 		time.tm_sec = int(seconds);
 		time.tm_mon = month -1;	//Because stupid c++ standard lib has the month going from 0-11
-		date_obs = mktime(&time);
+		time.tm_isdst = 0;
+		observationTime = timegm(&time);
 		
 		#if INSTRUMENT==EUVI || INSTRUMENT==AIA
 		if (fits_read_key(fptr, datatype, "DATAP01", &datap01,comment, &status))
@@ -187,9 +188,9 @@ SunImage::SunImage(const string& filename)
 
 
 SunImage::SunImage(const SunImage& i)
-:Image<PixelType>(i),radius(i.radius),wavelength(i.wavelength),date_obs(i.date_obs),suncenter(i.suncenter),median(i.median),datap01(i.datap01),datap95(i.datap95)
+:Image<PixelType>(i),radius(i.radius),wavelength(i.wavelength),observationTime(i.observationTime),suncenter(i.suncenter),median(i.median),datap01(i.datap01),datap95(i.datap95)
 {
-	strncpy (date_obs_string, i.date_obs_string, 80);
+	strncpy (date_obs, i.date_obs, 80);
 	cdelt[0] = i.cdelt[0];
 	cdelt[1] = i.cdelt[1];
 	header.resize(i.header.size(), NULL);
@@ -202,9 +203,9 @@ SunImage::SunImage(const SunImage& i)
 
 
 SunImage::SunImage(const SunImage* i)
-:Image<PixelType>(i),radius(i->radius),wavelength(i->wavelength),date_obs(i->date_obs),suncenter(i->suncenter),median(i->median),datap01(i->datap01),datap95(i->datap95)
+:Image<PixelType>(i),radius(i->radius),wavelength(i->wavelength),observationTime(i->observationTime),suncenter(i->suncenter),median(i->median),datap01(i->datap01),datap95(i->datap95)
 {
-	strncpy (date_obs_string, i->date_obs_string, 80);
+	strncpy (date_obs, i->date_obs, 80);
 	cdelt[0] = i->cdelt[0];
 	cdelt[1] = i->cdelt[1];
 	header.resize(i->header.size(), NULL);
@@ -214,6 +215,23 @@ SunImage::SunImage(const SunImage* i)
 		strncpy (header[k], i->header[k], 80);
 	}
 }
+
+
+
+double SunImage::Wavelength() const
+{return wavelength;}
+double SunImage::Median() const
+{return median;}
+Coordinate SunImage::SunCenter() const
+{return suncenter;}
+double SunImage::SunRadius() const
+{return radius;}
+time_t SunImage::ObservationTime() const
+{return observationTime;}
+string SunImage::ObservationDate() const
+{return string(date_obs);}
+double SunImage::PixelArea() const
+{return cdelt[0] * cdelt[1];}
 
 
 SunImage* SunImage::writeFitsImage (const string& filename)
@@ -897,7 +915,7 @@ void SunImage::copyKeywords(const SunImage* i)
 	suncenter = i->suncenter;
 	wavelength = i->wavelength;
 	median = i->median;
-	date_obs = i->date_obs;
+	observationTime = i->observationTime;
 	datap01=i->datap01;
 	datap95=i->datap95;
 	cdelt[0]=i->cdelt[0];
@@ -985,15 +1003,4 @@ SunImage* SunImage::rotate(const unsigned t)
 
 }
 
-int SunImage::DS79() const
-{
-	// The times in IDL are specified as the number of seconds since 1 Jan 1979 00:00:00
-	tm time;
-	time.tm_year = 1979;
-	time.tm_mon = 0; //Because stupid c++ standard lib has the month going from 0-11
-	time.tm_mday = 1;
-	time.tm_hour = time.tm_min = time.tm_sec = 0;
-	time_t time0 = mktime(&time);
-	
-	return int(difftime(date_obs, time0));
-}
+

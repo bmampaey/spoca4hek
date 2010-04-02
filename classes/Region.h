@@ -17,7 +17,7 @@ class Region
 {
 	protected :
 		unsigned  id;
-		time_t date_obs;
+		time_t observationTime;
 		unsigned long color;
 		Coordinate first, boxmin, boxmax, center;
 		unsigned numberPixels;
@@ -30,8 +30,8 @@ class Region
 	public :
 		//Constructors
 		Region();
-		Region(const time_t& date_obs);
-		Region(const time_t& date_obs, const unsigned id, const unsigned long color = 0);
+		Region(const time_t& observationTime);
+		Region(const time_t& observationTime, const unsigned id, const unsigned long color = 0);
 
 		//accessor and operators
 		bool operator==(const Region& r)const;
@@ -44,11 +44,10 @@ class Region
 		Coordinate Center() const;
 		Coordinate FirstPixel() const;
 		unsigned NumberPixels() const;
-		time_t ObsDate() const;
+		time_t ObservationTime() const;
+		std::string ObservationDate() const;
 		std::string Label() const;
 		
-		// The date as the number of seconds since 1 Jan 1979 00:00:00 (for IDL)
-		int DS79() const;
 
 	public :
 

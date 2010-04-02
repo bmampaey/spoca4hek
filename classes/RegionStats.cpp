@@ -3,15 +3,15 @@
 using namespace std;
 
 RegionStats::RegionStats()
-:Region(), m1(0), m2(0), m3(0), m4(0), minIntensity(numeric_limits<PixelType>::max()), maxIntensity(0), totalIntensity(0), area_Raw(0), area_RawUncert(0), area_AtDiskCenter(0), area_AtDiskCenterUncert(0), numberContourPixels(0)
+:Region(), m1(0), m2(0), m3(0), m4(0), minIntensity(numeric_limits<PixelType>::max()), maxIntensity(0), totalIntensity(0), centerxError(0), centeryError(0), area_Raw(0), area_RawUncert(0), area_AtDiskCenter(0), area_AtDiskCenterUncert(0), numberContourPixels(0)
 {}
 
-RegionStats::RegionStats(const time_t& date_obs)
-:Region(date_obs), m1(0), m2(0), m3(0), m4(0), minIntensity(numeric_limits<PixelType>::max()), maxIntensity(0), totalIntensity(0), area_Raw(0), area_RawUncert(0), area_AtDiskCenter(0), area_AtDiskCenterUncert(0), numberContourPixels(0)
+RegionStats::RegionStats(const time_t& observationTime)
+:Region(observationTime), m1(0), m2(0), m3(0), m4(0), minIntensity(numeric_limits<PixelType>::max()), maxIntensity(0), totalIntensity(0), centerxError(0), centeryError(0), area_Raw(0), area_RawUncert(0), area_AtDiskCenter(0), area_AtDiskCenterUncert(0), numberContourPixels(0)
 {}
 
-RegionStats::RegionStats(const time_t& date_obs, const unsigned id, const unsigned long color)
-:Region(date_obs, id, color), m1(0), m2(0), m3(0), m4(0), minIntensity(numeric_limits<PixelType>::max()), maxIntensity(0), totalIntensity(0), area_Raw(0), area_RawUncert(0), area_AtDiskCenter(0), area_AtDiskCenterUncert(0), numberContourPixels(0)
+RegionStats::RegionStats(const time_t& observationTime, const unsigned id, const unsigned long color)
+:Region(observationTime, id, color), m1(0), m2(0), m3(0), m4(0), minIntensity(numeric_limits<PixelType>::max()), maxIntensity(0), totalIntensity(0), centerxError(0), centeryError(0), area_Raw(0), area_RawUncert(0), area_AtDiskCenter(0), area_AtDiskCenterUncert(0), numberContourPixels(0)
 {}
 
 //The radius of the sun in Mmeters (R0)
@@ -27,7 +27,7 @@ const double HIGGINS_FACTOR = 31;
 
 
 
-void RegionStats::add(const Coordinate& pixelCoordinate, const PixelType& pixelIntensity, const Coordinate relativePixelCoordinate, const bool atBorder, const double R)
+void RegionStats::add(const Coordinate& pixelCoordinate, const PixelType& pixelIntensity, const Coordinate sunCenter, const bool atBorder, const double R)
 {
 	Region::add(pixelCoordinate);
 	m1 += pixelIntensity;
@@ -46,19 +46,23 @@ void RegionStats::add(const Coordinate& pixelCoordinate, const PixelType& pixelI
 	{
 		area_RawUncert += R0R2;
 	}
-	
-	double pixelArea2 = (R * R) - (relativePixelCoordinate.x * relativePixelCoordinate.x) - (relativePixelCoordinate.y * relativePixelCoordinate.y);
+	int relativePixelCoordinatex = pixelCoordinate.x - sunCenter.x;
+	int relativePixelCoordinatey = pixelCoordinate.y - sunCenter.y;
+	double pixelArea2 = (R * R) - (relativePixelCoordinatex * relativePixelCoordinatex) - (relativePixelCoordinatey * relativePixelCoordinatey);
 	double pixelArea = R / sqrt(pixelArea2);
 	if (pixelArea <= HIGGINS_FACTOR)
 	{
 		area_AtDiskCenter += R0R2 * pixelArea;
-		area_AtDiskCenterUncert += (( 2 *  DR0R0DRR * pixelArea2 + relativePixelCoordinate.x + relativePixelCoordinate.y ) * R0R2 * (pixelArea * pixelArea * pixelArea)) / (R * R);	
+		area_AtDiskCenterUncert += R0R2 * (( 2 *  DR0R0DRR * pixelArea2 + abs(relativePixelCoordinatex) + abs(relativePixelCoordinatey) ) * (pixelArea * pixelArea * pixelArea)) / (R * R);	
 	}
 	else 
 	{
 		area_AtDiskCenter = numeric_limits<Real>::infinity();
 		area_AtDiskCenterUncert = numeric_limits<Real>::infinity();
 	}
+	
+	centerxError += relativePixelCoordinatex;
+	centeryError += relativePixelCoordinatey; 
 	
 }
 
@@ -72,6 +76,36 @@ void RegionStats::update(const PixelType& pixelIntensity)
 	m3 += delta2 * delta;
 
 }
+
+const double distance_observer_sun = 149597.871;
+const double earth_orbit_eccentricity = 0.0167;
+const double yearly_maximal_error = distance_observer_sun * earth_orbit_eccentricity;
+const double rad2arcsec = 206264.806247096;
+
+Real RegionStats::CenterxError() const
+{
+	if (numberPixels > 0)
+	{
+		return rad2arcsec / yearly_maximal_error * (1 + (yearly_maximal_error / distance_observer_sun) * abs(centerxError / numberPixels));
+	}
+	else
+	{
+		return numeric_limits<Real>::infinity();
+	}
+}
+
+Real RegionStats::CenteryError() const
+{
+	if (numberPixels > 0)
+	{
+		return rad2arcsec / yearly_maximal_error * (1 + (yearly_maximal_error / distance_observer_sun) * abs(centeryError / numberPixels));
+	}
+	else
+	{
+		return numeric_limits<Real>::infinity();
+	}
+}
+
 
 Real RegionStats::MinIntensity() const
 {
@@ -142,11 +176,11 @@ Real RegionStats::Area_AtDiskCenterUncert() const
 }
 
 
-const string RegionStats::header = Region::header + "MinIntensity\tMaxIntensity\tMean\tVariance\tSkewness\tKurtosis\tTotalIntensity\tArea_Raw\tArea_RawUncert\tArea_AtDiskCenter\tArea_AtDiskCenterUncert";
+const string RegionStats::header = Region::header + "MinIntensity\tMaxIntensity\tMean\tVariance\tSkewness\tKurtosis\tTotalIntensity\tCenterxError\tCenteryError\tArea_Raw\tArea_RawUncert\tArea_AtDiskCenter\tArea_AtDiskCenterUncert";
 
 ostream& operator<<(ostream& out, const RegionStats& r)
 {
-	out<<Region(r)<<"\t"<<r.MinIntensity()<<"\t"<<r.MaxIntensity()<<"\t"<<r.Mean()<<"\t"<<r.Variance()<<"\t"<<r.Skewness()<<"\t"<<r.Kurtosis()<<"\t"<<r.TotalIntensity()<<"\t"<<r.Area_Raw()<<"\t"<<r.Area_RawUncert()<<"\t"<<r.Area_AtDiskCenter()<<"\t"<<r.Area_AtDiskCenterUncert();
+	out<<setiosflags(ios::fixed)<<Region(r)<<"\t"<<r.MinIntensity()<<"\t"<<r.MaxIntensity()<<"\t"<<r.Mean()<<"\t"<<r.Variance()<<"\t"<<r.Skewness()<<"\t"<<r.Kurtosis()<<"\t"<<r.TotalIntensity()<<"\t"<<r.CenterxError()<<"\t"<<r.CenteryError()<<"\t"<<r.Area_Raw()<<"\t"<<r.Area_RawUncert()<<"\t"<<r.Area_AtDiskCenter()<<"\t"<<r.Area_AtDiskCenterUncert();
 	return out;
 }
 
@@ -176,17 +210,15 @@ vector<RegionStats*> getRegions(const SunImage* colorizedComponentsMap, const Su
 				// If the regions does not yet exist we create it
 				if (!regions[color])
 				{
-					regions[color] = new RegionStats(colorizedComponentsMap->ObsDate(),id, color);
+					regions[color] = new RegionStats(colorizedComponentsMap->ObservationTime(),id, color);
 					++id;
 				}
-				//TODO CIS is it a neighboorhood of 4 or of 8 ?
+				
 				//Is the pixel in the contour (<=> there is a neighboor pixel != pixel color)
 				bool atBorder = colorizedComponentsMap->pixel(x-1,y) != color || colorizedComponentsMap->pixel(x+1,y) != color || colorizedComponentsMap->pixel(x,y-1) != color || colorizedComponentsMap->pixel(x,y+1) != color;
 				
-				Coordinate relativePixelCoordinate(sunCenter.x > x ? sunCenter.x - x : x - sunCenter.x, sunCenter.y > y ? sunCenter.y - y : y - sunCenter.y);
-				
 				// We add the pixel to the region
-				regions[color]->add(Coordinate(x,y), image->pixel(x, y), relativePixelCoordinate, atBorder, sunRadius);
+				regions[color]->add(Coordinate(x,y), image->pixel(x, y), sunCenter, atBorder, sunRadius);
 			}
 		}
 

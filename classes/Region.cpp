@@ -3,19 +3,19 @@
 using namespace std;
 
 Region::Region()
-:id(0),date_obs(0),color(0), first(Coordinate::Max), boxmin(Coordinate::Max), boxmax(0), center(0), numberPixels(0)
+:id(0),observationTime(0),color(0), first(Coordinate::Max), boxmin(Coordinate::Max), boxmax(0), center(0), numberPixels(0)
 {}
 
-Region::Region(const time_t& date_obs)
-:id(0),date_obs(date_obs),color(0),first(Coordinate::Max), boxmin(Coordinate::Max), boxmax(0), center(0), numberPixels(0)
+Region::Region(const time_t& observationTime)
+:id(0),observationTime(observationTime),color(0),first(Coordinate::Max), boxmin(Coordinate::Max), boxmax(0), center(0), numberPixels(0)
 {}
 
-Region::Region(const time_t& date_obs, const unsigned id, const unsigned long color)
-:id(id),date_obs(date_obs),color(color),first(Coordinate::Max), boxmin(Coordinate::Max), boxmax(0), center(0), numberPixels(0)
+Region::Region(const time_t& observationTime, const unsigned id, const unsigned long color)
+:id(id),observationTime(observationTime),color(color),first(Coordinate::Max), boxmin(Coordinate::Max), boxmax(0), center(0), numberPixels(0)
 {}
 
 bool Region::operator==(const Region& r)const
-{return date_obs == r.date_obs && id == r.id;}
+{return observationTime == r.observationTime && id == r.id;}
 
 unsigned  Region::Id() const
 {return id;}
@@ -53,7 +53,6 @@ Coordinate Region::Center() const
 		return Coordinate::Max;
 }
 
-
 Coordinate Region::FirstPixel() const
 {
 	return first;
@@ -65,22 +64,18 @@ unsigned Region::NumberPixels() const
 	return numberPixels;
 }
 
-time_t Region::ObsDate() const
+time_t Region::ObservationTime() const
 {
-	return date_obs;
+	return observationTime;
 }
 
-int Region::DS79() const
+string Region::ObservationDate() const
 {
-	// The times in IDL are specified as the number of seconds since 1 Jan 1979 00:00:00
-	tm time;
-	time.tm_year = 1979;
-	time.tm_mon = 0; //Because stupid c++ standard lib has the month going from 0-11
-	time.tm_mday = 1;
-	time.tm_hour = time.tm_min = time.tm_sec = 0;
-	time_t time0 = mktime(&time);
-	
-	return int(difftime(date_obs, time0));
+	tm* date_obs;
+	date_obs = gmtime(&observationTime);
+	ostringstream ss;
+	ss<<setfill('0')<<setw(4)<<date_obs->tm_year<<"-"<<setw(2)<<date_obs->tm_mon + 1<<"-"<<setw(2)<<date_obs->tm_mday<<"T"<<setw(2)<<date_obs->tm_hour<<":"<<setw(2)<<date_obs->tm_min<<":"<<setw(2)<<date_obs->tm_sec;
+	return ss.str();
 }
 
 void Region::add(const unsigned& x, const unsigned& y)
@@ -108,20 +103,20 @@ void Region::add(const Coordinate& pixelCoordinate)
 
 string Region::Label() const
 {
-	tm * ptm;
-	ptm = localtime(&date_obs);
+	tm* date_obs;
+	date_obs = gmtime(&observationTime);
 	ostringstream ss;
-	ss<<setfill('0')<<setw(4)<<ptm->tm_year<<setw(2)<<ptm->tm_mon + 1<<setw(2)<<ptm->tm_mday<<"T"<<setw(2)<<ptm->tm_hour<<setw(2)<<ptm->tm_min<<setw(2)<<ptm->tm_sec<<"_"<<id;
+	ss<<setfill('0')<<setw(4)<<date_obs->tm_year<<setw(2)<<date_obs->tm_mon + 1<<setw(2)<<date_obs->tm_mday<<"T"<<setw(2)<<date_obs->tm_hour<<setw(2)<<date_obs->tm_min<<setw(2)<<date_obs->tm_sec<<"_"<<id;
 	return ss.str();
 }
 
 
-const string Region::header = "(center.x,center.y)\t(boxmin.x,boxmin.y)\t(boxmax.x,boxmax.y)\tid\tnumberPixels\tlabel\tdate_obs\tcolor";
+const string Region::header = "(Center.x,Center.y)\t(Boxmin.x,Boxmin.y)\t(Boxmax.x,Boxmax.y)\tId\tNumberPixels\tLabel\tObservationDate\tColor";
 
 ostream& operator<<(ostream& out, const Region& r)
 {
 	
-	out<<r.Center()<<"\t"<<r.Boxmin()<<"\t"<<r.Boxmax()<<"\t"<<r.Id()<<"\t"<<r.NumberPixels()<<"\t"<<r.Label()<<"\t"<<r.DS79()<<"\t"<<r.Color();
+	out<<setiosflags(ios::fixed)<<r.Center()<<"\t"<<r.Boxmin()<<"\t"<<r.Boxmax()<<"\t"<<r.Id()<<"\t"<<r.NumberPixels()<<"\t"<<r.Label()<<"\t"<<r.ObservationDate()<<"\t"<<r.Color();
 	return out;
 }
 
@@ -148,7 +143,7 @@ vector<Region*> getRegions(const SunImage* colorizedComponentsMap)
 				// If the regions does not yet exist we create it
 				if (!regions[color])
 				{
-					regions[color] = new Region(colorizedComponentsMap->ObsDate(),id, 0);
+					regions[color] = new Region(colorizedComponentsMap->ObservationTime(),id, 0);
 					++id;
 				}
 				

@@ -29,7 +29,7 @@ typedef graph<Region*, int> RegionGraph;
 // Comparison of 2 images according to time (for sorting)
 inline bool compare(const SunImage* a, const SunImage* b)
 {
-	return a->ObsDate() < b->ObsDate();
+	return a->ObservationTime() < b->ObservationTime();
 }
 
 
@@ -248,7 +248,7 @@ int main(int argc, const char **argv)
 	vector<SunImage*>::iterator s2 = images.begin() + 1;
 	while (s2 != images.end())
 	{
-		if (unsigned(difftime((*s2)->ObsDate(),(*s1)->ObsDate())) == 0)
+		if (unsigned(difftime((*s2)->ObservationTime(),(*s1)->ObservationTime())) == 0)
 		{
 			s1 = images.erase(s1,s2);
 		}
@@ -305,7 +305,7 @@ int main(int argc, const char **argv)
 		{
 			unsigned s2 = s1 + d;
 			//If the time difference between the 2 images is too big, we don't need to continue
-			if (unsigned(difftime(images[s2]->ObsDate(),images[s1]->ObsDate())) > delta_time)
+			if (unsigned(difftime(images[s2]->ObservationTime(),images[s1]->ObservationTime())) > delta_time)
 			{
 				break;						  
 			}	
@@ -379,7 +379,7 @@ int main(int argc, const char **argv)
 	}
 
 	//We output the number of Active Events, the date of the last found event, and the last color assigned
-	cout<<regions[images.size() - 1].size()<<" "<<images[images.size() - 1]->DS79()<<" "<<newColor<<endl;
+	cout<<regions[images.size() - 1].size()<<" "<<images[images.size() - 1]->ObservationDate()<<" "<<newColor<<endl;
 
 
 	return EXIT_SUCCESS;

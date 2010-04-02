@@ -77,13 +77,27 @@ IF (debug GT 0) THEN BEGIN
 	PRINT, endl, STRPAD('BEGINNING OF PARAMETERS CHECK', 100, fill='_')
 ENDIF
 
+
 ; We look at what is the runMode and take care of the status
 
 SWITCH runMode OF 
 	'Construct':	BEGIN
 				
 				spoca_lastrun_number = 0
-				last_event_written = 0LL ; This implies that we always write events after the first run of tracking
+				; We set the start of the first event == the observation date of the first image
+				header = headfits(image171)
+				; observationdate = get_obs_date(header) get_obs_date is bugged
+				observationdate = FXPAR(header,'DATE-OBS')
+				IF !err LT 0 THEN observationdate = FXPAR(header,'DATE_OBS')
+				IF !err LT 0 THEN BEGIN
+					error = [ error, "ERROR : could not find DATE_OBS nor DATE-OBS keyword in file " + image171 ]
+					RETURN
+				ENDIF
+				
+				IF (debug GT 0) THEN BEGIN
+					PRINT, "First obs_date is ", observationdate, " : ", anytim(observationdate, /ccsds)
+				ENDIF
+				last_event_written = anytim(observationdate, /ccsds)
 				numActiveEvents = 0
 				last_color_assigned = 0
 				status = {spoca_lastrun_number : spoca_lastrun_number, last_event_written : last_event_written, numActiveEvents : numActiveEvents, last_color_assigned : last_color_assigned}
@@ -205,6 +219,48 @@ IF ~ FILE_TEST( getregionstats_bin, /EXECUTABLE)  THEN BEGIN
 ENDIF
 getregionstatsArgsPreprocessing = '1' ; We only do Annulus Limb Correction here
 
+; We verify the quality of the images
+header = headfits(image171)
+quality = FXPAR(header,'QUALITY')
+
+IF !err LT 0 THEN BEGIN
+	error = [ error, 'Cannot find keyword QUALITY in image ' + image171 ]
+	IF (debug GT 0) THEN BEGIN
+		PRINT , 'Cannot find keyword QUALITY in image ' + image171
+	ENDIF
+	;RETURN		; To be removed when there is a quality keyword in the files
+ENDIF
+
+IF quality NE 0 THEN BEGIN
+	IF (debug GT 0) THEN BEGIN
+		PRINT , 'Bad QUALITY of file ' + image171
+	ENDIF
+	imageRejected = 1
+	;RETURN		; To be removed when there is a quality keyword in the files
+ENDIF
+
+header = headfits(image195)
+quality = FXPAR(header,'QUALITY')
+
+IF !err LT 0 THEN BEGIN
+	error = [ error, 'Cannot find keyword QUALITY in image ' + image195 ]
+	IF (debug GT 0) THEN BEGIN
+		PRINT , 'Cannot find keyword QUALITY in image ' + image195
+	ENDIF
+	;RETURN		; To be removed when there is a quality keyword in the files
+ENDIF
+
+IF quality NE 0 THEN BEGIN
+	IF (debug GT 0) THEN BEGIN
+		PRINT , 'Bad QUALITY of file ' + image195
+	ENDIF
+	imageRejected = 1
+	;RETURN		; To be removed when there is a quality keyword in the files
+ENDIF
+
+; The images are good
+imageRejected = 0
+
 
 IF (debug GT 0) THEN BEGIN
 
@@ -309,7 +365,7 @@ IF (tracking_exit NE 0) THEN BEGIN
 	
 ENDIF
 
-; As output of Tracking we receive the number of AR intra limb and their obs_date 
+
 IF (debug GT 0) THEN BEGIN
 	PRINT, 'Tracking Output is :', endl + tracking_output
 ENDIF
@@ -326,7 +382,7 @@ ENDIF ELSE BEGIN
 	; The output of Tracking is numActiveEvents last_event_found last_color_assigned
 	output = strsplit( tracking_output[0] , ' 	(),', /EXTRACT) 
 	numActiveEvents = LONG(output[0])
-	last_event_found = LONG64(output[1])
+	last_event_found = output[1]
 	last_color_assigned = LONG(output[2])
 	
 ENDELSE
@@ -346,20 +402,26 @@ ENDIF
 
 ; We run RegionsStats if it is time to write the events to the hek and that we have at least 1 active event
 
-events_write_deltat = last_event_found - last_event_written
+events_write_deltat = anytim(last_event_found, /sec) - anytim(last_event_written, /sec) 
+
+IF (debug GT 0) THEN BEGIN
+	PRINT,  "time of last_event_written : ", last_event_written
+	PRINT,  "time of last_event_found : ", last_event_found
+	PRINT,  STRING(events_write_deltat, FORMAT='(I20)') + ' seconds elapsed between last_event_found and last_event_written'
+ENDIF
+
 
 IF events_write_deltat LT writeEventsFrequency THEN BEGIN
 	
-	
 	IF (debug GT 0) THEN BEGIN
-		PRINT,  STRING(events_write_deltat) + ' seconds elapsed since last events written, not running GetRegionStats yet'
+		PRINT, 'Not running GetRegionStats yet'
 	ENDIF
 	GOTO, Finish
 	
 ENDIF ELSE BEGIN
 
 	IF (debug GT 0) THEN BEGIN
-		PRINT, STRING(events_write_deltat) + ' seconds elapsed since last events write, running GetRegionStats'
+		PRINT, 'Running GetRegionStats'
 	ENDIF
 
 ENDELSE
@@ -427,14 +489,12 @@ events = strarr(N_ELEMENTS(getregionstats_output))
 header = headfits(image171)
 wcs = fitshead2wcs(header)
 
-distance_observer_sun = 149597.871
-earth_orbit_eccentricity = 0.0167
-yearly_maximal_error = distance_observer_sun * earth_orbit_eccentricity
+
 
 
 FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN 
 
-	; The output of GetRegionStats is (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) id numberpixels label date_obs color minintensity maxintensity mean variance skewness kurtosis totalintensity area_raw area_rawuncert area_atdiskcenter area_atdiskcenteruncert
+	; The output of GetRegionStats is (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) id numberpixels label observationdate color minintensity maxintensity mean variance skewness kurtosis totalintensity (centererror.x, centererror.y) area_raw area_rawuncert area_atdiskcenter area_atdiskcenteruncert
 	output = strsplit( getregionstats_output[k] , ' 	(),', /EXTRACT) 
 	; We parse the output
 	cartesian_x = FLOAT(output[0:4:2])
@@ -445,7 +505,7 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	id = output[6]
 	numberpixels = LONG(output[7])
 	label = output[8]
-	date_obs = LONG64(output[9])
+	observationdate = output[9]
 	color = LONG(output[10])
 	minintensity = FLOAT(output[11])
 	maxintensity = FLOAT(output[12])
@@ -454,10 +514,12 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	skewness = FLOAT(output[15])
 	kurtosis = FLOAT(output[16])
 	totalintensity = FLOAT(output[17])
-	area_raw = FLOAT(output[18])
-	area_rawuncert = FLOAT(output[19])
-	area_atdiskcenter = FLOAT(output[20])
-	area_atdiskcenteruncert = FLOAT(output[21])
+	centerx_error = FLOAT(output[18])
+	centery_error = FLOAT(output[19])
+	area_raw = FLOAT(output[20])
+	area_rawuncert = FLOAT(output[21])
+	area_atdiskcenter = FLOAT(output[22])
+	area_atdiskcenteruncert = FLOAT(output[23])
 	
 	IF (debug GT 0) THEN BEGIN
 		PRINT , "cartesians coordinates for the region ", k
@@ -495,14 +557,14 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 		+ ', image195 : calibrated image 195 A' $
 		+ ', dilation_factor= 12' $
 		+ ', initialisation_type= FCM' $
-		+ ', numerical_precision= double'; $
-		;+ ', spocaArgsPreprocessing=' + spocaArgsPreprocessing $
-		;+ ', spocaArgsNumberclasses=' + spocaArgsNumberclasses $
-		;+ ', spocaArgsPrecision='  + spocaArgsPrecision $
-		;+ ', spocaArgsBinsize='  + spocaArgsBinsize $
-		;+ ', trackingArgsDeltat=' + trackingArgsDeltat $
-		;+ ', trackingNumberImages=' + STRING(trackingNumberImages, FORMAT='(I)') $
-		;+ ', trackingOverlap=' + STRING(trackingOverlap, FORMAT='(I)') 
+		+ ', numerical_precision= double' $
+		+ ', spocaArgsPreprocessing=' + spocaArgsPreprocessing $
+		+ ', spocaArgsNumberclasses=' + spocaArgsNumberclasses $
+		+ ', spocaArgsPrecision='  + spocaArgsPrecision $
+		+ ', spocaArgsBinsize='  + spocaArgsBinsize $
+		+ ', trackingArgsDeltat=' + trackingArgsDeltat $
+		+ ', trackingNumberImages=' + STRING(trackingNumberImages, FORMAT='(I)') $
+		+ ', trackingOverlap=' + STRING(trackingOverlap, FORMAT='(I)') 
 
 
 	event.required.FRM_DateRun = anytim(sys2ut(), /ccsds)
@@ -510,22 +572,14 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	event.required.FRM_URL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA'
 
 	event.required.Event_StartTime = anytim(last_event_written, /ccsds) ; The start time is the previous time we ran GetRegionStats
-	event.required.Event_EndTime = anytim(date_obs, /ccsds)  
+	event.required.Event_EndTime = anytim(observationdate, /ccsds)  
 	  
 	event.required.Event_CoordSys = 'UTC-HPC-TOPO'
 	event.required.Event_CoordUnit = 'arcsec,arcsec'
 	event.required.Event_Coord1 = hpc_x[0]
 	event.required.Event_Coord2 = hpc_y[0]
-	event.required.Adde call to GetRegionStats 
-	
-	
-	
-	
-	
-	
-	
-	= 3600 * !RADEG / yearly_maximal_error * (1 + hpc_x[0] * yearly_maximal_error / distance_observer_sun)
-	event.required.Event_C2Error = 3600 * !RADEG / yearly_maximal_error * (1 + hpc_y[0] * yearly_maximal_error / distance_observer_sun)	
+	event.required.Event_C1Error = centerx_error
+	event.required.Event_C2Error = centery_error	
 	event.required.BoundBox_C1LL = hpc_x[1]
 	event.required.BoundBox_C2LL = hpc_y[1]
 	event.required.BoundBox_C1UR = hpc_x[2]
@@ -533,11 +587,25 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	
 	event.optional.Event_Npixels = numberpixels
 	event.optional.Event_PixelUnit = 'DN/s' ; ??? TBC for AIA
-	event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA' ; 
+	event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA' 
 	event.optional.FRM_SpecificID = color
+	event.optional.Area_AtDiskCenter = area_atdiskcenter
+	event.optional.Area_AtDiskCenterUncert = area_atdiskcenteruncert
+	event.optional.Area_Raw = area_raw
+	event.optional.Area_Uncert = area_rawuncert
+	event.optional.Area_Unit = 'Mm2'
+	; These are not yet in my solar soft (updated 1 April 2010)
+	; event.optional.AR_IntensMin = minintensity
+	; event.optional.AR_IntensMax = maxintensity
+	; event.optional.AR_IntensMean = mean
+	; event.optional.AR_IntensVar = variance
+	; event.optional.AR_IntensSkew = skewness
+	; event.optional.AR_IntensKurt = kurtosis
+	; event.optional.AR_IntensTotal = totalintensity
+	; event.optional.AR_IntensUnit = 'DN/s' ; ??? TBC for AIA  Is this a float ?
 
-	
-	
+
+
 	
 	; We write the VOevent
 	
@@ -566,7 +634,7 @@ Finish :	; Label for the case not enough images were present for the tracking, o
 
 
 IF (debug GT 0) THEN BEGIN
-	PRINT, endl, STRPAD('FINNISHING', 100, fill='_')
+	PRINT, endl, STRPAD('FINISHING', 100, fill='_')
 ENDIF
 
 ; We cleanup old files
@@ -588,10 +656,6 @@ IF (N_ELEMENTS(ARmaps) GE trackingNumberImages) THEN BEGIN
 ENDIF
 
 
-
-; This may need to change
-imageRejected = 0
-
 ; We save the variables for next run
 
 status.spoca_lastrun_number = spoca_lastrun_number
@@ -603,7 +667,7 @@ SAVE, status , DESCRIPTION='Spoca last run status variable at ' + SYSTIME() , FI
  
  
 IF (debug GT 0) THEN BEGIN
-	PRINT, endl, STRPAD('END OF FINNISH', 100, fill='_')
+	PRINT, endl, STRPAD('END OF FINISH', 100, fill='_')
 ENDIF
  
 END 
