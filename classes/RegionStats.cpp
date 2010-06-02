@@ -86,7 +86,7 @@ Real RegionStats::CenterxError() const
 {
 	if (numberPixels > 0)
 	{
-		return rad2arcsec / yearly_maximal_error * (1 + (yearly_maximal_error / distance_observer_sun) * abs(centerxError / numberPixels));
+		return rad2arcsec / distance_observer_sun * (1 + (yearly_maximal_error / distance_observer_sun) * abs(centerxError / numberPixels));
 	}
 	else
 	{
@@ -98,7 +98,7 @@ Real RegionStats::CenteryError() const
 {
 	if (numberPixels > 0)
 	{
-		return rad2arcsec / yearly_maximal_error * (1 + (yearly_maximal_error / distance_observer_sun) * abs(centeryError / numberPixels));
+		return rad2arcsec / distance_observer_sun * (1 + (yearly_maximal_error / distance_observer_sun) * abs(centeryError / numberPixels));
 	}
 	else
 	{
@@ -136,7 +136,7 @@ Real RegionStats::Variance() const
 Real RegionStats::Skewness() const
 {
 	if (m2 > 0)
-		return m3 / sqrt(m2 * m2 * m2);
+		return sqrt(numberPixels) * m3 / sqrt(m2 * m2 * m2);
 	else
 		return numeric_limits<Real>::infinity();
 }
@@ -144,7 +144,7 @@ Real RegionStats::Skewness() const
 Real RegionStats::Kurtosis() const
 {
 	if (m2 > 0)
-		return ( m4 / (m2 * m2) ) - 3;
+		return ( numberPixels * m4 / (m2 * m2) ) - 3;
 	else
 		return numeric_limits<Real>::infinity();
 }
@@ -251,6 +251,3 @@ vector<RegionStats*> getRegions(const SunImage* colorizedComponentsMap, const Su
 	return regions;
 
 }
-
-
-
