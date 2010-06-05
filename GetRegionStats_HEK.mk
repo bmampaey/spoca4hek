@@ -1,7 +1,7 @@
 CC=g++
 CFLAGS=-Wall -fkeep-inline-functions -O3
 LFLAGS=-l cfitsio
-DFLAGS=-DINSTRUMENT=EUVI -DDEBUG=0 -DNUMBERWAVELENGTH=2
+DFLAGS=-DINSTRUMENT=AIA -DDEBUG=0 -DNUMBERWAVELENGTH=2
 
 all:bin/GetRegionStats_HEK.x
 clean: rm bin/GetRegionStats_HEK.x objects/GetRegionStats_HEK.o objects/FeatureVector.o objects/Coordinate.o objects/RegionStats.o objects/Region.o objects/MainUtilities.o objects/ArgumentHelper.o objects/SunImage.o objects/Image.o objects/tools.o

@@ -85,6 +85,7 @@ SunImage::SunImage(const string& filename)
 		// EUVI express the radius in arc/sec
 		radius/=cdelt[0];
 		#elif INSTRUMENT==AIA
+		
 		if (fits_read_key(fptr, TDOUBLE, "R_SUN", &radius, comment, &status))
 		{
 			
@@ -92,6 +93,17 @@ SunImage::SunImage(const string& filename)
 			fits_report_error(stderr, status);
 			status = 0;
 		}
+		
+		//HACK for bad AIA fits header, remove when RSUN is corrected
+		if (fits_read_key(fptr, TDOUBLE, "RSUN_OBS", &radius, comment, &status))
+		{
+			
+			cerr<<"Error reading key RSUN_OBS from file "<<filename<<" :"<< status <<endl;
+			fits_report_error(stderr, status);
+			status = 0;
+		}
+		radius/=cdelt[0];
+		//END of HACK
 		#else
 		#error "INSTRUMENT is not defined"
 		#endif
@@ -155,35 +167,40 @@ SunImage::SunImage(const string& filename)
 		#endif
 
 		// We save all keywords for future usage
-		int numberKeys;
-		
-		if (fits_get_hdrspace(fptr, &numberKeys, NULL, &status))
+		char record[81];
+		const char* inclist[] = {"*"};
+		const char* exclist[] = {"SIMPLE", "BITPIX", "NAXIS*", "EXTEND"};
+		while(status != KEY_NO_EXIST)
 		{
-			
-			cerr<<"Error reading number of keywords from file "<<filename<<" :"<< status <<endl;
-			fits_report_error(stderr, status);
-		} 
-		
-		if (status == 0)
-		{
-			header.resize(numberKeys, NULL);
-			for (int k = 0; k < numberKeys; ++k)
+			status = 0;
+			if(fits_find_nextkey(fptr, const_cast<char**>(inclist), sizeof(inclist)/sizeof(char *), const_cast<char**>(exclist), sizeof(exclist)/sizeof(char *), record, &status))
 			{
-				header[k] = new char[81];
-				if(fits_read_record(fptr, k, header[k], &status))
+				if(status != KEY_NO_EXIST)
 				{
-				
 					cerr<<"Error reading keyword from file "<<filename<<" :"<< status <<endl;
 					fits_report_error(stderr, status);
-				} 
+					status = 0;
+				}
 			}
-		}
+			else
+			{
+				header.push_back(strdup(record));
+			}
+		} 
+		
+		if ( fits_close_file(fptr, &status) )
+		{
+			cerr<<"Error : closing file "<<filename<<" :"<< status <<endl;			
+			fits_report_error(stderr, status);
+			status = 0;
+		} 
 
-		fits_close_file(fptr, &status);
 	}
 	else
+	{
+		fits_report_error(stderr, status);
 		cerr<<"Error : Could not open fits File image "<<filename<<"."<<endl;
-
+	}
 }
 
 
@@ -256,14 +273,16 @@ SunImage* SunImage::writeFitsImage (const string& filename)
 	{
 		cerr<<"Error : writing pixels to file "<<filename<<" :"<< status <<endl;			
 		fits_report_error(stderr, status);
+		status = 0;
 	} 
-
+	
 	for (unsigned k = 0; k < header.size(); ++k)
 	{
 		if(fits_write_record(fptr, header[k], &status))
 		{
 			cerr<<"Error : writing keyword to file "<<filename<<" :"<< status <<endl;			
 			fits_report_error(stderr, status);
+			status = 0;
 		} 
 	}
 	
@@ -271,15 +290,15 @@ SunImage* SunImage::writeFitsImage (const string& filename)
 	{
 		cerr<<"Error : writing date to file "<<filename<<" :"<< status <<endl;			
 		fits_report_error(stderr, status);
+		status = 0;
 	} 
 	
 	if ( fits_close_file(fptr, &status) )
 	{
 		cerr<<"Error : closing file "<<filename<<" :"<< status <<endl;			
 		fits_report_error(stderr, status);
+		status = 0;
 	} 
-
-	fits_close_file(fptr, &status);
 
 	return this;
 }

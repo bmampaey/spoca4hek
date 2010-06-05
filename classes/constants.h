@@ -128,7 +128,7 @@
 #define BEN_CORR_R4 110
 
 #elif INSTRUMENT==AIA
-#define PIXELTYPE TUINT
+#define PIXELTYPE TFLOAT
 
 #define VINCE_CORR_R1  95
 #define CIS1_CORR_R1 90

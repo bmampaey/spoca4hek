@@ -127,13 +127,13 @@ SWITCH runMode OF
 
 	'Clear Events':	BEGIN
 				; TODO close out events (altought I don't think we have that)
-				ARmaps = FILE_SEARCH(outputDirectory, '*ARmap.tracking.fits', /TEST_READ, /TEST_REGULAR , /TEST_WRITE  )
+				AllFiles = FILE_SEARCH(outputDirectory, '*', /TEST_READ, /TEST_REGULAR , /TEST_WRITE  )
 				IF (debug GT 0) THEN BEGIN
 					PRINT, "Clear Events called"
-					PRINT , "Deleting all remaining ARmaps : ", endl + ARmaps
+					PRINT , "Deleting all files from outputDirectory : ", endl + AllFiles
 				ENDIF
 		
-				FILE_DELETE, ARmaps , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug 
+				FILE_DELETE, AllFiles , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug 
 			END
 			
 	ELSE:		BEGIN
@@ -185,11 +185,12 @@ IF ~ FILE_TEST( spoca_bin, /EXECUTABLE)  THEN BEGIN
 	ENDIF
 	RETURN
 ENDIF
-IF N_ELEMENTS(spocaArgsPreprocessing) EQ 0 THEN spocaArgsPreprocessing = '3'  
-IF N_ELEMENTS(spocaArgsNumberclasses) EQ 0 THEN spocaArgsNumberclasses = '4'
+IF N_ELEMENTS(spocaArgsPreprocessing) EQ 0 THEN spocaArgsPreprocessing = '1'  
+IF N_ELEMENTS(spocaArgsNumberclasses) EQ 0 THEN spocaArgsNumberclasses = '3'
 IF N_ELEMENTS(spocaArgsPrecision) EQ 0 THEN spocaArgsPrecision = '0.000000001'
-IF N_ELEMENTS(spocaArgsBinsize) EQ 0 THEN spocaArgsBinsize = '0.01,0.01'
+IF N_ELEMENTS(spocaArgsBinsize) EQ 0 THEN spocaArgsBinsize = '10,10'
 spoca_args_centersfile = outputDirectory + 'centers.txt'
+spoca_args_histogram = outputDirectory + 'histogram.txt'
 
 
 ; Tracking parameters
@@ -228,15 +229,15 @@ IF !err LT 0 THEN BEGIN
 	IF (debug GT 0) THEN BEGIN
 		PRINT , 'Cannot find keyword QUALITY in image ' + image171
 	ENDIF
-	;RETURN		; To be removed when there is a quality keyword in the files
+	RETURN		; To be commented out if there is no quality keyword in the files
 ENDIF
 
 IF quality NE 0 THEN BEGIN
 	IF (debug GT 0) THEN BEGIN
 		PRINT , 'Bad QUALITY of file ' + image171
 	ENDIF
-	imageRejected = 1
-	;RETURN		; To be removed when there is a quality keyword in the files
+	imageRejected = 1 
+	;RETURN		; To be removed when the QUALITY keyword in the files is correct
 ENDIF
 
 header = headfits(image195)
@@ -247,15 +248,15 @@ IF !err LT 0 THEN BEGIN
 	IF (debug GT 0) THEN BEGIN
 		PRINT , 'Cannot find keyword QUALITY in image ' + image195
 	ENDIF
-	;RETURN		; To be removed when there is a quality keyword in the files
+	RETURN		; To be commented out if there is no quality keyword in the files
 ENDIF
 
 IF quality NE 0 THEN BEGIN
 	IF (debug GT 0) THEN BEGIN
 		PRINT , 'Bad QUALITY of file ' + image195
 	ENDIF
-	imageRejected = 1
-	;RETURN		; To be removed when there is a quality keyword in the files
+	imageRejected = 1 
+	;RETURN		; To be removed when the QUALITY keyword in the files is correct
 ENDIF
 
 ; The images are good
@@ -284,6 +285,7 @@ spoca_args = [	'-P', spocaArgsPreprocessing, $
 		'-C', spocaArgsNumberclasses, $
 		'-p', spocaArgsPrecision, $
 		'-z', spocaArgsBinsize, $
+		'-H', spoca_args_histogram, $
 		'-B', spoca_args_centersfile, $
 		'-O', outputDirectory + STRING(spoca_lastrun_number, FORMAT='(I010)'), $
 		image171, image195 ]
@@ -594,15 +596,14 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	event.optional.Area_Raw = area_raw
 	event.optional.Area_Uncert = area_rawuncert
 	event.optional.Area_Unit = 'Mm2'
-	; These are not yet in my solar soft (updated 1 April 2010)
-	; event.optional.AR_IntensMin = minintensity
-	; event.optional.AR_IntensMax = maxintensity
-	; event.optional.AR_IntensMean = mean
-	; event.optional.AR_IntensVar = variance
-	; event.optional.AR_IntensSkew = skewness
-	; event.optional.AR_IntensKurt = kurtosis
-	; event.optional.AR_IntensTotal = totalintensity
-	; event.optional.AR_IntensUnit = 'DN/s' ; ??? TBC for AIA  Is this a float ?
+	event.optional.AR_IntensMin = minintensity
+	event.optional.AR_IntensMax = maxintensity
+	event.optional.AR_IntensMean = mean
+	event.optional.AR_IntensVar = variance
+	event.optional.AR_IntensSkew = skewness
+	event.optional.AR_IntensKurt = kurtosis
+	event.optional.AR_IntensTotal = totalintensity
+	event.optional.AR_IntensUnit = 'DN/s' ; ??? TBC for AIA  
 
 
 

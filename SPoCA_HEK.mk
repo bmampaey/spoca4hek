@@ -1,7 +1,7 @@
 CC=g++
 CFLAGS=-Wall -fkeep-inline-functions -O3
 LFLAGS=-l cfitsio
-DFLAGS=-DINSTRUMENT=EUVI -DDEBUG=0 -DNUMBERWAVELENGTH=2
+DFLAGS=-DINSTRUMENT=AIA -DDEBUG=3 -DNUMBERWAVELENGTH=2
 
 all:bin/SPoCA_HEK.x
 clean: rm bin/SPoCA_HEK.x objects/SPoCA_HEK.o objects/Coordinate.o objects/MainUtilities.o objects/ArgumentHelper.o objects/FeatureVector.o objects/HistogramFCMClassifier.o objects/FCMClassifier.o objects/Classifier.o objects/RegionStats.o objects/Region.o objects/Image.o objects/SunImage.o objects/tools.o

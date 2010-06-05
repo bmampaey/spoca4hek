@@ -146,7 +146,12 @@ Image<T>::Image(const string& filename)
 		exit(EXIT_FAILURE);
 	} 
 	
-	fits_close_file(fptr, &status);
+	if ( fits_close_file(fptr, &status) )
+	{
+		cerr<<"Error : closing file "<<filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+		status = 0;
+	} 
 
 	#if defined(DEBUG) && DEBUG >= 1
 
@@ -191,6 +196,43 @@ Image<T>::Image(const string& filename)
 	}
 	
 	#endif
+	
+	switch(datatype)
+	{
+		case TDOUBLE:
+			bitpix = DOUBLE_IMG;
+			break;
+		case TFLOAT:
+			bitpix = FLOAT_IMG;
+			break;
+		case TLONG:
+			bitpix = LONGLONG_IMG;
+			break;
+		case TULONG:
+			bitpix = ULONG_IMG;					  //There is no ULONGLONG_IMG
+			break;
+		case TINT:
+			bitpix = LONGLONG_IMG;
+			break;
+		case TUINT:
+			bitpix = ULONG_IMG;
+			break;
+		case TSHORT:
+			bitpix = SHORT_IMG;
+			break;
+		case TUSHORT:
+			bitpix = SHORT_IMG;
+			break;
+		case TBYTE:
+			bitpix = BYTE_IMG;
+			break;
+		case TSBYTE:
+			bitpix = SBYTE_IMG;
+			break;
+		default:
+			bitpix = DOUBLE_IMG;
+
+	}
 }
 
 
@@ -267,6 +309,7 @@ Image<T>* Image<T>::writeFitsImage (const string& filename)
 	{
 		cerr<<"Error : writing pixels to file "<<filename<<" :"<< status <<endl;			
 		fits_report_error(stderr, status);
+		status = 0;
 	} 
 
 
@@ -275,6 +318,7 @@ Image<T>* Image<T>::writeFitsImage (const string& filename)
 	{
 		cerr<<"Error : writing keyword NAXIS1 to file "<<filename<<" :"<< status <<endl;			
 		fits_report_error(stderr, status);
+		status = 0;
 	} 
 
 	strcpy(comment, "naxis2");
@@ -282,9 +326,15 @@ Image<T>* Image<T>::writeFitsImage (const string& filename)
 	{
 		cerr<<"Error : writing keyword NAXIS2 to file "<<filename<<" :"<< status <<endl;			
 		fits_report_error(stderr, status);
+		status = 0;
 	} 
 
-	fits_close_file(fptr, &status);
+	if ( fits_close_file(fptr, &status) )
+	{
+		cerr<<"Error : closing file "<<filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+		status = 0;
+	} 
 
 	return this;
 

@@ -87,27 +87,20 @@ int main(int argc, const char **argv)
 	HistogramFCMClassifier F(fuzzifier);
 
 	//We initialise the histogram
-	if(!histogramFile.empty())
-	{
-		F.initHistogram(histogramFile, binSize, true);
-	}
-	else if(!sbinSize.empty())
+	if(!sbinSize.empty())
 	{
 		istringstream Z(sbinSize);
 		Z>>binSize;
 		if(Z.fail())
 		{
 			cerr<<"Error reading the binSize."<<endl;
-			return EXIT_FAILURE;
 		}
 	}
-	else
+	if(!histogramFile.empty())
 	{
-		cerr<<"No binSize and no histogram file given as parameter."<<endl;
-		return EXIT_FAILURE;
+		F.initHistogram(histogramFile, binSize, true);
 	}
-
-
+	
 
 	//We fetch the wavelength and the initial centers from the centers file
 	if(! centersFileName.empty())
@@ -168,6 +161,12 @@ int main(int argc, const char **argv)
 	{
 		centersFile<<wavelengths<<"\t"<<F.getB()<<endl;
 		centersFile.close();
+	}
+
+	//We save the histogram for the next run
+	if(!histogramFile.empty())
+	{
+		F.saveHistogram(histogramFile, binSize);
 	}
 
 	#if defined(DEBUG) && DEBUG >= 2
