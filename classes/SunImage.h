@@ -26,6 +26,7 @@ class SunImage : public Image<PixelType>
 	PixelType median, datap01, datap95;
 	std::vector<char*> header;
 	char date_obs[80];
+	double exposureTime;
 
 	public :
 		// Preprocessing types declaration
@@ -55,14 +56,20 @@ class SunImage : public Image<PixelType>
 		void annulusLimbCorrection(const Real radiusRatio = 1.0, const Real minLimbRadius = 0.90);
 		void ALCDivMedian(const Real radiusRatio = 1.0, const Real minLimbRadius = 0.90);
 		void ALCDivMode(const Real radiusRatio = 1.0, const Real minLimbRadius = 0.90);
-		void preprocessing(const int type = 0, Real maxLimbRadius = 1.0, Real minLimbRadius = 0.90);
+		void preprocessing(const int type = 0, Real maxLimbRadius = 1.0, Real minLimbRadius = 0.80);
 		void copyKeywords(const SunImage* i);
 		SunImage* writeFitsImage (const std::string& filename) ;
+		
+		//Routine to aggregate blobs into AR
+		
+		SunImage* blobsIntoAR ();
 		
 		// Future routines to derotate an image (in progress) 
 		Real angularSpeed(Real latitude);
 		unsigned newPos(Real x, Real y, const Real t);
 		SunImage* rotate(const unsigned t);
+		
+
 
 };
 #endif

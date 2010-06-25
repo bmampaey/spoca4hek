@@ -83,5 +83,5 @@ void fetchImagesFromFile(vector<SunImage*>& images, const vector<string>& sunIma
 }
 
 
-const char * instruments[] = {"ERROR","EIT","EUVI","AIA"};
+const char * instruments[] = {"ERROR","EIT","EUVI","AIA", "PROBA2"};
 const char * limb_corrections[] = {"ERROR","VINCE_CORR","CIS1_CORR","BEN_CORR", "CIS2_CORR"};

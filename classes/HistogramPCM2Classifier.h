@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <algorithm>
 #include <string>
+#include <limits>
 
 #include "SunImage.h"
 #include "FeatureVector.h"
@@ -47,8 +48,8 @@ class HistogramPCM2Classifier : public virtual HistogramPCMClassifier, public vi
 		//Function to initialise the centers
 		void init(const std::vector<RealFeature>& initB, const std::vector<Real>& initEta)
 			{HistogramPCMClassifier::init(initB, initEta);}
-		void init(const std::vector<RealFeature>& initB)
-			{HistogramPCMClassifier::init(initB);}
+		void init(const std::vector<RealFeature>& initB, Real precision = std::numeric_limits<Real>::max(), unsigned maxNumberIteration = 0)
+			{HistogramPCMClassifier::init(initB, precision, maxNumberIteration);}
 		void randomInit(unsigned C, Real precision = 1., unsigned maxNumberIteration = 100)
 			{HistogramPCMClassifier::randomInit(C, precision, maxNumberIteration);}
 

@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <algorithm>
 #include <string>
+#include <limits>
 
 #include "SunImage.h"
 #include "FeatureVector.h"
@@ -36,7 +37,7 @@ class PCMClassifier : public virtual FCMClassifier
 
 		//Function to initialise the centers
 		void init(const std::vector<RealFeature>& initB, const std::vector<Real>& initEta);
-		void init(const std::vector<RealFeature>& initB);
+		void init(const std::vector<RealFeature>& initB, Real precision = std::numeric_limits<Real>::max(), unsigned maxNumberIteration = 0);
 		void randomInit(unsigned C, Real precision = 1., unsigned maxNumberIteration = 100);
 
 		std::vector<Real> getEta();

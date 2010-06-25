@@ -92,7 +92,7 @@ Image<T>::Image(const string& filename)
 	int   status  = 0;
 	fitsfile  *fptr;
 
-	if (fits_open_file(&fptr, filename.c_str(), READONLY, &status))
+	if (fits_open_image(&fptr, filename.c_str(), READONLY, &status))
 	{
 		cerr<<"Error : opening file "<<filename<<" :"<< status <<endl;			
 		fits_report_error(stderr, status);
@@ -377,11 +377,13 @@ Image<T>* Image<T>::dilateDiamond(unsigned size, T pixelValueToDilate)
 		}
 	}
 
-	for (unsigned y=Yaxes()-1; y >=0; --y)
+	for (unsigned y=Yaxes(); y >0; )
 	{
-		for (unsigned x=Xaxes()-1; x >=0; --x)
+		--y;
+		for (unsigned x=Xaxes(); x >0; )
 		{
 
+			--x;
 			if (x+1<Xaxes()) manthanDistance[x+y*Xaxes()] = manthanDistance[x+y*Xaxes()] < (manthanDistance[x+1+y*Xaxes()]+1) ? manthanDistance[x+y*Xaxes()] : (manthanDistance[x+1+y*Xaxes()]+1);
 
 			if (y+1<Yaxes()) manthanDistance[x+y*Xaxes()] = manthanDistance[x+y*Xaxes()] < (manthanDistance[x+(y+1)*Xaxes()]+1) ? manthanDistance[x+y*Xaxes()] : (manthanDistance[x+(y+1)*Xaxes()]+1);
@@ -428,11 +430,12 @@ Image<T>* Image<T>::erodeDiamond(unsigned size, T pixelValueToErode)
 		}
 	}
 
-	for (unsigned y=Yaxes()-1; y >=0; --y)
+	for (unsigned y=Yaxes(); y >0; )
 	{
-		for (unsigned x=Xaxes()-1; x >=0; --x)
+		--y;
+		for (unsigned x=Xaxes(); x >0;)
 		{
-
+			--x;
 			if (x+1<Xaxes()) manthanDistance[x+y*Xaxes()] = manthanDistance[x+y*Xaxes()] < (manthanDistance[x+1+y*Xaxes()]+1) ? manthanDistance[x+y*Xaxes()] : (manthanDistance[x+1+y*Xaxes()]+1);
 
 			if (y+1<Xaxes()) manthanDistance[x+y*Xaxes()] = manthanDistance[x+y*Xaxes()] < (manthanDistance[x+(y+1)*Xaxes()]+1) ? manthanDistance[x+y*Xaxes()] : (manthanDistance[x+(y+1)*Xaxes()]+1);

@@ -111,28 +111,28 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 	if (iterationsFile.good())
 	{
 		iterationsFile << "iteration";
-		for (i = 0; i < numberClasses; i++)
+		for (unsigned i = 0; i < numberClasses; i++)
 		{
 			iterationsFile << "\teta_" + itos(i + 1);
 		}
-		for (i = 0; i < numberClasses; i++)
+		for (unsigned i = 0; i < numberClasses; i++)
 		{
 			iterationsFile << "\teta2_" + itos(i + 1);
 		}
 		iterationsFile << "\tprecisionReached\tJPCM";
-		for (i = 0; i < numberClasses; i++)
+		for (unsigned i = 0; i < numberClasses; i++)
 		{
-			for (j = 0; j < NUMBERWAVELENGTH; j++)
+			for (unsigned p = 0; p < NUMBERWAVELENGTH; p++)
 			{
-				iterationsFile << "\tb" + itos(i + 1) + "_" + itos(j + 1);
+				iterationsFile << "\tb" + itos(i + 1) + "_" + itos(p + 1);
 			}
 		}
-		for (i = 0; i < numberClasses; i++)
+		for (unsigned i = 0; i < numberClasses; i++)
 		{
 			iterationsFile << "\t#C" + itos(i + 1);
-			for (j = 0; j < NUMBERWAVELENGTH; j++)
+			for (unsigned p = 0; p < NUMBERWAVELENGTH; p++)
 			{
-				iterationsFile << "\tcrisp b" + itos(i + 1) + "_" + itos(j + 1);
+				iterationsFile << "\tcrisp b" + itos(i + 1) + "_" + itos(p + 1);
 			}
 		}
 		iterationsFile << "\n\n";
@@ -222,14 +222,14 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 		
 			for (unsigned i = 0; i < numberClasses; i++)
 			{
-				for (unsigned j = 0; j < NUMBERWAVELENGTH; j++)
+				for (unsigned p = 0; p < NUMBERWAVELENGTH; p++)
 				{
-					iterationsFile << "\t" << B[i].v[j];
+					iterationsFile << "\t" << B[i].v[p];
 				}
 			}
 
 			// calculate real average of classes
-			for (i = 0 ; i < numberClasses ; ++i)
+			for (unsigned i = 0 ; i < numberClasses ; ++i)
 			{
 				PixelFeature crispB(0.);
 				unsigned number = 0;
@@ -261,9 +261,9 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 				}
 
 				iterationsFile << "\t" << number;				
-				for (unsigned j = 0; j < NUMBERWAVELENGTH; j++)
+				for (unsigned p = 0; p < NUMBERWAVELENGTH; p++)
 				{
-					iterationsFile << "\t" << crispB.v[j];
+					iterationsFile << "\t" << crispB.v[p];
 				}
 			}
 
@@ -273,7 +273,7 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 	}
 
 	#if defined(DEBUG) && DEBUG >= 2
-	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
+	filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
 	Image<unsigned> * segmentedMap = crispSegmentedMap();
 	segmentedMap->writeFitsImage(filename);
 	delete segmentedMap;
@@ -515,7 +515,7 @@ void PCMClassifier::init(const vector<RealFeature>& initB, const vector<Real>& i
 }
 
 
-void PCMClassifier::init(const vector<RealFeature>& initB)
+void PCMClassifier::init(const vector<RealFeature>& initB, Real precision, unsigned maxNumberIteration)
 {
 
 	#if defined(DEBUG) && DEBUG >= 1
@@ -526,22 +526,58 @@ void PCMClassifier::init(const vector<RealFeature>& initB)
 
 	}
 	#endif
+
 	B = initB;
-	//We like our centers to be sorted
-	sort(B.begin(), B.end());
 	numberClasses = B.size();
-	//To initialise eta we need to compute the U with FCM
 	Real temp = fuzzifier;
 	fuzzifier = 2.;
-
+	if ( maxNumberIteration != 0 )
+	{
+		FCMClassifier::classification(precision, maxNumberIteration);
+	}
+	
+	//We like our centers to be sorted 
+	sort(B.begin(), B.end());
 	FCMClassifier::computeU();
 	fuzzifier = temp;
+	//We initialise eta
 	computeEta();
+
+	#ifdef ETA_BEN
+	//This is just a test
+	vector<Real> oldEta = eta;
+	Real precisionReached = numeric_limits<Real>::max();
+	for (unsigned iteration = 0; iteration < maxNumberIteration && precisionReached > precision ; ++iteration)
+	{		
+		computeU();
+		computeEta();
+
+		
+		for (unsigned i = 0 ; i < numberClasses ; ++i)
+		{
+			precisionReached = abs(oldEta[i] - eta[i]);
+			if (precisionReached > precision)
+				break;
+		}
+		cout<<"eta :"<<eta<<endl;
+		oldEta = eta;
+	}
+	#endif
 }
 
 
 void PCMClassifier::randomInit(unsigned C, Real precision, unsigned maxNumberIteration)
 {
+	#if defined(DEBUG) && DEBUG >= 1
+	if(X.size() == 0)
+	{
+		cerr<<"Error : The vector of FeatureVector must be initialized before doing a randominit."<<endl;
+		exit(EXIT_FAILURE);
+
+	}
+	#endif
+
+
 	numberClasses = C;
 	//We initialise the centers by setting each one randomly to one of the actual pixel, then we do a FCM classification!
 	Classifier::randomInit(C);
@@ -554,4 +590,25 @@ void PCMClassifier::randomInit(unsigned C, Real precision, unsigned maxNumberIte
 	fuzzifier = temp;
 	//We initialise eta
 	computeEta();
+	
+	#ifdef ETA_BEN
+	//This is just a test
+	vector<Real> oldEta = eta;
+	Real precisionReached = numeric_limits<Real>::max();
+	for (unsigned iteration = 0; iteration < maxNumberIteration && precisionReached > precision ; ++iteration)
+	{		
+		computeU();
+		computeEta();
+
+		
+		for (unsigned i = 0 ; i < numberClasses ; ++i)
+		{
+			precisionReached = abs(oldEta[i] - eta[i]);
+			if (precisionReached > precision)
+				break;
+		}
+		cout<<"eta :"<<eta<<endl;
+		oldEta = eta;
+	}
+	#endif
 }

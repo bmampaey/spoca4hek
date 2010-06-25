@@ -130,6 +130,95 @@ Real HistogramPCMClassifier::computeJ() const
 
 }
 
+#ifdef ETA_CIS
+
+// VERSION WITH LIMITED VARIATION OF ETA W.R.T. ITS INITIAL VALUE
+
+void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIteration)
+{	
+	const Real maxFactor = 100.;
+
+
+
+	#if defined(DEBUG) && DEBUG >= 1
+	if(X.size() == 0 || B.size() == 0|| B.size() != eta.size())
+	{
+		cerr<<"Error : The Classifier must be initialized before doing classification."<<endl;
+		exit(EXIT_FAILURE);
+
+	}
+	#endif
+
+	#if defined(DEBUG) && DEBUG >= 3
+	cout<<"--PCMClassifier::classification--START--"<<endl;
+	#endif
+
+	//Initialisation of precision & U
+	this->precision = precision;
+
+	Real precisionReached = numeric_limits<Real>::max();
+	vector<RealFeature> oldB = B;
+	vector<Real> old_eta;
+	vector<Real> start_eta = eta;
+	bool stopComputationEta = false;
+	for (unsigned iteration = 0; iteration < maxNumberIteration && precisionReached > precision ; ++iteration)
+	{
+
+		if ( (!FIXETA) && (!stopComputationEta) )	//eta is to be recalculated each iteration.
+		{
+			old_eta = eta;
+			computeEta();
+	
+			for (unsigned i = 0 ; i < numberClasses && !stopComputationEta ; ++i)
+			{
+				if ( (start_eta[i] / eta[i] > maxFactor) || (start_eta[i] / eta[i] < 1. / maxFactor) )
+				{
+					stopComputationEta = true;
+				}
+			}
+		}
+
+		computeU();
+		computeB();
+
+		for (unsigned i = 0 ; i < numberClasses ; ++i)
+		{
+			precisionReached = d2(oldB[i],B[i]);
+			if (precisionReached > precision)
+				break;
+		}
+
+		oldB = B;
+
+		#if defined(DEBUG) && DEBUG >= 3
+		cout<<"iteration :"<<iteration;
+		cout<<"\tprecisionReached :"<<precisionReached;
+		cout<<"\tJPCM :"<<computeJ();
+		cout<<"\tB :"<<B;
+		cout<<endl;
+		#endif
+
+
+	}
+
+	#if defined(DEBUG) && DEBUG >= 2
+	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
+	Image<unsigned> * segmentedMap = crispSegmentedMap();
+	segmentedMap->writeFitsImage(filename);
+	delete segmentedMap;
+	#endif
+	
+	#if defined(DEBUG) && DEBUG >= 3
+	cout<<"--PCMClassifier::classification--END--"<<endl;
+	#endif
+
+
+}
+
+
+#endif
+
+#ifndef ETA_CIS
 
 void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 {
@@ -191,6 +280,7 @@ void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIt
 	#endif
 }
 
+#endif
 
 void HistogramPCMClassifier::fixCentersClassification()
 {
@@ -288,7 +378,7 @@ void HistogramPCMClassifier::init(const vector<RealFeature>& initB, const vector
 }
 
 
-void HistogramPCMClassifier::init(const vector<RealFeature>& initB)
+void HistogramPCMClassifier::init(const vector<RealFeature>& initB, Real precision, unsigned maxNumberIteration)
 {
 
 	#if defined(DEBUG) && DEBUG >= 1
@@ -299,26 +389,92 @@ void HistogramPCMClassifier::init(const vector<RealFeature>& initB)
 
 	}
 	#endif
+
 	B = initB;
 	numberClasses = B.size();
-	//To initialise eta we need to compute the U with FCM
 	Real temp = fuzzifier;
 	fuzzifier = 2.;
+	if ( maxNumberIteration != 0 )
+	{
+		HistogramFCMClassifier::classification(precision, maxNumberIteration);
+	}
+	
+	//We like our centers to be sorted 
+	sort(B.begin(), B.end());
 	HistogramFCMClassifier::computeU();
 	fuzzifier = temp;
+	//We initialise eta
 	computeEta();
+
+	#ifdef ETA_BEN
+	//This is just a test
+	vector<Real> oldEta = eta;
+	Real precisionReached = numeric_limits<Real>::max();
+	for (unsigned iteration = 0; iteration < maxNumberIteration && precisionReached > precision ; ++iteration)
+	{		
+		computeU();
+		computeEta();
+
+		
+		for (unsigned i = 0 ; i < numberClasses ; ++i)
+		{
+			precisionReached = abs(oldEta[i] - eta[i]);
+			if (precisionReached > precision)
+				break;
+		}
+		cout<<"eta :"<<eta<<endl;
+		oldEta = eta;
+	}
+	#endif
 }
 
 
 void HistogramPCMClassifier::randomInit(unsigned C, Real precision, unsigned maxNumberIteration)
 {
+
+	#if defined(DEBUG) && DEBUG >= 1
+	if(HistoX.size() == 0)
+	{
+		cerr<<"Error : The vector of FeatureVector must be initialized before doing a centers only init."<<endl;
+		exit(EXIT_FAILURE);
+
+	}
+	#endif
+	
 	numberClasses = C;
 	//We initialise the centers by setting each one randomly to one of the actual pixel, then we do a FCM classification!
 	Classifier::randomInit(C);
 	Real temp = fuzzifier;
 	fuzzifier = 2.;
 	HistogramFCMClassifier::classification(precision, maxNumberIteration);
+	//We like our centers to be sorted 
+	sort(B.begin(), B.end());
+	HistogramFCMClassifier::computeU();
 	fuzzifier = temp;
 	//We initialise eta
 	computeEta();
+	
+	#ifdef ETA_BEN
+	//This is just a test
+	vector<Real> oldEta = eta;
+	Real precisionReached = numeric_limits<Real>::max();
+	for (unsigned iteration = 0; iteration < maxNumberIteration && precisionReached > precision ; ++iteration)
+	{		
+		computeU();
+		computeEta();
+
+		
+		for (unsigned i = 0 ; i < numberClasses ; ++i)
+		{
+			precisionReached = abs(oldEta[i] - eta[i]);
+			if (precisionReached > precision)
+				break;
+		}
+		cout<<"eta :"<<eta<<endl;
+		oldEta = eta;
+	}
+	#endif
+	
+
 }
+

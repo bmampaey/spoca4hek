@@ -84,23 +84,11 @@ SWITCH runMode OF
 	'Construct':	BEGIN
 				
 				spoca_lastrun_number = 0
-				; We set the start of the first event == the observation date of the first image
-				header = headfits(image171)
-				; observationdate = get_obs_date(header) get_obs_date is bugged
-				observationdate = FXPAR(header,'DATE-OBS')
-				IF !err LT 0 THEN observationdate = FXPAR(header,'DATE_OBS')
-				IF !err LT 0 THEN BEGIN
-					error = [ error, "ERROR : could not find DATE_OBS nor DATE-OBS keyword in file " + image171 ]
-					RETURN
-				ENDIF
-				
-				IF (debug GT 0) THEN BEGIN
-					PRINT, "First obs_date is ", observationdate, " : ", anytim(observationdate, /ccsds)
-				ENDIF
-				last_event_written = anytim(observationdate, /ccsds)
+				; We will set the start of the first event later
+				last_event_written_date = 'First Run'
 				numActiveEvents = 0
 				last_color_assigned = 0
-				status = {spoca_lastrun_number : spoca_lastrun_number, last_event_written : last_event_written, numActiveEvents : numActiveEvents, last_color_assigned : last_color_assigned}
+				status = {spoca_lastrun_number : spoca_lastrun_number, last_event_written_date : last_event_written_date, numActiveEvents : numActiveEvents, last_color_assigned : last_color_assigned}
 				BREAK
 
    			END
@@ -119,7 +107,7 @@ SWITCH runMode OF
    			END 
    	'Normal':	BEGIN ; We read the status
 				spoca_lastrun_number = status.spoca_lastrun_number
-				last_event_written = status.last_event_written
+				last_event_written_date = status.last_event_written_date
 				numActiveEvents = status.numActiveEvents
 				last_color_assigned = status.last_color_assigned
 				BREAK
@@ -145,7 +133,7 @@ ENDSWITCH
 IF (debug GT 0) THEN BEGIN
 	PRINT, 'Status :'
 	PRINT, 'spoca_lastrun_number : ' , spoca_lastrun_number
-	PRINT, 'last_event_written : ', last_event_written
+	PRINT, 'last_event_written_date : ', last_event_written_date
 	PRINT, 'numActiveEvents : ', numActiveEvents
 	PRINT, 'last_color_assigned : ', last_color_assigned
 ENDIF
@@ -221,8 +209,8 @@ ENDIF
 getregionstatsArgsPreprocessing = '1' ; We only do Annulus Limb Correction here
 
 ; We verify the quality of the images
-header = headfits(image171)
-quality = FXPAR(header,'QUALITY')
+header171 = headfits(image171, EXTEN=1)
+quality = FXPAR(header171,'QUALITY')
 
 IF !err LT 0 THEN BEGIN
 	error = [ error, 'Cannot find keyword QUALITY in image ' + image171 ]
@@ -240,8 +228,8 @@ IF quality NE 0 THEN BEGIN
 	;RETURN		; To be removed when the QUALITY keyword in the files is correct
 ENDIF
 
-header = headfits(image195)
-quality = FXPAR(header,'QUALITY')
+header195 = headfits(image195, EXTEN=1)
+quality = FXPAR(header195,'QUALITY')
 
 IF !err LT 0 THEN BEGIN
 	error = [ error, 'Cannot find keyword QUALITY in image ' + image195 ]
@@ -262,7 +250,7 @@ ENDIF
 ; The images are good
 imageRejected = 0
 
-
+				
 IF (debug GT 0) THEN BEGIN
 
 	PRINT, endl, STRPAD('END OF PARAMETERS CHECK', 100, fill='_')
@@ -282,13 +270,13 @@ ENDIF
 ++spoca_lastrun_number
 
 spoca_args = [	'-P', spocaArgsPreprocessing, $
-		'-C', spocaArgsNumberclasses, $
-		'-p', spocaArgsPrecision, $
-		'-z', spocaArgsBinsize, $
-		'-H', spoca_args_histogram, $
-		'-B', spoca_args_centersfile, $
-		'-O', outputDirectory + STRING(spoca_lastrun_number, FORMAT='(I010)'), $
-		image171, image195 ]
+			'-C', spocaArgsNumberclasses, $
+			'-p', spocaArgsPrecision, $
+			'-z', spocaArgsBinsize, $
+			'-H', spoca_args_histogram, $
+			'-B', spoca_args_centersfile, $
+			'-O', outputDirectory + STRING(spoca_lastrun_number, FORMAT='(I010)'), $
+			image171, image195 ]
 
 IF (debug GT 0) THEN BEGIN
 
@@ -320,6 +308,50 @@ IF (debug GT 0) THEN BEGIN
 	PRINT, endl, STRPAD('END OF SPOCA', 100, fill='_')
 ENDIF
 
+; --------- We check if it is time to write some events to the hek -----------------
+
+; We get the observation date of the image171
+
+; observationdate = get_obs_date(header171) get_obs_date is bugged
+current_observation_date = FXPAR(header171,'DATE-OBS')
+IF !err LT 0 THEN current_observation_date = FXPAR(header171,'DATE_OBS')
+IF !err LT 0 THEN BEGIN
+	error = [ error, "ERROR : could not find DATE_OBS nor DATE-OBS keyword in file " + image171 ]
+	RETURN
+ENDIF
+
+IF (debug GT 0) THEN BEGIN
+	PRINT, image171, " observation date is ", current_observation_date, " : ", anytim(current_observation_date, /ccsds)
+ENDIF
+
+; If it is the first time we run SPoCA (runMode == Construct) we set the start of the first event to the observation date of the first image
+IF last_event_written_date EQ 'First Run' THEN BEGIN
+	last_event_written_date = anytim(current_observation_date, /ccsds)
+ENDIF
+
+events_write_deltat = anytim(current_observation_date, /sec) - anytim(last_event_written_date, /sec) 
+
+IF (debug GT 0) THEN BEGIN
+	PRINT,  "last_event_written_date : ", last_event_written_date
+	PRINT,  "current_observation_date : ", current_observation_date
+	PRINT,  STRING(events_write_deltat, FORMAT='(I20)') + ' seconds elapsed between current_observation_date and last_event_written_date'
+ENDIF
+
+
+IF events_write_deltat LT writeEventsFrequency THEN BEGIN
+	
+	IF (debug GT 0) THEN BEGIN
+		PRINT, 'Not running Tracking and GetRegionStats yet'
+	ENDIF
+	GOTO, Finish
+	
+ENDIF ELSE BEGIN
+
+	IF (debug GT 0) THEN BEGIN
+		PRINT, 'Running Tracking and GetRegionStats'
+	ENDIF
+
+ENDELSE
 
 ; --------- We take care of the tracking -----------------
 
@@ -329,7 +361,7 @@ IF (debug GT 0) THEN BEGIN
 ENDIF
 
 
-ARmaps = FILE_SEARCH(outputDirectory, '*ARmap.tracking.fits', /TEST_READ, /TEST_REGULAR , /TEST_WRITE  ) 
+ARmaps = FILE_SEARCH(outputDirectory, '*ARmap.tracking.fits', /TEST_READ, /TEST_REGULAR , /TEST_WRITE  ) ; FILE_SEARCH sort the filenames
 
 IF (debug GT 0) THEN BEGIN
 	PRINT , "Found files : ", endl + ARmaps
@@ -345,9 +377,9 @@ ENDIF
 ; We initialise correctly the arguments for Tracking_HEK
 
 tracking_args =	[	'-n', STRING(last_color_assigned, FORMAT = '(I)'), $
-			'-d', trackingArgsDeltat, $
-			'-D', STRING(trackingOverlap, FORMAT = '(I)'), $
-			ARmaps ]
+					'-d', trackingArgsDeltat, $
+					'-D', STRING(trackingOverlap, FORMAT = '(I)'), $
+					ARmaps ]
 	
 IF (debug GT 0) THEN BEGIN
 	PRINT, 'About to run : ', STRJOIN( [tracking_bin , tracking_args] , ' ', /SINGLE )
@@ -364,6 +396,8 @@ IF (tracking_exit NE 0) THEN BEGIN
 	IF (debug GT 0) THEN BEGIN
 		PRINT , "Tracking exited with error : ", tracking_exit, endl, tracking_errors
 	ENDIF
+	; We will not run GetRegionStats
+	GOTO, Finish
 	
 ENDIF
 
@@ -381,11 +415,10 @@ IF (N_ELEMENTS(tracking_output) LT 1 || STRLEN(tracking_output[0]) LE 1 ) THEN B
 	
 ENDIF ELSE BEGIN
 
-	; The output of Tracking is numActiveEvents last_event_found last_color_assigned
+	; The output of Tracking is numActiveEvents last_color_assigned
 	output = strsplit( tracking_output[0] , ' 	(),', /EXTRACT) 
 	numActiveEvents = LONG(output[0])
-	last_event_found = output[1]
-	last_color_assigned = LONG(output[2])
+	last_color_assigned = LONG(output[1])
 	
 ENDELSE
 
@@ -402,31 +435,6 @@ IF (debug GT 0) THEN BEGIN
 	PRINT, endl, STRPAD('BEGINNING OF GETREGIONSTATS', 100, fill='_')
 ENDIF
 
-; We run RegionsStats if it is time to write the events to the hek and that we have at least 1 active event
-
-events_write_deltat = anytim(last_event_found, /sec) - anytim(last_event_written, /sec) 
-
-IF (debug GT 0) THEN BEGIN
-	PRINT,  "time of last_event_written : ", last_event_written
-	PRINT,  "time of last_event_found : ", last_event_found
-	PRINT,  STRING(events_write_deltat, FORMAT='(I20)') + ' seconds elapsed between last_event_found and last_event_written'
-ENDIF
-
-
-IF events_write_deltat LT writeEventsFrequency THEN BEGIN
-	
-	IF (debug GT 0) THEN BEGIN
-		PRINT, 'Not running GetRegionStats yet'
-	ENDIF
-	GOTO, Finish
-	
-ENDIF ELSE BEGIN
-
-	IF (debug GT 0) THEN BEGIN
-		PRINT, 'Running GetRegionStats'
-	ENDIF
-
-ENDELSE
 
 
 IF numActiveEvents EQ 0 THEN BEGIN
@@ -435,14 +443,14 @@ IF numActiveEvents EQ 0 THEN BEGIN
 		PRINT, 'No active event, going to Finish'
 	ENDIF
 
-	last_event_written = last_event_found	; Even if there is no event to write, it was time to write them
+	last_event_written_date = current_observation_date	; Even if there is no event to write, it was time to write them
 	GOTO, Finish
 ENDIF
 
 
 getregionstats_args = [	'-P', getregionstatsArgsPreprocessing, $
-			'-M', ARmaps[N_ELEMENTS(ARmaps) - 1], $
-			image171 ]
+					'-M', ARmaps[N_ELEMENTS(ARmaps) - 1], $
+					image171 ]
 
 IF (debug GT 0) THEN BEGIN
 
@@ -464,6 +472,8 @@ IF (getregionstats_exit NE 0) THEN BEGIN
 	IF (debug GT 0) THEN BEGIN
 		PRINT , "RegionsStats exited with error : ", getregionstats_exit, endl, getregionstats_errors
 	ENDIF
+	; We will not write any event
+	GOTO, Finish
 	
 ENDIF
 
@@ -486,12 +496,9 @@ ENDIF
 events = strarr(N_ELEMENTS(getregionstats_output))
 
 
-; We need the header of one of the image to transform the coordinates
+; We need the wcs info in the header of one of the image to transform the coordinates
 
-header = headfits(image171)
-wcs = fitshead2wcs(header)
-
-
+wcs = fitshead2wcs(header171)
 
 
 FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN 
@@ -573,7 +580,7 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	event.required.FRM_Contact = 'veronique.delouille@sidc.be'
 	event.required.FRM_URL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA'
 
-	event.required.Event_StartTime = anytim(last_event_written, /ccsds) ; The start time is the previous time we ran GetRegionStats
+	event.required.Event_StartTime = anytim(last_event_written_date, /ccsds) ; The start time is the previous time we ran GetRegionStats
 	event.required.Event_EndTime = anytim(observationdate, /ccsds)  
 	  
 	event.required.Event_CoordSys = 'UTC-HPC-TOPO'
@@ -621,7 +628,7 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 
 ENDFOR 
 
-last_event_written = last_event_found ; We update the time we wrote an event
+last_event_written_date = current_observation_date ; We update the time we wrote an event
 
 IF (debug GT 0) THEN BEGIN
 	PRINT, endl, STRPAD('END OF GETREGIONSTATS', 100, fill='_')
@@ -640,7 +647,7 @@ ENDIF
 
 ; We cleanup old files
 
-IF (N_ELEMENTS(ARmaps) GE trackingNumberImages) THEN BEGIN
+IF (N_ELEMENTS(ARmaps) GT trackingNumberImages) THEN BEGIN
 
 	number_of_files_to_delete = N_ELEMENTS(ARmaps) - trackingOverlap
 	IF (number_of_files_to_delete GT 0) THEN BEGIN
@@ -660,7 +667,7 @@ ENDIF
 ; We save the variables for next run
 
 status.spoca_lastrun_number = spoca_lastrun_number
-status.last_event_written = last_event_written
+status.last_event_written_date = last_event_written_date
 status.numActiveEvents = numActiveEvents
 status.last_color_assigned = last_color_assigned
 

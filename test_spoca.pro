@@ -1,24 +1,25 @@
 PRO test_spoca
 
-files = FILE_SEARCH('/home/benjamin/data/stereo/dataset/', '*A.fts', /TEST_READ, /TEST_REGULAR)
+files171 = FILE_SEARCH('/home/benjamin/data/aia/lev1p5', '*171.fits', /TEST_READ, /TEST_REGULAR)
+files195 = FILE_SEARCH('/home/benjamin/data/aia/lev1p5', '*193.fits', /TEST_READ, /TEST_REGULAR)
 inputStatusFilename = "spoca.sav"
 outputStatusFilename = "spoca.sav"
 write_file = 1
 
 outputDirectory = "results/"
-writeEventsFrequency = 14400
+writeEventsFrequency = 900 ; For my test I write every 15 minutes
 cCodeLocation = "bin/"
 spocaArgsPreprocessing = '3'
 spocaArgsNumberclasses ='4'
 spocaArgsPrecision = '0.000000001'
 spocaArgsBinsize = '0.01,0.01'
-trackingArgsDeltat = '21600'
+trackingArgsDeltat = '3600'; == 1h
 trackingNumberImages = 9
 trackingOverlap = 3
 
 
 
-spoca, image171 = files[0], image195 = files[1], $
+spoca, image171 = files171[0], image195 = files195[0], $
 	events = events, $
 	write_file = write_file, $
 	error = error, $
@@ -39,9 +40,9 @@ spoca, image171 = files[0], image195 = files[1], $
 	trackingNumberImages = trackingNumberImages, $
 	trackingOverlap = trackingOverlap
 
-FOR i=1, (N_ELEMENTS(files)/2 - 2) DO BEGIN
+FOR i=1, MIN([(N_ELEMENTS(files171) - 1), (N_ELEMENTS(files195) - 1)]) DO BEGIN
 
-spoca, image171 = files[i*2], image195 = files[i*2+1], $
+spoca, image171 = files171[i], image195 = files195[i], $
 	events = events, $
 	write_file = write_file, $
 	error = error, $

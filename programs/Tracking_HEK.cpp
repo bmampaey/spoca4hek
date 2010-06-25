@@ -361,6 +361,7 @@ int main(int argc, const char **argv)
 		}
 		filename = sunImagesFileNames[s];
 		images[s]->writeFitsImage(filename);
+		delete images[s];
 
 	}
 	#endif
@@ -379,7 +380,7 @@ int main(int argc, const char **argv)
 	}
 
 	//We output the number of Active Events, the date of the last found event, and the last color assigned
-	cout<<regions[images.size() - 1].size()<<" "<<images[images.size() - 1]->ObservationDate()<<" "<<newColor<<endl;
+	cout<<regions[images.size() - 1].size()<<" "<<newColor<<endl;
 
 
 	return EXIT_SUCCESS;

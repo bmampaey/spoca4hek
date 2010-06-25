@@ -51,6 +51,17 @@ inline unsigned HistogramFCMClassifier::insert(const HistoPixelFeature& xj)
 void HistogramFCMClassifier::addImages(const std::vector<SunImage*>& images, const RealFeature& binSize)
 {
 
+	#if defined(DEBUG) && DEBUG >= 1
+	for (unsigned p = 0; p <  NUMBERWAVELENGTH; ++p)
+	{
+		if( binSize.v[p] == 0 )
+		{
+			cerr<<"binSize cannot be 0."<<endl;
+			exit(EXIT_FAILURE);
+		}
+	}
+	#endif
+
 	//I will need the images in the end to show the classification anyway
 	Classifier::addImages(images);
 	PixelFeature xj;
@@ -69,19 +80,7 @@ void HistogramFCMClassifier::addImages(const std::vector<SunImage*>& images, con
 	numberValidPixels = HistoX.size();
 	#if defined(DEBUG) && DEBUG >= 2
 	string filename = outputFileName + "histogram.txt";
-	ofstream histoFile(filename.c_str());
-	//We save the binSize and the number of bins
-	for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
-			histoFile<<binSize.v[p]<<" ";
-	histoFile<<HistoX.size()<<endl;
-	for (unsigned j = 0; j < numberValidPixels && histoFile.good(); ++j)
-	{
-		for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
-			histoFile<<HistoX[j].v[p]<<" ";
-		histoFile<<HistoX[j].c<<endl;
-	}
-
-	histoFile.close();
+	saveHistogram(filename, binSize);
 	#endif
 
 }
@@ -92,7 +91,7 @@ void HistogramFCMClassifier::initHistogram(const std::string& histogramFilename,
 	stringstream histoStream;
 	vector<char> buffer;
 	//We put the file into a stringstream for rapidity
-	if (histoFile)
+	if (histoFile.good())
 	{
 		// We get the size of the file   
 		histoFile.seekg(0,ios::end);

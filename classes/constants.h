@@ -67,6 +67,7 @@
 #define EIT 1
 #define EUVI 2
 #define AIA 3
+#define PROBA2 4
 
 #define VINCE_CORR 1
 #define CIS1_CORR 2
@@ -133,10 +134,22 @@
 #define VINCE_CORR_R1  95
 #define CIS1_CORR_R1 90
 #define CIS1_CORR_R2 95
+#define BEN_CORR_R1 80
+#define BEN_CORR_R2 102
+#define BEN_CORR_R3 105
+#define BEN_CORR_R4 112
+
+#elif INSTRUMENT==PROBA2
+#define PIXELTYPE TFLOAT
+
+#define VINCE_CORR_R1  95
+#define CIS1_CORR_R1 90
+#define CIS1_CORR_R2 95
 #define BEN_CORR_R1 95
 #define BEN_CORR_R2 100
 #define BEN_CORR_R3 105
-#define BEN_CORR_R4 110
+#define BEN_CORR_R4 115
+
 
 #endif
 

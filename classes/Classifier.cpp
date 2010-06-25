@@ -23,10 +23,10 @@ void Classifier::checkImages(const vector<SunImage*>& images)
 		{
 			cerr<<"Warning : Image "<<images[p]->Wavelength()<<" does not have the same sun centre than image "<<images[0]->Wavelength()<<endl;
 		}
-		if( abs(images[p]->SunRadius() - images[0]->SunRadius()) > 1 )
+		if( abs(1. - (images[p]->SunRadius() / images[0]->SunRadius())) > 0.01 )
 		{
 			cerr<<"Warning : Image "<<images[p]->Wavelength()<<" does not have the same sun radius than image "<<images[0]->Wavelength()<<endl;
-			exit(EXIT_FAILURE);
+			//exit(EXIT_FAILURE);
 		}
 	}
 	#endif
@@ -413,15 +413,15 @@ Image<Real>* Classifier::normalizedFuzzyMap(const unsigned i)
 void Classifier::saveResults(SunImage* outImage)
 {
 	Image<unsigned> * segmentedMap = crispSegmentedMap();
-	vector<Region*> regions;
 	string filename;
-	unsigned numberRegions;
 
 	#if defined(DEBUG) && DEBUG >= 2
 	filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits";
 	segmentedMap->writeFitsImage(filename);
 	#endif
-
+	#if defined(DEBUG) && DEBUG >= 4
+	unsigned numberRegions;
+	vector<Region*> regions;
 	for (unsigned i = 1; i <= numberClasses; ++i)
 	{
 		outImage->zero();
@@ -436,7 +436,7 @@ void Classifier::saveResults(SunImage* outImage)
 		#endif
 
 		//We smooth the edges
-		outImage->dilateCircular(2,0)->erodeCircular(2,0);
+		outImage->dilateDiamond(2,0)->erodeDiamond(2,0);
 
 		#if defined(DEBUG) && DEBUG >= 2
 		filename = baseName + "smoothed.uncleaned.fits";
@@ -570,10 +570,13 @@ void Classifier::saveResults(SunImage* outImage)
 		delete normalizedMap;
 		#endif
 	}
-
+	#endif
 	delete segmentedMap;
 
 }
+
+
+
 
 
 // Function that saves the AR map for tracking
@@ -603,21 +606,12 @@ void Classifier::saveARmap(SunImage* outImage)
 	//We erase small regions
 	unsigned minSize = unsigned(MIN_AR_SIZE / outImage->PixelArea());
 	outImage->tresholdConnectedComponents(minSize, 0);
-
-	#if defined(DEBUG) && DEBUG >= 2
-
-	filename = outputFileName + "ARmap.details.fits";
-	outImage->writeFitsImage(filename);
-
-	#endif
-
+	
 	//We agregate the blobs together
-	outImage->dilateCircular(12,0);
-
+	outImage->blobsIntoAR();
+	
 	//We don't need the AR post limb anymore
 	outImage->nullifyAboveRadius(1.); 
-
-	outImage->colorizeConnectedComponents(0);
 
 	filename = outputFileName + "ARmap.tracking.fits";
 	outImage->writeFitsImage(filename);

@@ -14,7 +14,7 @@ SunImage::~SunImage()
 }
 
 SunImage::SunImage(const long xAxes, const long yAxes, const double radius, const double wavelength)
-:Image<PixelType>(xAxes,yAxes),radius(radius),wavelength(wavelength),observationTime(0),median(1),datap01(0), datap95(numeric_limits<PixelType>::max())
+:Image<PixelType>(xAxes,yAxes),radius(radius),wavelength(wavelength),observationTime(0),median(1),datap01(0), datap95(numeric_limits<PixelType>::max()), exposureTime(0)
 {
 	suncenter.x = xAxes/2;
 	suncenter.y = yAxes/2;
@@ -23,13 +23,13 @@ SunImage::SunImage(const long xAxes, const long yAxes, const double radius, cons
 
 
 SunImage::SunImage(const string& filename)
-:Image<PixelType>(filename),median(1),datap01(0), datap95(numeric_limits<PixelType>::max())
+:Image<PixelType>(filename),median(1),datap01(0), datap95(numeric_limits<PixelType>::max()), exposureTime(0)
 {
 	int   status  = 0;
 	fitsfile  *fptr;
 	char * comment = NULL  ;					  /**<By specifying NULL we say that we don't want the comments	*/
 
-	if (!fits_open_file(&fptr, filename.c_str(), READONLY, &status))
+	if (!fits_open_image(&fptr, filename.c_str(), READONLY, &status))
 	{
 
 		if (fits_read_key(fptr, TDOUBLE, "WAVELNTH", &wavelength,comment, &status))
@@ -92,28 +92,39 @@ SunImage::SunImage(const string& filename)
 			cerr<<"Error reading key R_SUN from file "<<filename<<" :"<< status <<endl;
 			fits_report_error(stderr, status);
 			status = 0;
+			
+			//HACK for bad AIA fits header, remove when R_SUN is corrected
+			if (fits_read_key(fptr, TDOUBLE, "RSUN_OBS", &radius, comment, &status))
+			{
+				
+				cerr<<"Error reading key RSUN_OBS from file "<<filename<<" :"<< status <<endl;
+				fits_report_error(stderr, status);
+				status = 0;
+			}
+			radius/=cdelt[0];
+			//END of HACK
 		}
+		#elif INSTRUMENT==PROBA2
 		
-		//HACK for bad AIA fits header, remove when RSUN is corrected
-		if (fits_read_key(fptr, TDOUBLE, "RSUN_OBS", &radius, comment, &status))
+		if (fits_read_key(fptr, TDOUBLE, "RSUN_ARC", &radius, comment, &status))
 		{
 			
-			cerr<<"Error reading key RSUN_OBS from file "<<filename<<" :"<< status <<endl;
+			cerr<<"Error reading key RSUN_ARC from file "<<filename<<" :"<< status <<endl;
 			fits_report_error(stderr, status);
 			status = 0;
 		}
+		// PROBA2 express the radius in arc/sec
 		radius/=cdelt[0];
-		//END of HACK
 		#else
 		#error "INSTRUMENT is not defined"
 		#endif
 		
-		//The date of observation can be defined as observationTime ou DATE-OBS
+		//The date of observation can be defined as DATE_OBS ou DATE-OBS
 		if (fits_read_key(fptr, TSTRING, "DATE-OBS", date_obs, comment, &status))
 		{
 			
 			status = 0;
-			if (fits_read_key(fptr, TSTRING, "observationTime", date_obs, comment, &status))
+			if (fits_read_key(fptr, TSTRING, "DATE_OBS", date_obs, comment, &status))
 			{
 
 				cerr<<"Error reading key DATE-OBS from file "<<filename<<" :"<< status <<endl;
@@ -165,11 +176,28 @@ SunImage::SunImage(const string& filename)
 			status = 0;
 		}
 		#endif
+		
+		#if INSTRUMENT==AIA
+		if (fits_read_key(fptr, TDOUBLE, "EXPTIME", &exposureTime,comment, &status))
+		{
+			
+			cerr<<"Error reading key EXPTIME from file "<<filename<<" :"<< status <<endl;
+			fits_report_error(stderr, status);
+			status = 0;
+		}
+		#endif
 
 		// We save all keywords for future usage
 		char record[81];
 		const char* inclist[] = {"*"};
-		const char* exclist[] = {"SIMPLE", "BITPIX", "NAXIS*", "EXTEND"};
+		const char* exclist[] = {"SIMPLE", "BITPIX", "NAXIS*", "EXTEND", "Z*", "XTENSION", "TTYPE1", "TFORM1", "PCOUNTS", "GCOUNTS", "TFILEDS"};
+		//We first need to reset the fptr to the beginning
+		if( fits_read_record (fptr, 0, record, &status))
+		{
+			cerr<<"Error reseting the fits pointer to the beginning of the header for file "<<filename<<" :"<< status <<endl;			
+			fits_report_error(stderr, status);
+			status = KEY_NO_EXIST;
+		}
 		while(status != KEY_NO_EXIST)
 		{
 			status = 0;
@@ -179,7 +207,7 @@ SunImage::SunImage(const string& filename)
 				{
 					cerr<<"Error reading keyword from file "<<filename<<" :"<< status <<endl;
 					fits_report_error(stderr, status);
-					status = 0;
+					status = KEY_NO_EXIST;
 				}
 			}
 			else
@@ -205,7 +233,7 @@ SunImage::SunImage(const string& filename)
 
 
 SunImage::SunImage(const SunImage& i)
-:Image<PixelType>(i),radius(i.radius),wavelength(i.wavelength),observationTime(i.observationTime),suncenter(i.suncenter),median(i.median),datap01(i.datap01),datap95(i.datap95)
+:Image<PixelType>(i),radius(i.radius),wavelength(i.wavelength),observationTime(i.observationTime),suncenter(i.suncenter),median(i.median),datap01(i.datap01),datap95(i.datap95), exposureTime(i.exposureTime)
 {
 	strncpy (date_obs, i.date_obs, 80);
 	cdelt[0] = i.cdelt[0];
@@ -220,7 +248,7 @@ SunImage::SunImage(const SunImage& i)
 
 
 SunImage::SunImage(const SunImage* i)
-:Image<PixelType>(i),radius(i->radius),wavelength(i->wavelength),observationTime(i->observationTime),suncenter(i->suncenter),median(i->median),datap01(i->datap01),datap95(i->datap95)
+:Image<PixelType>(i),radius(i->radius),wavelength(i->wavelength),observationTime(i->observationTime),suncenter(i->suncenter),median(i->median),datap01(i->datap01),datap95(i->datap95), exposureTime(i->exposureTime)
 {
 	strncpy (date_obs, i->date_obs, 80);
 	cdelt[0] = i->cdelt[0];
@@ -924,6 +952,26 @@ void SunImage::preprocessing(const int type, Real maxLimbRadius, Real minLimbRad
 			cerr<<"Unknown preprocessing type."<<endl;
 			exit(EXIT_FAILURE);
 	}
+	#if INSTRUMENT==AIA
+		#if defined(DEBUG) && DEBUG >= 1
+			if(exposureTime == 0)
+			{
+				cerr<<"Exposure Time of AIA Image is 0."<<endl;
+				exit(EXIT_FAILURE);
+			}
+		#endif
+		#if defined(DEBUG) && DEBUG >= 1
+		cerr<<"AIA image is going to be divided by its exposure time: "<<exposureTime<<endl;
+		#endif
+		for (unsigned j=0; j < numberPixels; ++j)
+		{
+			if(pixels[j] != nullvalue)
+			{
+				pixels[j] /= exposureTime;
+			}
+			
+		}
+	#endif
 
 }
 
@@ -1022,4 +1070,40 @@ SunImage* SunImage::rotate(const unsigned t)
 
 }
 
+#if defined(AGGREGATE_DILATE)
+SunImage* SunImage::blobsIntoAR ()
+{
+
+	//We agregate the blobs together by dilation of 31.44 arcsec (== 12 pixel EIT)
+	unsigned dilateFactor = unsigned(31.44 / cdelt[0]);
+	this->dilateCircular(dilateFactor,0);
+	
+	this->colorizeConnectedComponents(0);
+	
+	return this;
+}
+
+#else
+
+SunImage* SunImage::blobsIntoAR ()
+{
+
+	//We create  a map by dilation of 31.44 arcsec (== 12 pixel EIT)
+	unsigned dilateFactor = unsigned(31.44 / cdelt[0]);
+	SunImage* dilated = new SunImage(this);
+	dilated->dilateCircular(dilateFactor,0);
+	dilated->colorizeConnectedComponents(0);
+	
+	//We color the blobs using the dilated map 
+	for (unsigned j=0; j < numberPixels; ++j)
+	{
+		if (pixels[j] != nullvalue)
+			pixels[j] = dilated->pixel(j);
+	}
+	delete dilated;
+	
+	return this;
+}
+
+#endif
 

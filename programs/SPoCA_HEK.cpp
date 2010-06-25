@@ -5,6 +5,7 @@
 #include <string>
 #include <fenv.h>
 #include <iomanip>
+#include <sys/stat.h>
 
 #include "../classes/tools.h"
 #include "../classes/constants.h"
@@ -96,14 +97,16 @@ int main(int argc, const char **argv)
 			cerr<<"Error reading the binSize."<<endl;
 		}
 	}
-	if(!histogramFile.empty())
+	
+	struct stat buffer ;
+	if(!histogramFile.empty() && (stat(histogramFile.c_str(), &buffer) == 0)) //We make sure the file exists
 	{
 		F.initHistogram(histogramFile, binSize, true);
 	}
 	
 
 	//We fetch the wavelength and the initial centers from the centers file
-	if(! centersFileName.empty())
+	if(! centersFileName.empty() && (stat(centersFileName.c_str(), &buffer) == 0))
 	{
 		readCentersFromFile(B, wavelengths, centersFileName);
 		#if defined(DEBUG) && DEBUG >= 1

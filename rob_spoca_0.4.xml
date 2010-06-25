@@ -2,7 +2,7 @@
 <ParameterizedAlgorithmFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="file:hek.xsd">
     <AlgorithmDescriptionFile>rob_spoca.xml</AlgorithmDescriptionFile>
-    <CodeVersion>0.2</CodeVersion>
+    <CodeVersion>0.4</CodeVersion>
     <Parameter>
         <ParameterName>outputDirectory</ParameterName>
         <Type>string</Type>
@@ -12,6 +12,7 @@
     <Parameter>
         <ParameterName>writeEventsFrequency</ParameterName>
         <Type>numeric</Type>
+        <!-- Frequency we write events to the HEK 4h-->
         <Value>14400</Value>
         <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
     </Parameter>
@@ -42,8 +43,8 @@
     <Parameter>
         <ParameterName>trackingArgsDeltat</ParameterName>
         <Type>string</Type>
-        <!-- This must be changed back to 3600 after the test--> 
-        <Value>21600</Value>
+        <!-- Time in seconds an AR should stay more or less at the same place--> 
+        <Value>3600</Value>
         <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
     </Parameter>
     <Parameter>

@@ -144,7 +144,7 @@ Real RegionStats::Skewness() const
 Real RegionStats::Kurtosis() const
 {
 	if (m2 > 0)
-		return ( numberPixels * m4 / (m2 * m2) ) - 3;
+		return (numberPixels * m4 / (m2 * m2) ) - 3;
 	else
 		return numeric_limits<Real>::infinity();
 }
