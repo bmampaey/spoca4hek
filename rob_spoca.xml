@@ -11,18 +11,18 @@
             <ParamName>image171</ParamName>
             <Optional>false</Optional>
             <ImageChoice>
-                <Instrument>EUVI</Instrument>
+                <Instrument>AIA</Instrument>
                 <Wavelength>171</Wavelength>
-                <Resolution>2048</Resolution>
+                <Resolution>4096</Resolution>
             </ImageChoice>
         </ImageRequirement>
         <ImageRequirement>
             <ParamName>image195</ParamName>
             <Optional>false</Optional>
             <ImageChoice>
-                <Instrument>EUVI</Instrument>
-                <Wavelength>195</Wavelength>
-                <Resolution>2048</Resolution>
+                <Instrument>AIA</Instrument>
+                <Wavelength>193</Wavelength>
+                <Resolution>4096</Resolution>
             </ImageChoice>
         </ImageRequirement>
     </ImageInput>
@@ -35,6 +35,6 @@
     </OutputVOEventType>
     <OutputVOEventType>
         <VOEventType>AR</VOEventType>
-        <WavelengthAngstroms>195</WavelengthAngstroms>
+        <WavelengthAngstroms>193</WavelengthAngstroms>
     </OutputVOEventType>
 </AlgorithmDescription>

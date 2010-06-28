@@ -237,7 +237,30 @@ int main(int argc, const char **argv)
 	arguments.process(argc, argv);
 
 	// We get the images
-	fetchImagesFromFile(images, sunImagesFileNames, 0, 1);
+
+	for (unsigned p = 0; p < sunImagesFileNames.size(); ++p)
+	{
+		#if defined(DEBUG) && DEBUG >= 1
+		if(sunImagesFileNames[p].find(".fits")==string::npos && sunImagesFileNames[p].find(".fts")==string::npos)
+		{
+			cerr<<sunImagesFileNames[p]<<" is not a fits file! (must end in .fits or .fts)"<<endl;
+		}
+		#endif
+		images.push_back(new SunImage(sunImagesFileNames[p]));
+
+	}
+	// We crop and align the images
+	Coordinate sunCenter = images[0]->SunCenter();
+	for (unsigned p = 0; p < sunImagesFileNames.size(); ++p)
+	{
+		images[p]->nullifyAboveRadius(1);
+
+		if( sunCenter.d2(images[p]->SunCenter()) > 2 )
+		{
+			cerr<<"Warning : Image "<<sunImagesFileNames[p]<<" will be recentered to have the same sun centre than image "<<sunImagesFileNames[0]<<endl;
+			images[p]->recenter(sunCenter);
+		}
+	}
 
 	//We ordonate the images according to time
 	sort(images.begin(), images.end(), compare);

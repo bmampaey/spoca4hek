@@ -190,7 +190,7 @@ SunImage::SunImage(const string& filename)
 		// We save all keywords for future usage
 		char record[81];
 		const char* inclist[] = {"*"};
-		const char* exclist[] = {"SIMPLE", "BITPIX", "NAXIS*", "EXTEND", "Z*", "XTENSION", "TTYPE1", "TFORM1", "PCOUNTS", "GCOUNTS", "TFILEDS"};
+		const char* exclist[] = {"SIMPLE", "BITPIX", "NAXIS*", "EXTEND", "Z*", "XTENSION", "TTYPE1", "TFORM1", "PCOUNT", "GCOUNT", "TFIELDS"};
 		//We first need to reset the fptr to the beginning
 		if( fits_read_record (fptr, 0, record, &status))
 		{
@@ -215,7 +215,7 @@ SunImage::SunImage(const string& filename)
 				header.push_back(strdup(record));
 			}
 		} 
-		
+		status = 0;
 		if ( fits_close_file(fptr, &status) )
 		{
 			cerr<<"Error : closing file "<<filename<<" :"<< status <<endl;			

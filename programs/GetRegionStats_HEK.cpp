@@ -29,8 +29,8 @@ int main(int argc, const char **argv)
 	cout<<setiosflags(ios::fixed);
 	#endif
 	
-	unsigned preprocessingType = 1;
-	double radiusRatio = 1.31;
+	unsigned preprocessingType = 0;
+	double radiusRatio = 0.95;
 	string colorizedComponentsMapFileName;
 	vector<string> sunImagesFileNames;
 	
@@ -87,10 +87,10 @@ int main(int argc, const char **argv)
 	{
 		if( sunCenter.d2(images[p]->SunCenter()) > 2 )
 		{
-			cerr<<"Warning : Image "<<sunImagesFileNames[p]<<" will be recentered to have the same sun centre than image "<<colorizedComponentsMapFileName<<endl;
+			cerr<<"Warning : Image "<<sunImagesFileNames[p]<<<<" will be recentered to have the same sun centre than image "<<colorizedComponentsMapFileName<<endl;
 			images[p]->recenter(sunCenter);
 		}
-		if( abs(images[p]->SunRadius() - sunRadius) > 1 )
+		if( abs(1. - (images[p]->SunRadius() / sunRadius)) > 0.01 )
 		{
 			cerr<<"Error : Image "<<sunImagesFileNames[p]<<" does not have the same sun radius than image "<<colorizedComponentsMapFileName<<endl;
 			exit(EXIT_FAILURE);
@@ -98,7 +98,7 @@ int main(int argc, const char **argv)
 	}
 	#endif
 
-	colorizedComponentsMap->nullifyAboveRadius(radiusRatio);
+	colorizedComponentsMap->nullifyAboveRadius(1);
 
 	for (unsigned p = 0; p < sunImagesFileNames.size(); ++p)
 	{

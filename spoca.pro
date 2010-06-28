@@ -206,7 +206,7 @@ IF ~ FILE_TEST( getregionstats_bin, /EXECUTABLE)  THEN BEGIN
 	ENDIF
 	RETURN
 ENDIF
-getregionstatsArgsPreprocessing = '1' ; We only do Annulus Limb Correction here
+getregionstatsArgsPreprocessing = '0' ; We dont do any preprocessing, but we don't output region stats for AR lying beyond 95% of the solar radius (bacause of the limb)
 
 ; We verify the quality of the images
 header171 = headfits(image171, EXTEN=1)
@@ -281,12 +281,19 @@ spoca_args = [	'-P', spocaArgsPreprocessing, $
 IF (debug GT 0) THEN BEGIN
 
 	PRINT, 'About to run : ' , STRJOIN( [spoca_bin , spoca_args] , ' ', /SINGLE ) 
+	time_before_run = SYSTIME(/SECONDS) 
 	
 ENDIF
 
 ; We call SPoCA with the correct arguments
 
 SPAWN, [spoca_bin , spoca_args], spoca_output, spoca_errors, /NOSHELL, EXIT_STATUS=spoca_exit 
+
+IF (debug GT 0) THEN BEGIN
+
+	PRINT, 'run time (seconds): ' , SYSTIME(/SECONDS) - time_before_run
+
+ENDIF
 
 ; In case of error
 IF (spoca_exit NE 0) THEN BEGIN
@@ -383,9 +390,16 @@ tracking_args =	[	'-n', STRING(last_color_assigned, FORMAT = '(I)'), $
 	
 IF (debug GT 0) THEN BEGIN
 	PRINT, 'About to run : ', STRJOIN( [tracking_bin , tracking_args] , ' ', /SINGLE )
+	time_before_run = SYSTIME(/SECONDS) 
 ENDIF
 
 SPAWN, [tracking_bin , tracking_args] , tracking_output, tracking_errors, /NOSHELL, EXIT_STATUS=tracking_exit 
+
+IF (debug GT 0) THEN BEGIN
+
+	PRINT, 'run time (seconds): ' , SYSTIME(/SECONDS) - time_before_run
+
+ENDIF
 
 IF (tracking_exit NE 0) THEN BEGIN
 
@@ -455,12 +469,19 @@ getregionstats_args = [	'-P', getregionstatsArgsPreprocessing, $
 IF (debug GT 0) THEN BEGIN
 
 	PRINT, 'About to run : ' , STRJOIN( [getregionstats_bin , getregionstats_args] , ' ', /SINGLE )
+	time_before_run = SYSTIME(/SECONDS) 
 	
 ENDIF
 
 ; We call RegionsStats with the correct arguments
 
 SPAWN, [getregionstats_bin , getregionstats_args], getregionstats_output, getregionstats_errors, /NOSHELL, EXIT_STATUS=getregionstats_exit 
+
+IF (debug GT 0) THEN BEGIN
+
+	PRINT, 'run time (seconds): ' , SYSTIME(/SECONDS) - time_before_run
+
+ENDIF
 
 ; In case of error
 IF (getregionstats_exit NE 0) THEN BEGIN
