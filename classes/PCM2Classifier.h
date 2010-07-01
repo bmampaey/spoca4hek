@@ -32,8 +32,8 @@ class PCM2Classifier : public virtual PCMClassifier
 		//Classification functions
 		void classification(Real precision = 1., unsigned maxNumberIteration = 100)
 			{PCMClassifier::classification(precision, maxNumberIteration);}
-		void fixCentersClassification()
-			{PCMClassifier::fixCentersClassification();}
+		void attribution()
+			{PCMClassifier::attribution();}
 
 };
 #endif

@@ -8,7 +8,7 @@
 
 #include "../classes/tools.h"
 #include "../classes/constants.h"
-#include "../classes/SunImage.h"
+#include "../classes/AIAImage.h"
 #include "../dsr/ArgumentHelper.h"
 #include "../classes/MainUtilities.h"
 #include "../classes/RegionStats.h"
@@ -29,27 +29,25 @@ int main(int argc, const char **argv)
 	cout<<setiosflags(ios::fixed);
 	#endif
 	
-	unsigned preprocessingType = 0;
+	string preprocessingSteps = "NAR";
 	double radiusRatio = 0.95;
 	string colorizedComponentsMapFileName;
 	vector<string> sunImagesFileNames;
 	
 	vector<SunImage*> images;
-	SunImage* colorizedComponentsMap;
+	AIAImage* colorizedComponentsMap;
 	
 	string programDescription = "This Programm output regions info and statistics.\n";
 	programDescription+="Compiled with options :";
 	programDescription+="\nNUMBERWAVELENGTH: " + itos(NUMBERWAVELENGTH);
 	programDescription+="\nDEBUG: "+ itos(DEBUG);
-	programDescription+=string("\nINSTRUMENT: ") + instruments[INSTRUMENT];
-	programDescription+=string("\nLIMB_CORRECTION: ") + limb_corrections[LIMB_CORRECTION];
 	programDescription+="\nPixelType: " + string(typeid(PixelType).name());
 	programDescription+="\nReal: " + string(typeid(Real).name());
 
 	ArgumentHelper arguments;
 	arguments.new_named_double('r',"radiusratio","radiusratio","The ratio of the radius of the sun that will be processed",radiusRatio);
 	arguments.new_named_string('M',"colorizedComponentsMap","colorizedComponentsMap", "The name of the file containing a colorizedComponentsMap of regions (i.e. each one must have a different color).", colorizedComponentsMapFileName);
-	arguments.new_named_unsigned_int('P', "preprocessingType", "preprocessingType", "The type of preprocessing to apply to the sun images.\n\tNo preprocessing = 0, AnnulusLimbCorrection(ALC) = 1, ALC+TakeLog = 2, ALC+DivMedian = 3, ALC+TakeSqrt = 4, ALC+DivMode = 5", preprocessingType);	
+	arguments.new_named_string('P', "preprocessingSteps", "preprocessingSteps", "The step of preprocessing to apply to the sun images.\n\tNullify above radius : NAR, ALC : Annulus Limb Correction, Division median : DivMedian, Take the square root : TakeSqrt, Take the log : TakeLog, Division by the mode : DivMode, Division by the Exposure Time : DivExpTime", preprocessingSteps);
 	arguments.set_string_vector("fitsFileName1 fitsFileName2 ...", "The name of the fits files containing the images of the sun.", sunImagesFileNames);
 
 	arguments.set_description(programDescription.c_str());
@@ -65,7 +63,14 @@ int main(int argc, const char **argv)
 	}
 	
 	//We read and preprocess the sun images
-	fetchImagesFromFile(images, sunImagesFileNames, preprocessingType, radiusRatio);
+	images = getImagesFromFiles("AIA", sunImagesFileNames, false);
+	for (unsigned p = 0; p < images.size(); ++p)
+	{
+		images[p]->preprocessing(preprocessingSteps, radiusRatio);
+		#if defined(DEBUG) && DEBUG >= 2
+		images[p]->writeFitsImage(outputFileName + "preprocessed."+sunImagesFileNames[p].substr(sunImagesFileNames[p].rfind('/')!=string::npos?sunImagesFileNames[p].rfind('/')+1:0));
+		#endif
+	}
 
 	//We do the same for the colorizedComponentsMap
 	#if defined(DEBUG) && DEBUG >= 1
@@ -75,7 +80,7 @@ int main(int argc, const char **argv)
 		}
 	#endif
 	
-	colorizedComponentsMap = new SunImage(colorizedComponentsMapFileName);
+	colorizedComponentsMap = new AIAImage(colorizedComponentsMapFileName);
 	
 	#if defined(DEBUG) && DEBUG >= 1
 
@@ -87,7 +92,7 @@ int main(int argc, const char **argv)
 	{
 		if( sunCenter.d2(images[p]->SunCenter()) > 2 )
 		{
-			cerr<<"Warning : Image "<<sunImagesFileNames[p]<<<<" will be recentered to have the same sun centre than image "<<colorizedComponentsMapFileName<<endl;
+			cerr<<"Warning : Image "<<sunImagesFileNames[p]<<" will be recentered to have the same sun centre than image "<<colorizedComponentsMapFileName<<endl;
 			images[p]->recenter(sunCenter);
 		}
 		if( abs(1. - (images[p]->SunRadius() / sunRadius)) > 0.01 )

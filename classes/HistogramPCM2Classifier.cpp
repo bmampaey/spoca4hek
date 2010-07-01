@@ -7,11 +7,11 @@ HistogramPCM2Classifier::HistogramPCM2Classifier(Real fuzzifier)
 {}
 
 //Because the numberValidPixels of X is not the same as numberValidPixels of HistoX
-void HistogramPCM2Classifier::saveResults(SunImage* outImage)
+void HistogramPCM2Classifier::saveAllResults(SunImage* outImage)
 {
 	numberValidPixels = X.size();
 	PCM2Classifier::computeU();
-	Classifier::saveResults(outImage);
+	Classifier::saveAllResults(outImage);
 	numberValidPixels = HistoX.size();
 }
 

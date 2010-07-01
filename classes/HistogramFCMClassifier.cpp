@@ -175,11 +175,11 @@ void HistogramFCMClassifier::saveHistogram(const std::string& histogramFilename,
 }
 
 //Because the numberValidPixels of X is not the same as numberValidPixels of HistoX
-void HistogramFCMClassifier::saveResults(SunImage* outImage)
+void HistogramFCMClassifier::saveAllResults(SunImage* outImage)
 {
 	numberValidPixels = X.size();
 	FCMClassifier::computeU();
-	Classifier::saveResults(outImage);
+	Classifier::saveAllResults(outImage);
 	numberValidPixels = HistoX.size();
 }
 
@@ -326,7 +326,9 @@ void HistogramFCMClassifier::classification(Real precision, unsigned maxNumberIt
 		#if defined(DEBUG) && DEBUG >= 3
 		cout<<"iteration :"<<iteration;
 		cout<<"\tprecisionReached :"<<precisionReached;
+		#if DEBUG >= 4
 		cout<<"\tJFCMH :"<<computeJ();
+		#endif
 		cout<<"\tB :"<<B<<endl;
 		#endif
 
@@ -334,7 +336,7 @@ void HistogramFCMClassifier::classification(Real precision, unsigned maxNumberIt
 
 	#if defined(DEBUG) && DEBUG >= 2
 	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = crispSegmentedMap();
+	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
 	segmentedMap->writeFitsImage(filename);
 	delete segmentedMap;
 	#endif

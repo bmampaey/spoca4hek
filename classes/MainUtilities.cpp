@@ -46,8 +46,10 @@ void ordonateImages(vector<SunImage*>& images, const RealFeature& wavelengths)
 }
 
 
-void fetchImagesFromFile(vector<SunImage*>& images, const vector<string>& sunImagesFileNames, const unsigned  preprocessingType, const double radiusRatio)
+vector<SunImage*> getImagesFromFiles(string type, const vector<string>& sunImagesFileNames, bool align)
 {
+
+	vector<SunImage*> images;
 
 	// We read the files
 	for (unsigned p = 0; p < sunImagesFileNames.size(); ++p)
@@ -58,30 +60,40 @@ void fetchImagesFromFile(vector<SunImage*>& images, const vector<string>& sunIma
 			cerr<<sunImagesFileNames[p]<<" is not a fits file! (must end in .fits or .fts)"<<endl;
 		}
 		#endif
-		images.push_back(new SunImage(sunImagesFileNames[p]));
-
+		
+		if (type == "EIT")
+			images.push_back(new EITImage(sunImagesFileNames[p]));
+		else if (type == "EUVI")
+			images.push_back(new EUVIImage(sunImagesFileNames[p]));
+		else if (type == "AIA")
+			images.push_back(new AIAImage(sunImagesFileNames[p]));
+		else if (type == "SWAP")
+			images.push_back(new SWAPImage(sunImagesFileNames[p]));
+		else 
+			images.push_back(new SunImage(sunImagesFileNames[p]));
 	}
-	// We preprocess and align the images
-	Coordinate sunCenter = images[0]->SunCenter();
-	for (unsigned p = 0; p < sunImagesFileNames.size(); ++p)
+	
+	
+	if(align) // We align the images so they all have the same sun center
 	{
-		images[p]->preprocessing(preprocessingType,radiusRatio);
-
-		if( sunCenter.d2(images[p]->SunCenter()) > 2 )
+		Coordinate sunCenter = images[0]->SunCenter();
+		
+		for (unsigned p = 1; p < sunImagesFileNames.size(); ++p)
 		{
-			cerr<<"Warning : Image "<<sunImagesFileNames[p]<<" will be recentered to have the same sun centre than image "<<sunImagesFileNames[0]<<endl;
-			images[p]->recenter(sunCenter);
+			if( sunCenter.d2(images[p]->SunCenter()) > 2 )
+			{
+				cerr<<"Warning : Image "<<sunImagesFileNames[p]<<" will be recentered to have the same sun centre than image "<<sunImagesFileNames[0]<<endl;
+				images[p]->recenter(sunCenter);
+			}
+
+			#if defined(DEBUG) && DEBUG >= 2
+			string filename = outputFileName + "recentered.";
+			filename +=  sunImagesFileNames[p].substr(sunImagesFileNames[p].rfind('/')!=string::npos?sunImagesFileNames[p].rfind('/')+1:0);
+			images[p]->writeFitsImage(filename);
+			#endif
 		}
-
-		#if defined(DEBUG) && DEBUG >= 2
-		string filename = outputFileName + "preprocessed.";
-		filename +=  sunImagesFileNames[p].substr(sunImagesFileNames[p].rfind('/')!=string::npos?sunImagesFileNames[p].rfind('/')+1:0);
-		images[p]->writeFitsImage(filename);
-		#endif
-
 	}
+	return images;
 }
 
 
-const char * instruments[] = {"ERROR","EIT","EUVI","AIA", "PROBA2"};
-const char * limb_corrections[] = {"ERROR","VINCE_CORR","CIS1_CORR","BEN_CORR", "CIS2_CORR"};

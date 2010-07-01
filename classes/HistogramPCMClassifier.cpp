@@ -7,11 +7,11 @@ HistogramPCMClassifier::HistogramPCMClassifier(Real fuzzifier)
 {}
 
 //Because the numberValidPixels of X is not the same as numberValidPixels of HistoX
-void HistogramPCMClassifier::saveResults(SunImage* outImage)
+void HistogramPCMClassifier::saveAllResults(SunImage* outImage)
 {
 	numberValidPixels = X.size();
 	PCMClassifier::computeU();
-	Classifier::saveResults(outImage);
+	Classifier::saveAllResults(outImage);
 	numberValidPixels = HistoX.size();
 }
 
@@ -136,9 +136,8 @@ Real HistogramPCMClassifier::computeJ() const
 
 void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 {	
-	const Real maxFactor = 100.;
-
-
+	
+	const Real maxFactor = ETA_MAXFACTOR;
 
 	#if defined(DEBUG) && DEBUG >= 1
 	if(X.size() == 0 || B.size() == 0|| B.size() != eta.size())
@@ -160,11 +159,11 @@ void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIt
 	vector<RealFeature> oldB = B;
 	vector<Real> old_eta;
 	vector<Real> start_eta = eta;
-	bool stopComputationEta = false;
+	bool recomputeEta = FIXETA != TRUE;
 	for (unsigned iteration = 0; iteration < maxNumberIteration && precisionReached > precision ; ++iteration)
 	{
 
-		if ( (!FIXETA) && (!stopComputationEta) )	//eta is to be recalculated each iteration.
+		if (recomputeEta)	//eta is to be recalculated each iteration.
 		{
 			old_eta = eta;
 			computeEta();
@@ -173,7 +172,7 @@ void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIt
 			{
 				if ( (start_eta[i] / eta[i] > maxFactor) || (start_eta[i] / eta[i] < 1. / maxFactor) )
 				{
-					stopComputationEta = true;
+					recomputeEta = false;
 				}
 			}
 		}
@@ -193,7 +192,9 @@ void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIt
 		#if defined(DEBUG) && DEBUG >= 3
 		cout<<"iteration :"<<iteration;
 		cout<<"\tprecisionReached :"<<precisionReached;
-		cout<<"\tJPCM :"<<computeJ();
+		#if DEBUG >= 4
+			cout<<"\tJPCM :"<<computeJ();
+		#endif
 		cout<<"\tB :"<<B;
 		cout<<endl;
 		#endif
@@ -203,7 +204,7 @@ void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIt
 
 	#if defined(DEBUG) && DEBUG >= 2
 	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = crispSegmentedMap();
+	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
 	segmentedMap->writeFitsImage(filename);
 	delete segmentedMap;
 	#endif
@@ -263,7 +264,9 @@ void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIt
 		#if defined(DEBUG) && DEBUG >= 3
 		cout<<"iteration :"<<iteration;
 		cout<<"\tprecisionReached :"<<precisionReached;
-		cout<<"\tJPCM :"<<computeJ();
+		#if DEBUG >= 4
+			cout<<"\tJPCM :"<<computeJ();
+		#endif
 		cout<<"\tB :"<<B<<" eta :"<<eta<<endl;
 		#endif
 
@@ -271,7 +274,7 @@ void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIt
 
 	#if defined(DEBUG) && DEBUG >= 2
 	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = crispSegmentedMap();
+	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
 	segmentedMap->writeFitsImage(filename);
 	delete segmentedMap;
 	#endif
@@ -282,11 +285,11 @@ void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIt
 
 #endif
 
-void HistogramPCMClassifier::fixCentersClassification()
+void HistogramPCMClassifier::attribution()
 {
 
 	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--HistogramPCMClassifier::fixCentersClassification--START--"<<endl;
+	cout<<"--HistogramPCMClassifier::attribution--START--"<<endl;
 	#endif
 
 	//Initialisation of U
@@ -295,12 +298,12 @@ void HistogramPCMClassifier::fixCentersClassification()
 
 	#if defined(DEBUG) && DEBUG >= 2
 	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = crispSegmentedMap();
+	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
 	segmentedMap->writeFitsImage(filename);
 	delete segmentedMap;
 	#endif
 	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--HistogramPCMClassifier::fixCentersClassification--END--"<<endl;
+	cout<<"--HistogramPCMClassifier::attribution--END--"<<endl;
 	#endif
 
 }

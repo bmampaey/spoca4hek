@@ -2,10 +2,6 @@
 
 using namespace std;
 
-const Real PI = 3.14159265358979323846;
-const Real MIPI = 1.57079632679489661923;
-const Real BIPI = 6.28318530717958647692;
-
 
 SunImage::~SunImage()
 {
@@ -14,7 +10,7 @@ SunImage::~SunImage()
 }
 
 SunImage::SunImage(const long xAxes, const long yAxes, const double radius, const double wavelength)
-:Image<PixelType>(xAxes,yAxes),radius(radius),wavelength(wavelength),observationTime(0),median(1),datap01(0), datap95(numeric_limits<PixelType>::max()), exposureTime(0)
+:Image<PixelType>(xAxes,yAxes),radius(radius),wavelength(wavelength),observationTime(0),median(0),datap01(0), datap95(numeric_limits<PixelType>::max()), exposureTime(0)
 {
 	suncenter.x = xAxes/2;
 	suncenter.y = yAxes/2;
@@ -23,212 +19,9 @@ SunImage::SunImage(const long xAxes, const long yAxes, const double radius, cons
 
 
 SunImage::SunImage(const string& filename)
-:Image<PixelType>(filename),median(1),datap01(0), datap95(numeric_limits<PixelType>::max()), exposureTime(0)
+:Image<PixelType>(),median(0),datap01(0), datap95(numeric_limits<PixelType>::max()), exposureTime(0)
 {
-	int   status  = 0;
-	fitsfile  *fptr;
-	char * comment = NULL  ;					  /**<By specifying NULL we say that we don't want the comments	*/
-
-	if (!fits_open_image(&fptr, filename.c_str(), READONLY, &status))
-	{
-
-		if (fits_read_key(fptr, TDOUBLE, "WAVELNTH", &wavelength,comment, &status))
-		{
-			cerr<<"Error reading key WAVELNTH from file "<<filename<<" :"<< status <<endl;
-			fits_report_error(stderr, status);
-			status = 0;
-		}
-		if (fits_read_key(fptr, TINT, "CRPIX1", &(suncenter.x),comment, &status))
-		{
-			
-			cerr<<"Error reading key CRPIX1 from file "<<filename<<" :"<< status <<endl;
-			fits_report_error(stderr, status);
-			status = 0;
-		}
-		if (fits_read_key(fptr, TINT, "CRPIX2", &(suncenter.y), comment, &status))
-		{
-			
-			cerr<<"Error reading key CRPIX2 from file "<<filename<<" :"<< status <<endl;
-			fits_report_error(stderr, status);
-			status = 0;
-		}
-		if (fits_read_key(fptr, TDOUBLE, "CDELT1", &(cdelt[0]), comment, &status))
-		{
-			
-			cerr<<"Error reading key CDELT1 from file "<<filename<<" :"<< status <<endl;
-			fits_report_error(stderr, status);
-			status = 0;
-		}
-		if (fits_read_key(fptr, TDOUBLE, "CDELT2", &(cdelt[1]), comment, &status))
-		{
-			
-			cerr<<"Error reading key CDELT2 from file "<<filename<<" :"<< status <<endl;
-			fits_report_error(stderr, status);
-			status = 0;
-		}
-		#if INSTRUMENT==EIT
-		if (fits_read_key(fptr, TDOUBLE, "SOLAR_R", &radius, comment, &status))
-		{
-			
-			cerr<<"Error reading key SOLAR_R from file "<<filename<<" :"<< status <<endl;
-			fits_report_error(stderr, status);
-			status = 0;
-		}
-		#elif INSTRUMENT==EUVI
-		if (fits_read_key(fptr, TDOUBLE, "RSUN", &radius, comment, &status))
-		{
-			
-			cerr<<"Error reading key RSUN from file "<<filename<<" :"<< status <<endl;
-			fits_report_error(stderr, status);
-			status = 0;
-		}
-		// EUVI express the radius in arc/sec
-		radius/=cdelt[0];
-		#elif INSTRUMENT==AIA
-		
-		if (fits_read_key(fptr, TDOUBLE, "R_SUN", &radius, comment, &status))
-		{
-			
-			cerr<<"Error reading key R_SUN from file "<<filename<<" :"<< status <<endl;
-			fits_report_error(stderr, status);
-			status = 0;
-			
-			//HACK for bad AIA fits header, remove when R_SUN is corrected
-			if (fits_read_key(fptr, TDOUBLE, "RSUN_OBS", &radius, comment, &status))
-			{
-				
-				cerr<<"Error reading key RSUN_OBS from file "<<filename<<" :"<< status <<endl;
-				fits_report_error(stderr, status);
-				status = 0;
-			}
-			radius/=cdelt[0];
-			//END of HACK
-		}
-		#elif INSTRUMENT==PROBA2
-		
-		if (fits_read_key(fptr, TDOUBLE, "RSUN_ARC", &radius, comment, &status))
-		{
-			
-			cerr<<"Error reading key RSUN_ARC from file "<<filename<<" :"<< status <<endl;
-			fits_report_error(stderr, status);
-			status = 0;
-		}
-		// PROBA2 express the radius in arc/sec
-		radius/=cdelt[0];
-		#else
-		#error "INSTRUMENT is not defined"
-		#endif
-		
-		//The date of observation can be defined as DATE_OBS ou DATE-OBS
-		if (fits_read_key(fptr, TSTRING, "DATE-OBS", date_obs, comment, &status))
-		{
-			
-			status = 0;
-			if (fits_read_key(fptr, TSTRING, "DATE_OBS", date_obs, comment, &status))
-			{
-
-				cerr<<"Error reading key DATE-OBS from file "<<filename<<" :"<< status <<endl;
-				fits_report_error(stderr, status);
-				status = 0;
-			}
-			else
-			{
-				//Sometimes the date is appended with a z
-				char * letter;
-				if((letter = strpbrk (date_obs, "zZ")))
-					*letter = '\0';
-			}
-		}
-		//We convert observationTime to time
-		tm time;
-		double seconds;
-		int month;
-		if (fits_str2time(date_obs, &(time.tm_year), &(month), &(time.tm_mday), &(time.tm_hour), &(time.tm_min), &seconds, &status))
-			cerr<<"Error converting date_obs to time : "<< status <<endl;
-		time.tm_sec = int(seconds);
-		time.tm_mon = month -1;	//Because stupid c++ standard lib has the month going from 0-11
-		time.tm_isdst = 0;
-		observationTime = timegm(&time);
-		
-		#if INSTRUMENT==EUVI || INSTRUMENT==AIA
-		if (fits_read_key(fptr, datatype, "DATAP01", &datap01,comment, &status))
-		{
-			
-			cerr<<"Error reading key DATAP01 from file "<<filename<<" :"<< status <<endl;
-			fits_report_error(stderr, status);
-			status = 0;
-		}
-		if (fits_read_key(fptr, datatype, "DATAP95", &datap95,comment, &status))
-		{
-			
-			cerr<<"Error reading key DATAP95 from file "<<filename<<" :"<< status <<endl;
-			fits_report_error(stderr, status);
-			status = 0;
-		}
-		#endif
-		
-		#if INSTRUMENT==AIA
-		if (fits_read_key(fptr, datatype, "DATAMEDN", &median,comment, &status))
-		{
-			
-			cerr<<"Error reading key DATAPMEDN from file "<<filename<<" :"<< status <<endl;
-			fits_report_error(stderr, status);
-			status = 0;
-		}
-		#endif
-		
-		#if INSTRUMENT==AIA
-		if (fits_read_key(fptr, TDOUBLE, "EXPTIME", &exposureTime,comment, &status))
-		{
-			
-			cerr<<"Error reading key EXPTIME from file "<<filename<<" :"<< status <<endl;
-			fits_report_error(stderr, status);
-			status = 0;
-		}
-		#endif
-
-		// We save all keywords for future usage
-		char record[81];
-		const char* inclist[] = {"*"};
-		const char* exclist[] = {"SIMPLE", "BITPIX", "NAXIS*", "EXTEND", "Z*", "XTENSION", "TTYPE1", "TFORM1", "PCOUNT", "GCOUNT", "TFIELDS"};
-		//We first need to reset the fptr to the beginning
-		if( fits_read_record (fptr, 0, record, &status))
-		{
-			cerr<<"Error reseting the fits pointer to the beginning of the header for file "<<filename<<" :"<< status <<endl;			
-			fits_report_error(stderr, status);
-			status = KEY_NO_EXIST;
-		}
-		while(status != KEY_NO_EXIST)
-		{
-			status = 0;
-			if(fits_find_nextkey(fptr, const_cast<char**>(inclist), sizeof(inclist)/sizeof(char *), const_cast<char**>(exclist), sizeof(exclist)/sizeof(char *), record, &status))
-			{
-				if(status != KEY_NO_EXIST)
-				{
-					cerr<<"Error reading keyword from file "<<filename<<" :"<< status <<endl;
-					fits_report_error(stderr, status);
-					status = KEY_NO_EXIST;
-				}
-			}
-			else
-			{
-				header.push_back(strdup(record));
-			}
-		} 
-		status = 0;
-		if ( fits_close_file(fptr, &status) )
-		{
-			cerr<<"Error : closing file "<<filename<<" :"<< status <<endl;			
-			fits_report_error(stderr, status);
-			status = 0;
-		} 
-
-	}
-	else
-	{
-		fits_report_error(stderr, status);
-		cerr<<"Error : Could not open fits File image "<<filename<<"."<<endl;
-	}
+	readFitsImage(filename);
 }
 
 
@@ -262,6 +55,150 @@ SunImage::SunImage(const SunImage* i)
 }
 
 
+int SunImage::readFitsImageP(fitsfile* fptr)
+{
+	int   status  = 0;
+	char* comment = NULL;					  /**<By specifying NULL we say that we don't want the comments	*/
+
+	status = Image<PixelType>::readFitsImageP(fptr);
+	if(status)
+		return status;
+
+	if (fits_read_key(fptr, TDOUBLE, "WAVELNTH", &wavelength,comment, &status))
+	{
+		cerr<<"Error reading key WAVELNTH from file "<<fptr->Fptr->filename<<" :"<< status <<endl;
+		fits_report_error(stderr, status);
+		status = 0;
+	}
+	if (fits_read_key(fptr, TINT, "CRPIX1", &(suncenter.x),comment, &status))
+	{
+		cerr<<"Error reading key CRPIX1 from file "<<fptr->Fptr->filename<<" :"<< status <<endl;
+		fits_report_error(stderr, status);
+		status = 0;
+	}
+	if (fits_read_key(fptr, TINT, "CRPIX2", &(suncenter.y), comment, &status))
+	{
+		cerr<<"Error reading key CRPIX2 from file "<<fptr->Fptr->filename<<" :"<< status <<endl;
+		fits_report_error(stderr, status);
+		status = 0;
+	}
+	if (fits_read_key(fptr, TDOUBLE, "CDELT1", &(cdelt[0]), comment, &status))
+	{
+		cerr<<"Error reading key CDELT1 from file "<<fptr->Fptr->filename<<" :"<< status <<endl;
+		fits_report_error(stderr, status);
+		status = 0;
+	}
+	if (fits_read_key(fptr, TDOUBLE, "CDELT2", &(cdelt[1]), comment, &status))
+	{
+		cerr<<"Error reading key CDELT2 from file "<<fptr->Fptr->filename<<" :"<< status <<endl;
+		fits_report_error(stderr, status);
+		status = 0;
+	}
+	
+		
+	//The date of observation can be defined as DATE_OBS ou DATE-OBS
+	if (fits_read_key(fptr, TSTRING, "DATE-OBS", date_obs, comment, &status))
+	{
+		
+		status = 0;
+		if (fits_read_key(fptr, TSTRING, "DATE_OBS", date_obs, comment, &status))
+		{
+
+			cerr<<"Error reading key DATE-OBS from file "<<fptr->Fptr->filename<<" :"<< status <<endl;
+			fits_report_error(stderr, status);
+			status = 0;
+		}
+		else
+		{
+			//Sometimes the date is appended with a z
+			char * letter;
+			if((letter = strpbrk (date_obs, "zZ")))
+				*letter = '\0';
+		}
+	}
+	//We convert observationTime to time
+	tm time;
+	double seconds;
+	int month;
+	if (fits_str2time(date_obs, &(time.tm_year), &(month), &(time.tm_mday), &(time.tm_hour), &(time.tm_min), &seconds, &status))
+		cerr<<"Error converting date_obs to time : "<< status <<endl;
+	time.tm_sec = int(seconds);
+	time.tm_mon = month -1;	//Because stupid c++ standard lib has the month going from 0-11
+	time.tm_isdst = 0;
+	observationTime = timegm(&time);
+		
+
+
+	// We save all keywords for future usage
+	char record[81];
+	const char* inclist[] = {"*"};
+	const char* exclist[] = {"SIMPLE", "BITPIX", "NAXIS*", "EXTEND", "Z*", "XTENSION", "TTYPE1", "TFORM1", "PCOUNT", "GCOUNT", "TFIELDS"};
+	//We first need to reset the fptr to the beginning
+	if( fits_read_record (fptr, 0, record, &status))
+	{
+		cerr<<"Error reseting the fits pointer to the beginning of the header for file "<<fptr->Fptr->filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+		status = KEY_NO_EXIST;
+	}
+	while(status != KEY_NO_EXIST)
+	{
+		status = 0;
+		if(fits_find_nextkey(fptr, const_cast<char**>(inclist), sizeof(inclist)/sizeof(char *), const_cast<char**>(exclist), sizeof(exclist)/sizeof(char *), record, &status))
+		{
+			if(status != KEY_NO_EXIST)
+			{
+				cerr<<"Error reading keyword from file "<<fptr->Fptr->filename<<" :"<< status <<endl;
+				fits_report_error(stderr, status);
+				status = KEY_NO_EXIST;
+			}
+		}
+		else
+		{
+			header.push_back(strdup(record));
+		}
+	} 
+	
+	#if defined(DEBUG) && DEBUG >= 1
+	for (unsigned j = 0; j < numberPixels; ++j)
+	{
+		if (pixels[j] < 0)
+		{
+			pixels[j] = nullvalue;
+		}
+	}
+	#endif
+	return 0;
+}
+
+
+int SunImage::writeFitsImageP(fitsfile* fptr)
+{
+
+	int status = Image<PixelType>::writeFitsImageP(fptr);
+	if(status)
+		return status;
+		
+	for (unsigned k = 0; k < header.size(); ++k)
+	{
+		if(fits_write_record(fptr, header[k], &status))
+		{
+			cerr<<"Error : writing keyword to file "<<fptr->Fptr->filename<<" :"<< status <<endl;			
+			fits_report_error(stderr, status);
+			status = 0;
+		} 
+	}
+	
+	if (fits_write_date(fptr, &status) )
+	{
+		cerr<<"Error : writing date to file "<<fptr->Fptr->filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+		status = 0;
+	} 
+
+	return status;
+}
+
+
 
 double SunImage::Wavelength() const
 {return wavelength;}
@@ -277,63 +214,121 @@ string SunImage::ObservationDate() const
 {return string(date_obs);}
 double SunImage::PixelArea() const
 {return cdelt[0] * cdelt[1];}
-
-
-SunImage* SunImage::writeFitsImage (const string& filename)
-{
-	fitsfile *fptr;
-	int status = 0;
-	remove(filename.c_str());
-
-	if (fits_create_file(&fptr, filename.c_str(), &status))
-	{
-		cerr<<"Error : creating file "<<filename<<" :"<< status <<endl;			
-		fits_report_error(stderr, status);
-	} 
-
-	if ( fits_create_img(fptr,  bitpix, naxis, axes, &status) )
-	{
-		cerr<<"Error : creating image in file "<<filename<<" :"<< status <<endl;			
-		fits_report_error(stderr, status);
-	} 
-
-	if ( fits_write_img(fptr, datatype, 1, numberPixels, pixels, &status) )
-	{
-		cerr<<"Error : writing pixels to file "<<filename<<" :"<< status <<endl;			
-		fits_report_error(stderr, status);
-		status = 0;
-	} 
-	
-	for (unsigned k = 0; k < header.size(); ++k)
-	{
-		if(fits_write_record(fptr, header[k], &status))
-		{
-			cerr<<"Error : writing keyword to file "<<filename<<" :"<< status <<endl;			
-			fits_report_error(stderr, status);
-			status = 0;
-		} 
-	}
-	
-	if (fits_write_date(fptr, &status) )
-	{
-		cerr<<"Error : writing date to file "<<filename<<" :"<< status <<endl;			
-		fits_report_error(stderr, status);
-		status = 0;
-	} 
-	
-	if ( fits_close_file(fptr, &status) )
-	{
-		cerr<<"Error : closing file "<<filename<<" :"<< status <<endl;			
-		fits_report_error(stderr, status);
-		status = 0;
-	} 
-
-	return this;
-}
-
-
 unsigned SunImage::numberValidPixelsEstimate() const
 {return unsigned(PI*radius*radius);}
+
+string nextStep(string& preprocessingList)
+{
+	size_t pos = preprocessingList.find(',');
+	string preprocessingStep;
+	if (pos != string::npos)
+	{
+		preprocessingStep = preprocessingList.substr(0, pos);
+		preprocessingList = preprocessingList.substr(pos + 1);
+	}
+	else
+	{
+		preprocessingStep = preprocessingList;
+		preprocessingList.clear();
+	}
+	return preprocessingStep;
+}
+
+void SunImage::preprocessing(string preprocessingList, const Real radiusRatio)
+{
+
+	string preprocessingStep = nextStep(preprocessingList);
+	while(!preprocessingStep.empty())
+	{
+		if(preprocessingStep == "NAR")
+		{
+			nullifyAboveRadius(radiusRatio);
+		}
+		else if( preprocessingStep == "ALC")
+		{
+			//The successive operations ALC + DivMode and ALC + DivMedian have been optimized
+			preprocessingStep = nextStep(preprocessingList);
+			if( preprocessingStep == "DivMedian")
+			{
+				ALCDivMedian(radiusRatio, MINRADIUS());
+			}
+			else if( preprocessingStep == "DivMode")
+			{
+				ALCDivMode(radiusRatio, MINRADIUS());
+			}
+			else
+			{
+				annulusLimbCorrection(radiusRatio, MINRADIUS());
+				preprocessingList = preprocessingStep + "," + preprocessingList;
+			}
+		}
+		
+		else if( preprocessingStep == "DivMedian")
+		{
+			if(median == 0)
+			{
+				cerr<<"Error during preprocessing step DivMedian : median = 0."<<endl;
+				exit(EXIT_FAILURE);
+			}
+			for (unsigned j=0; j < numberPixels; ++j)
+			{
+				if (pixels[j] != nullvalue)
+					pixels[j] = pixels[j] / median;
+			}
+		}	
+		else if( preprocessingStep == "DivMode")
+		{
+			if(mode == 0)
+			{
+				cerr<<"Error during preprocessing step DivMode : mode = 0."<<endl;
+				exit(EXIT_FAILURE);
+			}
+			for (unsigned j=0; j < numberPixels; ++j)
+			{
+				if (pixels[j] != nullvalue)
+					pixels[j] = pixels[j] / mode;
+			}
+		}	
+		else if( preprocessingStep == "TakeSqrt")
+		{
+			for (unsigned j=0; j < numberPixels; ++j)
+			{
+				if (pixels[j] != nullvalue)
+					pixels[j] = pixels[j] >= 0 ? sqrt(pixels[j]) : nullvalue;
+			}
+		}	
+		else if( preprocessingStep == "TakeLog")
+		{
+			for (unsigned j=0; j < numberPixels; ++j)
+			{
+				if (pixels[j] != nullvalue)
+					pixels[j] = pixels[j] > 0 ? log(pixels[j]) : nullvalue;
+			}
+		}
+		else if( preprocessingStep == "DivExpTime")
+		{
+			if(exposureTime == 0)
+			{
+				cerr<<"Error during preprocessing step DivExpTime : exposureTime = 0."<<endl;
+				exit(EXIT_FAILURE);
+			}
+			for (unsigned j=0; j < numberPixels; ++j)
+			{
+				if (pixels[j] != nullvalue)
+					pixels[j] = pixels[j] / exposureTime;
+			}
+		}
+		else
+		{
+			cerr<<"Error during preprocessing : Unknown preprocessing step "<<preprocessingStep<<endl;
+		}
+		
+		preprocessingStep = nextStep(preprocessingList);
+			
+	}
+	
+}
+
 
 void SunImage::nullifyAboveRadius(const Real radiusRatio)
 {
@@ -344,11 +339,6 @@ void SunImage::nullifyAboveRadius(const Real radiusRatio)
 		{
 			if ((x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y)> radius2)
 				pixel(x,y) = nullvalue;
-			#if defined(DEBUG) && DEBUG >= 1
-			if (pixel(x,y) < 0)
-				pixel(x,y) = nullvalue;
-			#endif
-
 		}
 	}
 }
@@ -356,44 +346,7 @@ void SunImage::nullifyAboveRadius(const Real radiusRatio)
 
 /* Function that returns the percentage of correction necessary for an annulus, given the percentage of the annulus radius to the radius of the sun */
 
-#if LIMB_CORRECTION==VINCE_CORR
-/*Method of Vincent
-No Correction before r1, Full correction after r1 */
-inline Real SunImage::percentCorrection(const Real r)const
-{
-
-	const Real r1 = VINCE_CORR_R1 / 100.;
-	if (r < r1)
-		return 0;
-	else
-		return 1;
-}
-
-
-#elif LIMB_CORRECTION==CIS1_CORR
-
-/*1st Method of Cis
-No Correction before r1, Full correction after r2, progressive correction in between */
-inline Real SunImage::percentCorrection(const Real r)const
-{
-
-	const Real r1 = CIS1_CORR_R1 / 100.;
-	const Real r2 = CIS1_CORR_R2 / 100.;
-	if (r < r1)
-		return 0;
-	else if (r >= r1 && r <= r2)
-	{
-		return (r - r1)/(r2 - r1);
-	}
-	else
-		return 1;
-
-}
-
-
-#elif LIMB_CORRECTION==BEN_CORR
-
-/*Method of Benjamin
+/*Method proposed by Benjamin
 No correction before r1 and after r2, Full correction between r3 and r4,
 progressive correction following the ascending phase of the sine between r1 and r2
 progressive correction following the descending phase of the sine between r3 and r4 */
@@ -401,10 +354,10 @@ progressive correction following the descending phase of the sine between r3 and
 inline Real SunImage::percentCorrection(const Real r)const
 {
 
-	const Real r1 = BEN_CORR_R1 / 100.;
-	const Real r2 = BEN_CORR_R2 / 100.;
-	const Real r3 = BEN_CORR_R3 / 100.;
-	const Real r4 = BEN_CORR_R4 / 100.;
+	const Real r1 = SINE_CORR_R1 / 100.;
+	const Real r2 = SINE_CORR_R2 / 100.;
+	const Real r3 = SINE_CORR_R3 / 100.;
+	const Real r4 = SINE_CORR_R4 / 100.;
 	if (r <= r1 || r >= r4)
 		return 0;
 	else if (r >= r2 && r <= r3)
@@ -424,40 +377,48 @@ inline Real SunImage::percentCorrection(const Real r)const
 
 }
 
+/* Older methods kept for historical reasons
 
-#elif LIMB_CORRECTION==CIS2_CORR
+// Method proposed by Vincent
+// No Correction before r1, Full correction after r1 
+inline Real SunImage::percentCorrection(const Real r)const
+{
+	const Real r1 = DISCRETE_CORR_R1 / 100.;
+	if (r < r1)
+		return 0;
+	else
+		return 1;
+}
 
-/*2nd Method of Cis */
+
+
+
+// Method proposed by Cis
+// No Correction before r1, Full correction after r2, progressive correction in between
+inline Real SunImage::percentCorrection(const Real r)const
+{
+
+	const Real r1 = SLOPE_CORR_R1 / 100.;
+	const Real r2 = SLOPE_CORR_R2 / 100.;
+	if (r < r1)
+		return 0;
+	else if (r >= r1 && r <= r2)
+	{
+		return (r - r1)/(r2 - r1);
+	}
+	else
+		return 1;
+
+}
+
+
+//2nd Method of Cis
 inline Real SunImage::percentCorrection(const Real r)const
 {
 	return exp(-0.01 * pow(100 * (r-1),4));
 }
 
-
-#else
-
-inline Real SunImage::percentCorrection(const Real r)const
-{
-	return 0;
-}
-#endif
-
-void SunImage::recenter(const Coordinate& newCenter)
-{
-	int delta = (suncenter.x - newCenter.x) + (suncenter.y - newCenter.y) * Xaxes();
-	if(delta < 0)
-	{
-		memmove(pixels - delta, pixels, (numberPixels + delta + 1) * sizeof(PixelType));
-		fill(pixels, pixels-delta, nullvalue);
-	}
-	else if (delta > 0)
-	{
-		memmove(pixels, pixels + delta, (numberPixels - delta + 1) * sizeof(PixelType));
-		fill(pixels + numberPixels - delta, pixels + numberPixels, nullvalue);
-	}
-	suncenter = newCenter;
-}
-
+*/
 
 /*
  *  This Quickselect routine is based on the algorithm described in
@@ -537,7 +498,7 @@ void SunImage::annulusLimbCorrection(Real maxLimbRadius, Real minLimbRadius)
 	PixelType* pixelValue;
 	Real pixelRadius2 = 0;
 	unsigned indice = 0;
-	if (median == 1) // I don't know the median value yet
+	if (median == 0) // I don't know the median value yet
 	{
 		vector<PixelType> onDiscList;
 		onDiscList.reserve(numberValidPixelsEstimate());
@@ -547,12 +508,7 @@ void SunImage::annulusLimbCorrection(Real maxLimbRadius, Real minLimbRadius)
 			{
 
 				pixelValue = &pixel(x,y);
-				#if defined(DEBUG) && DEBUG >= 1
-				if ((*pixelValue) < 0)
-				{
-					(*pixelValue) = nullvalue;
-				}
-				#endif
+
 				if ((*pixelValue) != nullvalue)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
@@ -584,12 +540,6 @@ void SunImage::annulusLimbCorrection(Real maxLimbRadius, Real minLimbRadius)
 			for (unsigned x=0; x < Xaxes(); ++x)
 			{
 				pixelValue = &pixel(x,y);
-				#if defined(DEBUG) && DEBUG >= 1
-				if ((*pixelValue) < 0)
-				{
-					(*pixelValue) = nullvalue;
-				}
-				#endif
 				if ((*pixelValue) != nullvalue)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
@@ -653,7 +603,7 @@ void SunImage::ALCDivMedian(Real maxLimbRadius, Real minLimbRadius)
 	PixelType* pixelValue;
 	Real pixelRadius2 = 0;
 	unsigned indice = 0;
-	if (median == 1) // I don't know the median value yet
+	if (median == 0) // I don't know the median value yet
 	{
 		vector<PixelType> onDiscList;
 		onDiscList.reserve(numberValidPixelsEstimate());
@@ -663,12 +613,6 @@ void SunImage::ALCDivMedian(Real maxLimbRadius, Real minLimbRadius)
 			{
 
 				pixelValue = &pixel(x,y);
-				#if defined(DEBUG) && DEBUG >= 1
-				if ((*pixelValue) < 0)
-				{
-					(*pixelValue) = nullvalue;
-				}
-				#endif
 				if ((*pixelValue) != nullvalue)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
@@ -700,12 +644,6 @@ void SunImage::ALCDivMedian(Real maxLimbRadius, Real minLimbRadius)
 			for (unsigned x=0; x < Xaxes(); ++x)
 			{
 				pixelValue = &pixel(x,y);
-				#if defined(DEBUG) && DEBUG >= 1
-				if ((*pixelValue) < 0)
-				{
-					(*pixelValue) = nullvalue;
-				}
-				#endif
 				if ((*pixelValue) != nullvalue)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
@@ -777,7 +715,7 @@ void SunImage::ALCDivMode(Real maxLimbRadius, Real minLimbRadius)
 	PixelType* pixelValue;
 	Real pixelRadius2 = 0;
 	unsigned indice = 0;
-	if (median == 1) // I don't know the median value yet
+	if (median == 0) // I don't know the median value yet
 	{
 		vector<PixelType> onDiscList;
 		onDiscList.reserve(numberValidPixelsEstimate());
@@ -787,12 +725,6 @@ void SunImage::ALCDivMode(Real maxLimbRadius, Real minLimbRadius)
 			{
 
 				pixelValue = &pixel(x,y);
-				#if defined(DEBUG) && DEBUG >= 1
-				if ((*pixelValue) < 0)
-				{
-					(*pixelValue) = nullvalue;
-				}
-				#endif
 				if ((*pixelValue) != nullvalue)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
@@ -828,12 +760,6 @@ void SunImage::ALCDivMode(Real maxLimbRadius, Real minLimbRadius)
 			for (unsigned x=0; x < Xaxes(); ++x)
 			{
 				pixelValue = &pixel(x,y);
-				#if defined(DEBUG) && DEBUG >= 1
-				if ((*pixelValue) < 0)
-				{
-					(*pixelValue) = nullvalue;
-				}
-				#endif
 				if ((*pixelValue) != nullvalue)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
@@ -912,67 +838,20 @@ void SunImage::ALCDivMode(Real maxLimbRadius, Real minLimbRadius)
 }
 
 
-void SunImage::preprocessing(const int type, Real maxLimbRadius, Real minLimbRadius)
+void SunImage::recenter(const Coordinate& newCenter)
 {
-
-	switch (type)
+	int delta = (suncenter.x - newCenter.x) + (suncenter.y - newCenter.y) * Xaxes();
+	if(delta < 0)
 	{
-		case None:
-			nullifyAboveRadius(maxLimbRadius);
-		break;
-		case ALC:
-			annulusLimbCorrection(maxLimbRadius, minLimbRadius);
-		break;
-		case TakeLog:
-			annulusLimbCorrection(maxLimbRadius, minLimbRadius);
-			for (unsigned j=0; j < numberPixels; ++j)
-			if (pixels[j] <= 0)
-				pixels[j] = nullvalue;
-			else
-				pixels[j] = pixels[j] != nullvalue ? log(pixels[j]) : pixels[j];
-		break;
-		case DivMedian:
-			ALCDivMedian(maxLimbRadius, minLimbRadius);
-		break;
-		case TakeSqrt:
-			annulusLimbCorrection(maxLimbRadius, minLimbRadius);
-			for (unsigned j=0; j < numberPixels; ++j)
-			{
-				if (pixels[j] < 0)
-					pixels[j] = pixels[j] != nullvalue ? -sqrt(-pixels[j]) : pixels[j];
-				else
-					pixels[j] = pixels[j] != nullvalue ? sqrt(pixels[j]) : pixels[j];
-			}
-		break;
-		case DivMode:
-			ALCDivMode(maxLimbRadius, minLimbRadius);
-		break;
-		
-		default:
-			cerr<<"Unknown preprocessing type."<<endl;
-			exit(EXIT_FAILURE);
+		memmove(pixels - delta, pixels, (numberPixels + delta + 1) * sizeof(PixelType));
+		fill(pixels, pixels-delta, nullvalue);
 	}
-	#if INSTRUMENT==AIA
-		#if defined(DEBUG) && DEBUG >= 1
-			if(exposureTime == 0)
-			{
-				cerr<<"Exposure Time of AIA Image is 0."<<endl;
-				exit(EXIT_FAILURE);
-			}
-		#endif
-		#if defined(DEBUG) && DEBUG >= 1
-		cerr<<"AIA image is going to be divided by its exposure time: "<<exposureTime<<endl;
-		#endif
-		for (unsigned j=0; j < numberPixels; ++j)
-		{
-			if(pixels[j] != nullvalue)
-			{
-				pixels[j] /= exposureTime;
-			}
-			
-		}
-	#endif
-
+	else if (delta > 0)
+	{
+		memmove(pixels, pixels + delta, (numberPixels - delta + 1) * sizeof(PixelType));
+		fill(pixels + numberPixels - delta, pixels + numberPixels, nullvalue);
+	}
+	suncenter = newCenter;
 }
 
 
@@ -988,6 +867,45 @@ void SunImage::copyKeywords(const SunImage* i)
 	cdelt[0]=i->cdelt[0];
 	cdelt[1]=i->cdelt[1];
 }
+
+#if defined(AGGREGATE_DILATE)
+SunImage* SunImage::blobsIntoAR ()
+{
+
+	//We agregate the blobs together by dilation of 31.44 arcsec (== 12 pixel EIT)
+	unsigned dilateFactor = unsigned(31.44 / cdelt[0]);
+	this->dilateCircular(dilateFactor,0);
+	
+	this->colorizeConnectedComponents(0);
+	
+	return this;
+}
+
+#else
+
+SunImage* SunImage::blobsIntoAR ()
+{
+
+	//We create  a map by dilation of 31.44 arcsec (== 12 pixel EIT)
+	unsigned dilateFactor = unsigned(31.44 / cdelt[0]);
+	SunImage* dilated = new SunImage(this);
+	dilated->dilateCircular(dilateFactor,0);
+	dilated->colorizeConnectedComponents(0);
+	
+	//We color the blobs using the dilated map 
+	for (unsigned j=0; j < numberPixels; ++j)
+	{
+		if (pixels[j] != nullvalue)
+			pixels[j] = dilated->pixel(j);
+	}
+	delete dilated;
+	
+	return this;
+}
+
+#endif
+
+
 
 
 //calculates the differential solar rotation speed for a given pixel
@@ -1070,40 +988,4 @@ SunImage* SunImage::rotate(const unsigned t)
 
 }
 
-#if defined(AGGREGATE_DILATE)
-SunImage* SunImage::blobsIntoAR ()
-{
-
-	//We agregate the blobs together by dilation of 31.44 arcsec (== 12 pixel EIT)
-	unsigned dilateFactor = unsigned(31.44 / cdelt[0]);
-	this->dilateCircular(dilateFactor,0);
-	
-	this->colorizeConnectedComponents(0);
-	
-	return this;
-}
-
-#else
-
-SunImage* SunImage::blobsIntoAR ()
-{
-
-	//We create  a map by dilation of 31.44 arcsec (== 12 pixel EIT)
-	unsigned dilateFactor = unsigned(31.44 / cdelt[0]);
-	SunImage* dilated = new SunImage(this);
-	dilated->dilateCircular(dilateFactor,0);
-	dilated->colorizeConnectedComponents(0);
-	
-	//We color the blobs using the dilated map 
-	for (unsigned j=0; j < numberPixels; ++j)
-	{
-		if (pixels[j] != nullvalue)
-			pixels[j] = dilated->pixel(j);
-	}
-	delete dilated;
-	
-	return this;
-}
-
-#endif
 

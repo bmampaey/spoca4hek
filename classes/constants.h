@@ -7,16 +7,18 @@
 /* Definition of constants*/
 /* Modify the following to adapt to your program */
 
-// The instrument who took the images. This will set the type of the pixel values, and the keywors describing the image
-// Acceptable values are EIT (soho) EUVI (stereo)  AIA (sdo)
-#if ! defined(INSTRUMENT)
-#define INSTRUMENT EIT
-#endif
 // The precision you want for the float numbers
 // Acceptable values are TFLOAT (fast) TDOUBLE (more precise)
 #if ! defined(REALTYPE)
 #define REALTYPE TDOUBLE
 #endif
+
+// The type of the pixel values of the images. 
+// Acceptable values are TBYTE TSBYTE TUSHORT TSHORT TUINT TINT TULONG TLONG TFLOAT TLONGLONG TDOUBLE
+// Be carrefull that depending on the type of the image you may loose precision.
+
+#define PIXELTYPE TFLOAT
+
 // The number of wavelength, or images to process in parralel
 #if ! defined(NUMBERWAVELENGTH)
 #define NUMBERWAVELENGTH 2
@@ -30,64 +32,81 @@
 #define DEBUG 3
 #endif
 
-
-// The function to use for limb correction percentage
-// Acceptable values are VINCE_CORR , CIS1_CORR, BEN_CORR, CIS2_CORR
-
-#if ! defined(LIMB_CORRECTION)
-#define LIMB_CORRECTION BEN_CORR
-#endif
-
-
-// The function you want for the merging of 2 centers in sur segmentation
-// Acceptable values are MERGEVINCE  MERGEMEAN  MERGEMEANX  MERGEMAX  MERGECIS
-#if ! defined(MERGE)
-#define MERGE MERGECIS
-#endif
-
-// Wheter you want eta to be fixed or not
-
-#if ! defined(FIXETA)
-#define FIXETA FALSE
-#endif
-
 //The minimal size for an AR in (arc/sec)square (otherwise it is a bright point)
 #if ! defined(MIN_AR_SIZE)
 #define MIN_AR_SIZE 1500
 #endif
 
+// If the computaion of eta is to be fixed or not
+// Acceptables values are TRUE or FALSE
+#define FIXETA FALSE
 
-// The type of the pixel values of the images. This will overide the type set by the instrument.
-// Acceptable values are TBYTE TSBYTE TUSHORT TSHORT TUINT TINT TULONG TLONG TFLOAT TLONGLONG TDOUBLE
+// The maximum deviation in the computation of eta
+#define ETA_MAXFACTOR 100
 
-//#define PIXELTYPE TDOUBLE
+// Type of merge function to use
+// Possible values are MERGEMAX , MERGECIS
+#define MERGE MERGECIS
 
-/* Do not modify the constants here under please */
+// alpha value of Vincent's merge function
 
-#define EIT 1
-#define EUVI 2
-#define AIA 3
-#define PROBA2 4
+#define MERGEVINCENT_ALPHA 20./255.
 
-#define VINCE_CORR 1
-#define CIS1_CORR 2
-#define BEN_CORR 3
-#define CIS2_CORR 4
+// Limits for the limb correction
+
+// For instrument EIT
+#define EIT_DISCRETE_CORR_R1  95
+#define EIT_SLOPE_CORR_R1 90
+#define EIT_SLOPE_CORR_R2 95
+#define EIT_SINE_CORR_R1 90
+#define EIT_SINE_CORR_R2 95
+#define EIT_SINE_CORR_R3 105
+#define EIT_SINE_CORR_R4 110
 
 
-#define MERGEVINCE 1
-#define MERGEMEAN 2
-#define MERGEMEANX 2
-#define MERGEMAX 4
-#define MERGECIS 5
+// For instrument EUVI
+#define EUVI_DISCRETE_CORR_R1  95
+#define EUVI_SLOPE_CORR_R1 90
+#define EUVI_SLOPE_CORR_R2 95
+#define EUVI_SINE_CORR_R1 95
+#define EUVI_SINE_CORR_R2 100
+#define EUVI_SINE_CORR_R3 105
+#define EUVI_SINE_CORR_R4 110
+
+// For instrument AIA
+#define AIA_DISCRETE_CORR_R1  95
+#define AIA_SLOPE_CORR_R1 90
+#define AIA_SLOPE_CORR_R2 95
+#define AIA_SINE_CORR_R1 80
+#define AIA_SINE_CORR_R2 102
+#define AIA_SINE_CORR_R3 105
+#define AIA_SINE_CORR_R4 112
+
+// For instrument SWAP
+#define SWAP_DISCRETE_CORR_R1  95
+#define SWAP_SLOPE_CORR_R1 90
+#define SWAP_SLOPE_CORR_R2 95
+#define SWAP_SINE_CORR_R1 95
+#define SWAP_SINE_CORR_R2 100
+#define SWAP_SINE_CORR_R3 105
+#define SWAP_SINE_CORR_R4 115
+
+// For a default instrument
+#define DISCRETE_CORR_R1  95
+#define SLOPE_CORR_R1 90
+#define SLOPE_CORR_R2 95
+#define SINE_CORR_R1 95
+#define SINE_CORR_R2 100
+#define SINE_CORR_R3 105
+#define SINE_CORR_R4 115
+
+
+/*---------------- Do NOT modify below please ------------------*/
+
 
 #define FALSE 0
 #define TRUE 1
 
-#if ! defined(LIMB_CORRECTION)
-#warning "LIMB_CORRECTION not defined, using default CIS2_CORR"
-#define LIMB_CORRECTION CIS2_CORR
-#endif
 
 #if ! defined(REALTYPE)
 #warning "REALTYPE not defined, using default type double"
@@ -100,58 +119,7 @@
 #define Real double
 #endif
 
-#if ! defined(INSTRUMENT)
-#warning "INSTRUMENT not defined, using default EIT"
-#define INSTRUMENT EIT
-#endif
 
-#if INSTRUMENT==EIT
-#define PIXELTYPE TDOUBLE
-
-#define VINCE_CORR_R1  95
-#define CIS1_CORR_R1 90
-#define CIS1_CORR_R2 95
-#define BEN_CORR_R1 90
-#define BEN_CORR_R2 95
-#define BEN_CORR_R3 105
-#define BEN_CORR_R4 110
-
-
-#elif INSTRUMENT==EUVI
-#define PIXELTYPE TFLOAT
-
-#define VINCE_CORR_R1  95
-#define CIS1_CORR_R1 90
-#define CIS1_CORR_R2 95
-#define BEN_CORR_R1 95
-#define BEN_CORR_R2 100
-#define BEN_CORR_R3 105
-#define BEN_CORR_R4 110
-
-#elif INSTRUMENT==AIA
-#define PIXELTYPE TFLOAT
-
-#define VINCE_CORR_R1  95
-#define CIS1_CORR_R1 90
-#define CIS1_CORR_R2 95
-#define BEN_CORR_R1 80
-#define BEN_CORR_R2 102
-#define BEN_CORR_R3 105
-#define BEN_CORR_R4 112
-
-#elif INSTRUMENT==PROBA2
-#define PIXELTYPE TFLOAT
-
-#define VINCE_CORR_R1  95
-#define CIS1_CORR_R1 90
-#define CIS1_CORR_R2 95
-#define BEN_CORR_R1 95
-#define BEN_CORR_R2 100
-#define BEN_CORR_R3 105
-#define BEN_CORR_R4 115
-
-
-#endif
 
 #if ! defined(PIXELTYPE)
 #warning "PIXELTYPE not defined, using default TDOUBLE"
@@ -181,4 +149,6 @@
 #elif PIXELTYPE==TDOUBLE
 #define PixelType double
 #endif
+
+
 #endif

@@ -84,29 +84,10 @@ Image<T>::Image(const long xAxes, const long yAxes)
 
 }
 
-
 template<class T>
 Image<T>::Image(const string& filename)
 :nullvalue(numeric_limits<T>::has_infinity?numeric_limits<T>::infinity():numeric_limits<T>::max())
 {
-	int   status  = 0;
-	fitsfile  *fptr;
-
-	if (fits_open_image(&fptr, filename.c_str(), READONLY, &status))
-	{
-		cerr<<"Error : opening file "<<filename<<" :"<< status <<endl;			
-		fits_report_error(stderr, status);
-		exit(EXIT_FAILURE);
-	} 
-
-	if (fits_get_img_param(fptr, 2, &bitpix, &naxis, axes, &status))
-	{
-		cerr<<"Error : reading image parameters from file "<<filename<<" :"<< status <<endl;			
-		fits_report_error(stderr, status);
-		fits_close_file(fptr, &status);
-		exit(EXIT_FAILURE);
-	} 
-
 
 	//We determine the datatype from the template
 
@@ -135,26 +116,11 @@ Image<T>::Image(const string& filename)
 	else
 		datatype = TDOUBLE;
 
-	numberPixels = Xaxes() * Yaxes();
-	pixels = new T[numberPixels];
+	//We read the image from the fits file
 
-	if (fits_read_img(fptr, datatype, 1, numberPixels,const_cast<T*>(&nullvalue),pixels,&anynull, &status))
-	{
-		cerr<<"Error : reading image from file "<<filename<<" :"<< status <<endl;			
-		fits_report_error(stderr, status);
-		fits_close_file(fptr, &status);
-		exit(EXIT_FAILURE);
-	} 
+	readFitsImage(filename);
 	
-	if ( fits_close_file(fptr, &status) )
-	{
-		cerr<<"Error : closing file "<<filename<<" :"<< status <<endl;			
-		fits_report_error(stderr, status);
-		status = 0;
-	} 
-
 	#if defined(DEBUG) && DEBUG >= 1
-
 	// We check that there is no lost of precision
 
 	switch(bitpix)
@@ -197,42 +163,7 @@ Image<T>::Image(const string& filename)
 	
 	#endif
 	
-	switch(datatype)
-	{
-		case TDOUBLE:
-			bitpix = DOUBLE_IMG;
-			break;
-		case TFLOAT:
-			bitpix = FLOAT_IMG;
-			break;
-		case TLONG:
-			bitpix = LONGLONG_IMG;
-			break;
-		case TULONG:
-			bitpix = ULONG_IMG;					  //There is no ULONGLONG_IMG
-			break;
-		case TINT:
-			bitpix = LONGLONG_IMG;
-			break;
-		case TUINT:
-			bitpix = ULONG_IMG;
-			break;
-		case TSHORT:
-			bitpix = SHORT_IMG;
-			break;
-		case TUSHORT:
-			bitpix = SHORT_IMG;
-			break;
-		case TBYTE:
-			bitpix = BYTE_IMG;
-			break;
-		case TSBYTE:
-			bitpix = SBYTE_IMG;
-			break;
-		default:
-			bitpix = DOUBLE_IMG;
 
-	}
 }
 
 
@@ -285,58 +216,142 @@ template<class T>
 inline const T& Image<T>::pixel(const Coordinate& c)const
 {return pixels[c.x+(c.y*Xaxes())];};
 
+
 template<class T>
-Image<T>* Image<T>::writeFitsImage (const string& filename)
+int Image<T>::readFitsImage(const std::string& filename)
 {
-	fitsfile *fptr;
-	int status = 0;
-	char comment[100];
-	remove(filename.c_str());
 
-	if (fits_create_file(&fptr, filename.c_str(), &status))
+	int   status  = 0;
+	fitsfile  *fptr;
+
+	if (fits_open_image(&fptr, filename.c_str(), READONLY, &status))
 	{
-		cerr<<"Error : creating file "<<filename<<" :"<< status <<endl;			
+		cerr<<"Error : opening file "<<filename<<" :"<< status <<endl;			
 		fits_report_error(stderr, status);
+		return status;
 	} 
-
-	if ( fits_create_img(fptr,  bitpix, naxis, axes, &status) )
-	{
-		cerr<<"Error : creating image in file "<<filename<<" :"<< status <<endl;			
-		fits_report_error(stderr, status);
-	} 
-
-	if ( fits_write_img(fptr, datatype, 1, numberPixels, pixels, &status) )
-	{
-		cerr<<"Error : writing pixels to file "<<filename<<" :"<< status <<endl;			
-		fits_report_error(stderr, status);
-		status = 0;
-	} 
-
-
-	strcpy(comment, "naxis1");
-	if ( fits_update_key(fptr, TLONG, "NAXIS1", &(axes[0]) , comment, &status) )
-	{
-		cerr<<"Error : writing keyword NAXIS1 to file "<<filename<<" :"<< status <<endl;			
-		fits_report_error(stderr, status);
-		status = 0;
-	} 
-
-	strcpy(comment, "naxis2");
-	if ( fits_update_key(fptr, TLONG, "NAXIS2", &(axes[1]), comment, &status) )
-	{
-		cerr<<"Error : writing keyword NAXIS2 to file "<<filename<<" :"<< status <<endl;			
-		fits_report_error(stderr, status);
-		status = 0;
-	} 
-
+	int readStatus = readFitsImageP(fptr);
 	if ( fits_close_file(fptr, &status) )
 	{
 		cerr<<"Error : closing file "<<filename<<" :"<< status <<endl;			
 		fits_report_error(stderr, status);
-		status = 0;
+	} 
+	return readStatus;
+
+}
+
+template<class T>
+int Image<T>::readFitsImageP(fitsfile* fptr)
+{
+	int   status  = 0;
+	if (fits_get_img_param(fptr, 2, &bitpix, &naxis, axes, &status))
+	{
+		cerr<<"Error : reading image parameters from file "<<fptr->Fptr->filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+		return status;
+	}
+	
+	numberPixels = Xaxes() * Yaxes();
+	pixels = new T[numberPixels];
+
+	if (fits_read_img(fptr, datatype, 1, numberPixels,const_cast<T*>(&nullvalue),pixels,&anynull, &status))
+	{
+		cerr<<"Error : reading image from file "<<fptr->Fptr->filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+	} 
+	
+
+	return status;
+}
+
+
+
+
+template<class T>
+int Image<T>::writeFitsImage(const string& filename)
+{
+	fitsfile *fptr;
+	int status = 0;
+
+	remove(filename.c_str());
+	
+	if (fits_create_file(&fptr, filename.c_str(), &status))
+	{
+		cerr<<"Error : creating file "<<filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+		return status;
+	} 
+	int writeSatus = writeFitsImageP(fptr);
+	if (fits_close_file(fptr, &status))
+	{
+		cerr<<"Error : closing file "<<filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
 	} 
 
-	return this;
+	return writeSatus;
+
+}
+
+template<class T>
+int Image<T>::writeFitsImageP(fitsfile *fptr)
+{
+	int status = 0;
+	//char* comment = NULL;
+
+	//We correct bitpix so we write with the correct type
+	
+	switch(datatype)
+	{
+		case TDOUBLE:
+			bitpix = DOUBLE_IMG;
+			break;
+		case TFLOAT:
+			bitpix = FLOAT_IMG;
+			break;
+		case TLONG:
+			bitpix = LONGLONG_IMG;
+			break;
+		case TULONG:
+			bitpix = ULONG_IMG;					  //There is no ULONGLONG_IMG
+			break;
+		case TINT:
+			bitpix = LONGLONG_IMG;
+			break;
+		case TUINT:
+			bitpix = ULONG_IMG;
+			break;
+		case TSHORT:
+			bitpix = SHORT_IMG;
+			break;
+		case TUSHORT:
+			bitpix = SHORT_IMG;
+			break;
+		case TBYTE:
+			bitpix = BYTE_IMG;
+			break;
+		case TSBYTE:
+			bitpix = SBYTE_IMG;
+			break;
+		default:
+			bitpix = DOUBLE_IMG;
+	}
+
+
+	if ( fits_create_img(fptr,  bitpix, naxis, axes, &status) )
+	{
+		cerr<<"Error : creating image in file "<<fptr->Fptr->filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+		return status;
+	} 
+
+	if ( fits_write_img(fptr, datatype, 1, numberPixels, pixels, &status) )
+	{
+		cerr<<"Error : writing pixels to file "<<fptr->Fptr->filename<<" :"<< status <<endl;			
+		fits_report_error(stderr, status);
+		return status;
+	} 
+
+	return status;
 
 }
 

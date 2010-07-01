@@ -38,7 +38,7 @@ class HistogramPCMClassifier : public virtual HistogramFCMClassifier, public vir
 
 		//Classification functions
 		void classification(Real precision = 1., unsigned maxNumberIteration = 100);
-		void fixCentersClassification();
+		void attribution();
 
 		//Function to initialise the centers
 		void init(const std::vector<RealFeature>& initB, const std::vector<Real>& initEta);
@@ -46,7 +46,7 @@ class HistogramPCMClassifier : public virtual HistogramFCMClassifier, public vir
 		void randomInit(unsigned C, Real precision = 1., unsigned maxNumberIteration = 100);
 
 		//Utilities functions for outputing results
-		void saveResults(SunImage* outImage);
+		void saveAllResults(SunImage* outImage);
 		void saveARmap(SunImage* outImage);
 
 };

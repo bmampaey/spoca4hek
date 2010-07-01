@@ -56,26 +56,33 @@ class Classifier
 
 		//Classification functions
 		virtual void classification(Real precision = 1., unsigned maxNumberIteration = 100) = 0;
-		virtual void fixCentersClassification() = 0;
-
-		//Sursegmentation functions
-		unsigned sursegmentation(std::vector<RealFeature>& initB, unsigned C = 0);
-		unsigned sursegmentation(unsigned C = 0);
-		unsigned fixSursegmentation(std::vector<RealFeature>& initB, std::vector<RealFeature>& maxLimits);
-
-		//Utilities functions for outputing results
-		virtual Image<unsigned>* crispSegmentedMap();
-		virtual Image<Real>* fuzzyMap(const unsigned i);
-		virtual Image<Real>* normalizedFuzzyMap(const unsigned i);
-		void saveResults(SunImage* outImage);
-		void saveARmap(SunImage* outImage);
-		std::vector<PixelFeature> percentiles(std::vector<Real>);
-		std::vector<RealFeature> getB();
-		SunImage* getImage(unsigned p);
+		virtual void attribution() = 0;
 
 		//Function to initialise the centers
 		virtual void init(const std::vector<RealFeature>& initB);
 		virtual void randomInit(unsigned C);
+		
+		//Segmentation functions
+		virtual Image<unsigned>* segmentedMap_maxUij();
+		virtual Image<unsigned>* segmentedMap_closestCenter();
+		virtual Image<unsigned>* segmentedMap_classTreshold(unsigned i, Real lowerIntensity_minMembership, Real higherIntensity_minMembership);
+		virtual Image<unsigned>* segmentedMap_limits(std::vector<RealFeature>& limits);
+		virtual Image<Real>* fuzzyMap(const unsigned i);
+		virtual Image<Real>* normalizedFuzzyMap(const unsigned i);
+		
+		//Sursegmentation functions
+		unsigned sursegmentation(std::vector<RealFeature>& initB, unsigned C = 0);
+		unsigned sursegmentation(unsigned C = 0);
+
+		//Utilities function for outputing results
+		void saveAllResults(SunImage* outImage);
+		void saveARmap(SunImage* outImage);	
+		void saveB(const std::string& histogramFilename);
+		
+		//Accessors
+		SunImage* getImage(unsigned p);
+		std::vector<RealFeature> getB();
+		std::vector<PixelFeature> percentiles(std::vector<Real> percentileValues);
 
 };
 

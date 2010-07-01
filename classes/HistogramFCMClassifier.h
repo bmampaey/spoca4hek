@@ -41,7 +41,7 @@ class HistogramFCMClassifier : public virtual FCMClassifier
 		void classification(Real precision = 1., unsigned maxNumberIteration = 100);
 
 		//Utilities functions for outputing results
-		void saveResults(SunImage* outImage);
+		void saveAllResults(SunImage* outImage);
 		void saveARmap(SunImage* outImage);
 		
 		//Function to initialise/save the Histogram

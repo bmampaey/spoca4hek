@@ -30,12 +30,21 @@ class Image
 
 	public :
 		const T nullvalue;						  //nullvalue is the value of a non significatif pixel, it is set to the max. May be a problem if the picture is saturated
+		
+		//Constructors and destructors
 		Image(const std::string& filename);
 		Image(const long xAxes = 0, const long yAxes = 0);
 		Image(const Image<T>& i);
 		Image(const Image<T>* i);
 		virtual ~Image();
+		
+		//Routines to read and write a fits file
+		virtual int writeFitsImage(const std::string& filename);
+		virtual int writeFitsImageP(fitsfile* fptr);
+		virtual int readFitsImage(const std::string& filename);
+		virtual int readFitsImageP(fitsfile* fptr);
 
+		//Accessors
 		unsigned Xaxes() const;
 		unsigned Yaxes() const;
 		unsigned NumberPixels() const;
@@ -47,7 +56,8 @@ class Image
 		const T& pixel(const Coordinate& c)const;
 		Coordinate coordinate (const unsigned j)const;
 
-		virtual Image<T>* writeFitsImage(const std::string& filename);
+
+		//Various routines to work on images
 		Image<T>* zero(T value = 0);
 		Image<T>* drawBox(const T color, Coordinate min, Coordinate max);
 		Image<T>* drawCross(const T color, Coordinate c, const unsigned size = 5);

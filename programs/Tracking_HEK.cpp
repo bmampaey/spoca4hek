@@ -221,7 +221,6 @@ int main(int argc, const char **argv)
 	string programDescription = "This Programm will track active regions.\n";
 	programDescription+="Compiled with options :";
 	programDescription+="\nDEBUG: "+ itos(DEBUG);
-	programDescription+=string("\nINSTRUMENT: ") + instruments[INSTRUMENT];
 	programDescription+="\nPixelType: " + string(typeid(PixelType).name());
 	programDescription+="\nReal: " + string(typeid(Real).name());
 
@@ -237,31 +236,8 @@ int main(int argc, const char **argv)
 	arguments.process(argc, argv);
 
 	// We get the images
-
-	for (unsigned p = 0; p < sunImagesFileNames.size(); ++p)
-	{
-		#if defined(DEBUG) && DEBUG >= 1
-		if(sunImagesFileNames[p].find(".fits")==string::npos && sunImagesFileNames[p].find(".fts")==string::npos)
-		{
-			cerr<<sunImagesFileNames[p]<<" is not a fits file! (must end in .fits or .fts)"<<endl;
-		}
-		#endif
-		images.push_back(new SunImage(sunImagesFileNames[p]));
-
-	}
-	// We crop and align the images
-	Coordinate sunCenter = images[0]->SunCenter();
-	for (unsigned p = 0; p < sunImagesFileNames.size(); ++p)
-	{
-		images[p]->nullifyAboveRadius(1);
-
-		if( sunCenter.d2(images[p]->SunCenter()) > 2 )
-		{
-			cerr<<"Warning : Image "<<sunImagesFileNames[p]<<" will be recentered to have the same sun centre than image "<<sunImagesFileNames[0]<<endl;
-			images[p]->recenter(sunCenter);
-		}
-	}
-
+	images = getImagesFromFiles("AIA", sunImagesFileNames, true);
+	
 	//We ordonate the images according to time
 	sort(images.begin(), images.end(), compare);
 
@@ -402,9 +378,17 @@ int main(int argc, const char **argv)
 
 	}
 
-	//We output the number of Active Events, the date of the last found event, and the last color assigned
+	//We output the number of Active Events and the last color assigned
 	cout<<regions[images.size() - 1].size()<<" "<<newColor<<endl;
 
-
+	//We output the relations between the AR of the last images and the ones from images[overlap] ?? Is this index correct ?
+	/*Parcours en depth first ou on suit les fils par ordre de grosseur(pas oublier de marquer comme vu les noeuds deja pris)
+	si le fils a la meme couleur -> follows
+	sinon on ajoute 1 au fils
+	a la fin, si un fils a plus d'un pere on a un merge sinon un split
+	
+	*/
+	
+	 
 	return EXIT_SUCCESS;
 }

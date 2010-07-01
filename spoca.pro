@@ -61,6 +61,9 @@ PRO SPoCA, image171=image171, image195=image195, $
 ; set debugging
 debug = 1
 
+; when fits files are compressed we read the HDU 1, otherwise the 0
+compressed = 1
+
 ; newline shortcut for the c++ programmer
 endl=STRING(10B)
 
@@ -173,9 +176,9 @@ IF ~ FILE_TEST( spoca_bin, /EXECUTABLE)  THEN BEGIN
 	ENDIF
 	RETURN
 ENDIF
-IF N_ELEMENTS(spocaArgsPreprocessing) EQ 0 THEN spocaArgsPreprocessing = '1'  
-IF N_ELEMENTS(spocaArgsNumberclasses) EQ 0 THEN spocaArgsNumberclasses = '3'
-IF N_ELEMENTS(spocaArgsPrecision) EQ 0 THEN spocaArgsPrecision = '0.000000001'
+IF N_ELEMENTS(spocaArgsPreprocessing) EQ 0 THEN spocaArgsPreprocessing = 'ALC,DivExpTime'  
+IF N_ELEMENTS(spocaArgsNumberclasses) EQ 0 THEN spocaArgsNumberclasses = '4'
+IF N_ELEMENTS(spocaArgsPrecision) EQ 0 THEN spocaArgsPrecision = '0.000001'
 IF N_ELEMENTS(spocaArgsBinsize) EQ 0 THEN spocaArgsBinsize = '10,10'
 spoca_args_centersfile = outputDirectory + 'centers.txt'
 spoca_args_histogram = outputDirectory + 'histogram.txt'
@@ -209,16 +212,17 @@ ENDIF
 getregionstatsArgsPreprocessing = '0' ; We dont do any preprocessing, but we don't output region stats for AR lying beyond 95% of the solar radius (bacause of the limb)
 
 ; We verify the quality of the images
-header171 = headfits(image171, EXTEN=1)
-quality = FXPAR(header171,'QUALITY')
+header171 = fitshead2struct(headfits(image171, EXTEN=compressed))
 
-IF !err LT 0 THEN BEGIN
+IF tag_exist(header171, 'QUALITY') THEN BEGIN
+	quality = header171.QUALITY
+ENDIF ELSE BEGIN
 	error = [ error, 'Cannot find keyword QUALITY in image ' + image171 ]
 	IF (debug GT 0) THEN BEGIN
 		PRINT , 'Cannot find keyword QUALITY in image ' + image171
 	ENDIF
 	RETURN		; To be commented out if there is no quality keyword in the files
-ENDIF
+ENDELSE
 
 IF quality NE 0 THEN BEGIN
 	IF (debug GT 0) THEN BEGIN
@@ -228,16 +232,17 @@ IF quality NE 0 THEN BEGIN
 	;RETURN		; To be removed when the QUALITY keyword in the files is correct
 ENDIF
 
-header195 = headfits(image195, EXTEN=1)
-quality = FXPAR(header195,'QUALITY')
+header195 = fitshead2struct(headfits(image195, EXTEN=compressed))
 
-IF !err LT 0 THEN BEGIN
+IF tag_exist(header195, 'QUALITY') THEN BEGIN
+	quality = header195.QUALITY
+ENDIF ELSE BEGIN
 	error = [ error, 'Cannot find keyword QUALITY in image ' + image195 ]
 	IF (debug GT 0) THEN BEGIN
 		PRINT , 'Cannot find keyword QUALITY in image ' + image195
 	ENDIF
 	RETURN		; To be commented out if there is no quality keyword in the files
-ENDIF
+ENDELSE
 
 IF quality NE 0 THEN BEGIN
 	IF (debug GT 0) THEN BEGIN
@@ -319,13 +324,13 @@ ENDIF
 
 ; We get the observation date of the image171
 
-; observationdate = get_obs_date(header171) get_obs_date is bugged
-current_observation_date = FXPAR(header171,'DATE-OBS')
-IF !err LT 0 THEN current_observation_date = FXPAR(header171,'DATE_OBS')
-IF !err LT 0 THEN BEGIN
-	error = [ error, "ERROR : could not find DATE_OBS nor DATE-OBS keyword in file " + image171 ]
-	RETURN
-ENDIF
+IF tag_exist(header171, 'DATE_OBS') THEN BEGIN
+	current_observation_date = header171.DATE_OBS
+ENDIF ELSE BEGIN
+	error = [ error, 'ERROR : could not find DATE_OBS nor DATE-OBS keyword in file ' + image171 ]
+	RETURN	
+ENDELSE
+
 
 IF (debug GT 0) THEN BEGIN
 	PRINT, image171, " observation date is ", current_observation_date, " : ", anytim(current_observation_date, /ccsds)
@@ -519,7 +524,7 @@ events = strarr(N_ELEMENTS(getregionstats_output))
 
 ; We need the wcs info in the header of one of the image to transform the coordinates
 
-wcs = fitshead2wcs(header171)
+wcs = fitshead2wcs(headfits(image171, EXTEN=compressed))
 
 
 FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN 
@@ -572,9 +577,9 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 		
 	event = struct4event('AR')
 
-	event.required.OBS_Observatory = 'STEREO'
-	event.required.OBS_Instrument = 'EUVI'
-	event.required.OBS_ChannelID = 'EUVI 171, EUVI 195'
+	event.required.OBS_Observatory = 'SDO'
+	event.required.OBS_Instrument = 'AIA'
+	event.required.OBS_ChannelID = 'AIA 171, AIA 193'
 	event.required.OBS_MeanWavel = 171; ??? There should be 2 values, one for 195 also
 	event.required.OBS_WavelUnit = 'Angstroms'
 
@@ -584,7 +589,7 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	event.required.FRM_Institute ='ROB'
 	event.required.FRM_HumanFlag = 'F'
 	event.required.FRM_ParamSet = 'image171 : calibrated image 171 A' $
-		+ ', image195 : calibrated image 195 A' $
+		+ ', image195 : calibrated image 195/193 A' $
 		+ ', dilation_factor= 12' $
 		+ ', initialisation_type= FCM' $
 		+ ', numerical_precision= double' $
@@ -634,7 +639,15 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	event.optional.AR_IntensUnit = 'DN/s' ; ??? TBC for AIA  
 
 
-
+	; Required keywords from document SDO EDS API
+	
+	IF tag_exist(header171, "QUALITY") THEN FlareVStruct.optional.OBS_Quality = header171.QUALITY 
+	IF tag_exist(header171, "FLAT") THEN FlareVStruct.optional.OBS_Flat = header171.QUALITY ; ???
+	IF tag_exist(header171, "FLAT_VER") THEN FlareVStruct.optional.OBS_Flat_ver = header171.QUALITY 
+	IF tag_exist(header171, "LVL_NUM") THEN FlareVStruct.optional.OBS_Lvl_num = header171.LVL_NUM
+	IF tag_exist(header171, "REL_VER") THEN FlareVStruct.optional.OBS_Rel_ver = header171.REL_VER
+	IF tag_exist(header171, "PIPELNVR") THEN FlareVStruct.optional.OBS_Pipelnvf = header171.PIPELNVR
+	IF tag_exist(header171, "SCIRFBSV") THEN FlareVStruct.optional.OBS_Scirfbsv = header171.SCIRFBSV
 	
 	; We write the VOevent
 	

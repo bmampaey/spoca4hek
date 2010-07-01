@@ -42,8 +42,8 @@ class HistogramPCM2Classifier : public virtual HistogramPCMClassifier, public vi
 		//Classification functions
 		void classification(Real precision = 1., unsigned maxNumberIteration = 100)
 			{HistogramPCMClassifier::classification(precision, maxNumberIteration);}
-		void fixCentersClassification()
-			{HistogramPCMClassifier::fixCentersClassification();}
+		void attribution()
+			{HistogramPCMClassifier::attribution();}
 
 		//Function to initialise the centers
 		void init(const std::vector<RealFeature>& initB, const std::vector<Real>& initEta)
@@ -54,7 +54,7 @@ class HistogramPCM2Classifier : public virtual HistogramPCMClassifier, public vi
 			{HistogramPCMClassifier::randomInit(C, precision, maxNumberIteration);}
 
 		//Utilities functions for outputing results
-		void saveResults(SunImage* outImage);
+		void saveAllResults(SunImage* outImage);
 		void saveARmap(SunImage* outImage);
 
 };

@@ -19,7 +19,7 @@
     <Parameter>
         <ParameterName>spocaArgsPreprocessing</ParameterName>
         <Type>string</Type>
-        <Value>3</Value>
+        <Value>DivMedian,DivExpTime</Value>
         <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
     </Parameter>
     <Parameter>

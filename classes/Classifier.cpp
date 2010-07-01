@@ -79,58 +79,107 @@ void Classifier::addImages(const vector<SunImage*>& images)
 }
 
 
-// The merge function takes 2 centers and merge them into 1
-
-#if MERGE==MERGEVINCENT
-
-#ifndef MERGEVINCENT_ALPHA
-#define MERGEVINCENT_ALPHA 20./255.
-#endif
-
-//We merge according to Vincent's method
-void Classifier::merge(unsigned i1, unsigned i2)
+unsigned Classifier::sursegmentation(unsigned Cmin)
 {
+	vector<Real> V;
+	Real newScore = assess(V);
+	Real oldScore = numeric_limits<Real>::max();
+	vector<RealFeature> oldB; 
+
 	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"Merging centers :"<<B[i1]<<"\t"<<B[i2];
+	cout<<"--Classifier::sursegmentation--START--"<<endl;
+	cout<<"B :\t"<<B<<endl;
+	cout<<"V :\t"<<V<<"\tscore :"<<newScore<<endl;
+	#endif
+	
+	#if defined(DEBUG) && DEBUG >= 2
+	string filename;
+	Image<unsigned> * segmentedMap;
 	#endif
 
-	Real alpha = MERGEVINCENT_ALPHA;
-	RealFeature newB[] = {0., 0.};
-	Real caardinal[] = {0., 0.};
-
-	for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+	for (unsigned C = numberClasses - 1; C >= Cmin; --C)
 	{
-		if( U[i1*numberValidPixels+j] > alpha)
-		{
-			++caardinal[0];
-			newB[0] += X[j]*U[i1*numberValidPixels+j];
 
-		}
-		if( U[i2*numberValidPixels+j] > alpha)
+		//We search for the max validity index (<=> worst center)
+		unsigned indMax1 = 0, indMax2 = 0;
+		Real max1Vi = 0;
+		for (unsigned i = 0 ; i < numberClasses ; ++i)
 		{
-			++caardinal[1];
-			newB[1] += X[j]*U[i2*numberValidPixels+j];
+			if (V[i] > max1Vi)
+			{
+				indMax1 = i;
+				max1Vi = V[i];
+			}
+		}
+		//We look for it's worst neighboor
+		if(indMax1 == 0)
+		{
+			indMax2 = 1;
+		}
+		else if(indMax1 == numberClasses -1)
+		{
+			indMax2 = numberClasses -2;
+		}
+		else
+		{
+			indMax2 = V[indMax1 - 1] > V[indMax1 + 1] ? indMax1 - 1 : indMax1 + 1;
+		}
+
+		oldB = B;
+		//We merge
+		merge(indMax1, indMax2);
+
+		//And we re-asses
+		oldScore = newScore;
+		newScore = assess(V);
+
+		#if defined(DEBUG) && DEBUG >= 2
+		filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
+		segmentedMap = segmentedMap_maxUij();
+		segmentedMap->writeFitsImage(filename);
+		delete segmentedMap;
+		#endif
+		#if defined(DEBUG) && DEBUG >= 3
+		cout<<"new B :"<<B<<endl;
+		cout<<"V :"<<V<<"\tscore :"<<newScore<<endl;
+		#endif
+
+		/*	If we don't specify a min number of class to reach(i.e. Cmin == 0)
+			then we stop when the oldScore is smaller than the newScore	*/
+		if( Cmin == 0 && oldScore < newScore )
+		{
+			//We put back the old center, and we stop
+			init(oldB);
+			attribution();
+			break;
 
 		}
 
 	}
-	newB[0] /= caardinal[0];
-	newB[1] /= caardinal[1];
-	B[i1] = newB[0] + newB[1];
 
 	#if defined(DEBUG) && DEBUG >= 3
-	cout<<" into new center :"<<B[i1]<<endl;
+	cout<<"--Classifier::sursegmentation--END--"<<endl;
 	#endif
 
-	B.erase(B.begin()+i2);
-	--numberClasses;
+	return numberClasses;
+}
 
-	computeU();
+unsigned Classifier::sursegmentation(vector<RealFeature>& initB, unsigned Cmin)
+{
+
+	
+	//We must be sure that some classification has been done
+	init(initB);
+	attribution();
+
+	return sursegmentation(Cmin);
+
 }
 
 
-#elif MERGE==MERGEMEANX
-//We merge by taking simply the mean value of the pixels Xj belonging to the classes Bi1 and Bi2
+// The merge function takes 2 centers and merge them into 1
+
+//Merging by taking the mean value of the pixels Xj belonging to the classes Bi1 or Bi2
 void Classifier::merge(unsigned i1, unsigned i2)
 {
 
@@ -176,9 +225,50 @@ void Classifier::merge(unsigned i1, unsigned i2)
 }
 
 
-#else											  //MERGE == MERGEMEAN
+/* Older merging functions kept for historical reasons
 
-//We merge by taking the mean value of the 2 centers, and recalculate U acordingly
+//Merging according to Vincent's method
+void Classifier::merge(unsigned i1, unsigned i2)
+{
+	#if defined(DEBUG) && DEBUG >= 3
+	cout<<"Merging centers :"<<B[i1]<<"\t"<<B[i2];
+	#endif
+
+	Real alpha = MERGEVINCENT_ALPHA;
+	RealFeature newB[] = {0., 0.};
+	Real caardinal[] = {0., 0.};
+
+	for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+	{
+		if( U[i1*numberValidPixels+j] > alpha)
+		{
+			++caardinal[0];
+			newB[0] += X[j]*U[i1*numberValidPixels+j];
+
+		}
+		if( U[i2*numberValidPixels+j] > alpha)
+		{
+			++caardinal[1];
+			newB[1] += X[j]*U[i2*numberValidPixels+j];
+
+		}
+
+	}
+	newB[0] /= caardinal[0];
+	newB[1] /= caardinal[1];
+	B[i1] = newB[0] + newB[1];
+
+	#if defined(DEBUG) && DEBUG >= 3
+	cout<<" into new center :"<<B[i1]<<endl;
+	#endif
+
+	B.erase(B.begin()+i2);
+	--numberClasses;
+
+	computeU();
+}
+
+//Merging by taking the mean value of the 2 centers, and recalculate U acordingly
 void Classifier::merge(unsigned i1, unsigned i2)
 {
 
@@ -199,156 +289,10 @@ void Classifier::merge(unsigned i1, unsigned i2)
 	computeU();
 
 }
-#endif
 
-unsigned Classifier::sursegmentation(unsigned Cmin)
-{
-	return sursegmentation(B, Cmin);
-}
+*/
 
-unsigned Classifier::sursegmentation(vector<RealFeature>& initB, unsigned Cmin)
-{
-
-	//We must be sure that some classification has been done
-	fixCentersClassification();
-
-	vector<Real> V;
-	Real newScore = assess(V), oldScore = numeric_limits<Real>::max();
-
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--Classifier::sursegmentation--START--"<<endl;
-	cout<<"B :\t"<<B<<endl;
-	cout<<"V :\t"<<V<<"\tscore :"<<newScore<<endl;
-	#endif
-	
-	#if defined(DEBUG) && DEBUG >= 2
-	string filename;
-	Image<unsigned> * segmentedMap;
-	#endif
-
-	for (unsigned C = initB.size() - 1; C >= Cmin; --C)
-	{
-
-		//We search for the max validity index (<=> worst), and it's worst neighboor
-		unsigned indMax1 = 0, indMax2 = 0;
-		Real max1Vi = 0;
-		for (unsigned i = 0 ; i < numberClasses ; ++i)
-		{
-			if (V[i] > max1Vi)
-			{
-				indMax1 = i;
-				max1Vi = V[i];
-			}
-		}
-		if(indMax1 == 0)
-		{
-			indMax2 = 1;
-		}
-		else if(indMax1 == numberClasses -1)
-		{
-			indMax2 = numberClasses -2;
-		}
-		else
-		{
-			indMax2 = V[indMax1 - 1] > V[indMax1 + 1] ? indMax1 - 1 : indMax1 + 1;
-		}
-
-		merge(indMax1, indMax2);
-
-		oldScore = newScore;
-		newScore = assess(V);
-
-		#if defined(DEBUG) && DEBUG >= 2
-		filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-		segmentedMap = crispSegmentedMap();
-		segmentedMap->writeFitsImage(filename);
-		delete segmentedMap;
-		#endif
-		#if defined(DEBUG) && DEBUG >= 3
-		cout<<"new B :"<<B<<endl;
-		cout<<"V :"<<V<<"\tscore :"<<newScore<<endl;
-		#endif
-
-		//If we don't specify a min number of class to reach, then we stop when the oldScore is smaller than the newScore
-		if( Cmin == 0 && oldScore < newScore )
-		{
-			//We put back the old center, and we stop
-			fixCentersClassification();
-			numberClasses = B.size();
-			break;
-
-		}
-
-		initB = B;
-		numberClasses = C;
-	}
-
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--Classifier::sursegmentation--END--"<<endl;
-	#endif
-
-	return numberClasses;
-
-}
-
-
-unsigned Classifier::fixSursegmentation(vector<RealFeature>& initB, vector<RealFeature>& maxLimits)
-{
-
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--Classifier::fixSursegmentation--START--"<<endl;
-	#endif
-
-	//We must be sure that some classification has been done
-	fixCentersClassification();
-
-	sort(maxLimits.begin(), maxLimits.end());
-
-	//We create a vector of transformation telling wich class must be merged to what class
-	vector<unsigned> transfo(numberClasses, 0);
-
-	for (unsigned i = 0; i < numberClasses; ++i)
-		for (unsigned l = 0; l < maxLimits.size(); ++l)
-			if(maxLimits[l] < initB[i])
-				++transfo[i];
-			else
-				break;
-
-	//We create the new membership matrix newU
-	numberClasses = maxLimits.size() + 1;
-	vector<Real> newU(numberValidPixels * numberClasses, 0);
-
-	for (unsigned j = 0 ; j < numberValidPixels ; ++j)
-	{
-		unsigned imax = 0;
-		Real max_uij = U[j];
-		for (unsigned i = 1 ; i < numberClasses ; ++i)
-			if (U[i*numberValidPixels+j] > max_uij)
-		{
-			max_uij = U[i*numberValidPixels+j];
-			imax = i;
-		}
-		newU[transfo[imax]*numberValidPixels+j] = 1;
-
-	}
-
-	U = newU;
-
-	#if defined(DEBUG) && DEBUG >= 2
-	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = crispSegmentedMap();
-	segmentedMap->writeFitsImage(filename);
-	delete segmentedMap;
-	#endif
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--Classifier::fixSursegmentation--END--"<<endl;
-	#endif
-
-	return numberClasses;
-}
-
-
-Image<unsigned>* Classifier::crispSegmentedMap()
+Image<unsigned>* Classifier::segmentedMap_maxUij()
 {
 
 	#if defined(DEBUG) && DEBUG >= 1
@@ -364,16 +308,107 @@ Image<unsigned>* Classifier::crispSegmentedMap()
 		Real max_uij = U[j];
 		segmentedMap->pixel(coordinates[j]) = 1;
 		for (unsigned i = 1 ; i < numberClasses ; ++i)
-			if (U[i*numberValidPixels+j] > max_uij)
 		{
-			max_uij = U[i*numberValidPixels+j];
-			segmentedMap->pixel(coordinates[j]) = i + 1;
+			if (U[i*numberValidPixels+j] > max_uij)
+			{
+				max_uij = U[i*numberValidPixels+j];
+				segmentedMap->pixel(coordinates[j]) = i + 1;
+			}
 		}
 
 	}
 	return segmentedMap;
 
 }
+
+Image<unsigned>* Classifier::segmentedMap_closestCenter()
+{
+
+	#if defined(DEBUG) && DEBUG >= 1
+	if (U.size() != numberClasses*numberValidPixels)
+		cerr<<"The membership matrix U has not yet been calculated"<<endl;
+	#endif
+
+	Image<unsigned>* segmentedMap = new Image<unsigned>(Xaxes, Yaxes);
+	segmentedMap->zero();
+	Real d2XjBi;
+	for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+	{
+		Real minDistance = d2(X[j], B[0]);
+		segmentedMap->pixel(coordinates[j]) = 1;
+		for (unsigned i = 1 ; i < numberClasses ; ++i)
+		{
+			d2XjBi = d2(X[j], B[i]);
+			if (d2XjBi > minDistance)
+			{
+				minDistance = d2XjBi;
+				segmentedMap->pixel(coordinates[j]) = i + 1;
+			}
+		}
+
+	}
+	return segmentedMap;
+
+}
+
+Image<unsigned>* Classifier::segmentedMap_classTreshold(unsigned i, Real lowerIntensity_minMembership, Real higherIntensity_minMembership)
+{
+
+	#if defined(DEBUG) && DEBUG >= 1
+	if (U.size() != numberClasses*numberValidPixels)
+		cerr<<"The membership matrix U has not yet been calculated"<<endl;
+	#endif
+
+	Image<unsigned>* segmentedMap = new Image<unsigned>(Xaxes, Yaxes);
+	segmentedMap->zero();
+
+	for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+	{
+		if(X[j] < B[i])
+		{
+			if(U[j] < lowerIntensity_minMembership)
+				segmentedMap->pixel(coordinates[j]) = 1;
+			else
+				segmentedMap->pixel(coordinates[j]) = 2;
+		}
+		else
+		{
+			if(U[j] < higherIntensity_minMembership)
+				segmentedMap->pixel(coordinates[j]) = 3;
+			else
+				segmentedMap->pixel(coordinates[j]) = 2;
+		}
+
+	}
+	return segmentedMap;
+
+}
+
+
+Image<unsigned>* Classifier::segmentedMap_limits(vector<RealFeature>& limits)
+{
+
+	Image<unsigned>* segmentedMap = segmentedMap_maxUij();
+
+	//We create a vector of transformation telling wich class must be merged to what class
+	vector<unsigned> transfo(numberClasses + 1, 1);
+
+	sort(limits.begin(), limits.end());
+		
+	for (unsigned i = 0; i < numberClasses; ++i)
+		for (unsigned l = 0; l < limits.size() && limits[l] < B[i]; ++l)
+			transfo[i + 1] = l + 2;
+
+	transfo[0] = 0;
+	
+	for (unsigned j = 0 ; j < segmentedMap->NumberPixels() ; ++j)
+	{
+		segmentedMap->pixel(j) = transfo[segmentedMap->pixel(j)];
+	}
+	return segmentedMap;
+
+}
+
 
 
 Image<Real>* Classifier::fuzzyMap(const unsigned i)
@@ -410,9 +445,9 @@ Image<Real>* Classifier::normalizedFuzzyMap(const unsigned i)
 // Function that saves all results possible
 // It is not very efficient, can output a LOT of big files, and is only for research and testing
 // You pass it a SunImage that has already all the keywords correctly set
-void Classifier::saveResults(SunImage* outImage)
+void Classifier::saveAllResults(SunImage* outImage)
 {
-	Image<unsigned> * segmentedMap = crispSegmentedMap();
+	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
 	string filename;
 
 	#if defined(DEBUG) && DEBUG >= 2
@@ -583,7 +618,7 @@ void Classifier::saveResults(SunImage* outImage)
 // You pass it a SunImage that has already all the keywords correctly set
 void Classifier::saveARmap(SunImage* outImage)
 {
-	Image<unsigned> * segmentedMap = crispSegmentedMap();
+	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
 	string filename;
 	unsigned ARclass = 0;
 	RealFeature maxB = 0;

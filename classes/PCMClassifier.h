@@ -33,7 +33,7 @@ class PCMClassifier : public virtual FCMClassifier
 
 		//Classification functions
 		void classification(Real precision = 1., unsigned maxNumberIteration = 100);
-		void fixCentersClassification();
+		void attribution();
 
 		//Function to initialise the centers
 		void init(const std::vector<RealFeature>& initB, const std::vector<Real>& initEta);

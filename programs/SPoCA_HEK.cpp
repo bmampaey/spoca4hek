@@ -9,7 +9,7 @@
 
 #include "../classes/tools.h"
 #include "../classes/constants.h"
-#include "../classes/SunImage.h"
+#include "../classes/AIAImage.h"
 #include "../classes/HistogramFCMClassifier.h"
 #include "../classes/FeatureVector.h"
 #include "../dsr/ArgumentHelper.h"
@@ -32,7 +32,8 @@ int main(int argc, const char **argv)
 	cout<<setiosflags(ios::fixed);
 	#endif
 
-	unsigned initNumberClasses =  3, maxNumberIteration = 100, preprocessingType = 1;
+	unsigned initNumberClasses =  3, maxNumberIteration = 100;
+	string preprocessingSteps = "DivMedian,DivExpTime";
 	double radiusRatio = 1.31, precision = 0.001, fuzzifier = 2;
 	string centersFileName, sbinSize, histogramFile;
 	vector<string> sunImagesFileNames;
@@ -45,8 +46,7 @@ int main(int argc, const char **argv)
 	programDescription+="Compiled with options :";
 	programDescription+="\nNUMBERWAVELENGTH: " + itos(NUMBERWAVELENGTH);
 	programDescription+="\nDEBUG: "+ itos(DEBUG);
-	programDescription+=string("\nINSTRUMENT: ") + instruments[INSTRUMENT];
-	programDescription+=string("\nLIMB_CORRECTION: ") + limb_corrections[LIMB_CORRECTION];
+	programDescription+=string("\nINSTRUMENT: AIA");
 	programDescription+="\nPixelType: " + string(typeid(PixelType).name());
 	programDescription+="\nReal: " + string(typeid(Real).name());
 
@@ -57,7 +57,7 @@ int main(int argc, const char **argv)
 	arguments.new_named_double('r',"radiusratio","radiusratio","The ratio of the radius of the sun that will be processed",radiusRatio);
 	arguments.new_named_double('p',"precision","precision","The precision to be reached to stop the SPoCA classification.",precision);
 	arguments.new_named_unsigned_int('I', "maxNumberIteration", "maxNumberIteration", "The maximal number of iteration for the SPoCA classification.", maxNumberIteration);
-	arguments.new_named_unsigned_int('P', "preprocessingType", "preprocessingType", "The type of preprocessing to apply to the sun images.\n\tNo preprocessing = 0, AnnulusLimbCorrection(ALC) = 1, ALC+TakeLog = 2, ALC+DivMedian = 3, ALC+TakeSqrt = 4, ALC+DivMode = 5", preprocessingType);
+	arguments.new_named_string('P', "preprocessingSteps", "preprocessingSteps", "The step of preprocessing to apply to the sun images.\n\tNullify above radius : NAR, ALC : Annulus Limb Correction, Division median : DivMedian, Take the square root : TakeSqrt, Take the log : TakeLog, Division by the mode : DivMode, Division by the Exposure Time : DivExpTime", preprocessingSteps);
 	arguments.new_named_double('f',"fuzzifier","fuzzifier","The fuzzifier (m).",fuzzifier);
 	arguments.new_named_string('H',"histogramFile","histogramFile", "The name of a file containing a histogram\n\tThe first line must be the binSize followed by the number of bins (supersedes the binSize argument).", histogramFile);
 	arguments.new_named_string('z',"binSize","binSize", "The width of the bin.\n\tList of number separated by commas, and no spaces. ex -z 1.2,1.3", sbinSize);
@@ -120,7 +120,15 @@ int main(int argc, const char **argv)
 	
 
 	//We read and preprocess the sun images
-	fetchImagesFromFile(images, sunImagesFileNames, preprocessingType, radiusRatio);
+	images = getImagesFromFiles("AIA", sunImagesFileNames, true);
+	for (unsigned p = 0; p < images.size(); ++p)
+	{
+		images[p]->preprocessing(preprocessingSteps, radiusRatio);
+		#if defined(DEBUG) && DEBUG >= 2
+		images[p]->writeFitsImage(outputFileName + "preprocessed."+sunImagesFileNames[p].substr(sunImagesFileNames[p].rfind('/')!=string::npos?sunImagesFileNames[p].rfind('/')+1:0));
+		#endif
+	}
+
 
 	if(B.size() == initNumberClasses)
 	{
@@ -171,11 +179,6 @@ int main(int argc, const char **argv)
 	{
 		F.saveHistogram(histogramFile, binSize);
 	}
-
-	#if defined(DEBUG) && DEBUG >= 2
-	//We save all the results
-	F.saveResults(images[0]);
-	#endif
 
 	//We save the AR map for tracking
 	F.saveARmap(images[0]);

@@ -152,7 +152,9 @@ void FCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 		#if defined(DEBUG) && DEBUG >= 3
 		cout<<"iteration :"<<iteration;
 		cout<<"\tprecisionReached :"<<precisionReached;
+		#if DEBUG >= 4
 		cout<<"\tJFCM :"<<computeJ();
+		#endif
 		cout<<"\tB :"<<B<<endl;
 		#endif
 
@@ -160,7 +162,7 @@ void FCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 
 	#if defined(DEBUG) && DEBUG >= 2
 	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = crispSegmentedMap();
+	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
 	segmentedMap->writeFitsImage(filename);
 	delete segmentedMap;
 	#endif
@@ -171,10 +173,10 @@ void FCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 }
 
 
-void FCMClassifier::fixCentersClassification()
+void FCMClassifier::attribution()
 {
 	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--FCMClassifier::fixCentersClassification--START--"<<endl;
+	cout<<"--FCMClassifier::attribution--START--"<<endl;
 	#endif
 
 	//Initialisation of U
@@ -183,12 +185,12 @@ void FCMClassifier::fixCentersClassification()
 
 	#if defined(DEBUG) && DEBUG >= 2
 	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = crispSegmentedMap();
+	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
 	segmentedMap->writeFitsImage(filename);
 	delete segmentedMap;
 	#endif
 	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--FCMClassifier::fixCentersClassification--END--"<<endl;
+	cout<<"--FCMClassifier::attribution--END--"<<endl;
 	#endif
 }
 

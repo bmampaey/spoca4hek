@@ -14,6 +14,10 @@
 
 #include "FeatureVector.h"
 #include "SunImage.h"
+#include "EITImage.h"
+#include "EUVIImage.h"
+#include "AIAImage.h"
+#include "SWAPImage.h"
 
 extern std::string outputFileName;
 extern const char * instruments[];
@@ -26,5 +30,5 @@ void readCentersFromFile(std::vector<RealFeature>& B, RealFeature& wavelengths, 
 void ordonateImages(std::vector<SunImage*>& images, const RealFeature& wavelengths);
 
 //Read the images from fits files
-void fetchImagesFromFile(std::vector<SunImage*>& images, const std::vector<std::string>& sunImagesFileNames, const unsigned  preprocessingType, const double radiusRatio);
+std::vector<SunImage*> getImagesFromFiles(const std::string type, const std::vector<std::string>& sunImagesFileNames, bool align = false);
 #endif

@@ -18,19 +18,22 @@
 class SunImage : public Image<PixelType>
 {
 
-	double radius;
-	double wavelength;
-	time_t observationTime;
-	Coordinate suncenter;
-	double cdelt[2];
-	PixelType median, datap01, datap95;
-	std::vector<char*> header;
-	char date_obs[80];
-	double exposureTime;
+	protected :
+	
+		double radius;
+		double wavelength;
+		time_t observationTime;
+		Coordinate suncenter;
+		double cdelt[2];
+		PixelType median, mode, datap01, datap95;
+		std::vector<char*> header;
+		char date_obs[80];
+		double exposureTime;
+	
+		virtual Real MINRADIUS()
+		{ return SINE_CORR_R1 / 100.; }
 
 	public :
-		// Preprocessing types declaration
-		enum {None = 0, ALC = 1, TakeLog = 2, DivMedian = 3, TakeSqrt = 4, DivMode = 5};
 		
 		//Constructors and destructors
 		SunImage(const std::string& filename);
@@ -38,6 +41,12 @@ class SunImage : public Image<PixelType>
 		SunImage(const SunImage& i);
 		SunImage(const SunImage* i);
 		~SunImage();
+		
+		//Routines to read and write a fits file
+          int writeFitsImageP(fitsfile* fptr);
+          int readFitsImageP(fitsfile* fptr);
+
+
 		
 		//Accessors
 		double Wavelength() const;
@@ -47,29 +56,31 @@ class SunImage : public Image<PixelType>
 		time_t ObservationTime() const;
 		std::string ObservationDate() const;
 		double PixelArea() const;
+		unsigned numberValidPixelsEstimate() const;
+
+		//Routines for the preprocessing on SunImages
+		void preprocessing(std::string preprocessingList, const Real radiusRatio = 1.0);
+		void nullifyAboveRadius(const Real radiusRatio = 1.0);
+		void annulusLimbCorrection(Real maxLimbRadius, Real minLimbRadius);
+		void ALCDivMedian(Real maxLimbRadius, Real minLimbRadius);
+		void ALCDivMode(Real maxLimbRadius, Real minLimbRadius);
+		virtual Real percentCorrection(const Real r) const;
 
 		//Various routines to work on SunImages
-		unsigned numberValidPixelsEstimate() const;
 		void recenter(const Coordinate& newCenter);
-		void nullifyAboveRadius(const Real radiusRatio = 1.0);
-		Real percentCorrection(const Real r) const;
-		void annulusLimbCorrection(const Real radiusRatio = 1.0, const Real minLimbRadius = 0.90);
-		void ALCDivMedian(const Real radiusRatio = 1.0, const Real minLimbRadius = 0.90);
-		void ALCDivMode(const Real radiusRatio = 1.0, const Real minLimbRadius = 0.90);
-		void preprocessing(const int type = 0, Real maxLimbRadius = 1.0, Real minLimbRadius = 0.80);
 		void copyKeywords(const SunImage* i);
-		SunImage* writeFitsImage (const std::string& filename) ;
 		
 		//Routine to aggregate blobs into AR
-		
 		SunImage* blobsIntoAR ();
 		
-		// Future routines to derotate an image (in progress) 
+		//Future routines to derotate an image (in progress) 
 		Real angularSpeed(Real latitude);
 		unsigned newPos(Real x, Real y, const Real t);
 		SunImage* rotate(const unsigned t);
 		
-
-
 };
+
+const Real PI = 3.14159265358979323846;
+const Real MIPI = 1.57079632679489661923;
+const Real BIPI = 6.28318530717958647692;
 #endif

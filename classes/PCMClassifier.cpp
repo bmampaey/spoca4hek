@@ -103,7 +103,7 @@ void PCMClassifier::computeEta()
 
 void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 {	
-	const Real maxFactor = 100.;
+	const Real maxFactor = ETA_MAXFACTOR;
 
 	#if defined(DEBUG) && DEBUG >= 2
 	string filename = outputFileName + "iterations.txt";
@@ -142,7 +142,7 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 	#endif
 
 	#if defined(DEBUG) && DEBUG >= 1
-	if(X.size() == 0 || B.size() == 0|| B.size() != eta.size())
+	if(X.size() == 0 || B.size() == 0 || B.size() != eta.size())
 	{
 		cerr<<"Error : The Classifier must be initialized before doing classification."<<endl;
 		exit(EXIT_FAILURE);
@@ -161,7 +161,7 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 	vector<RealFeature> oldB = B;
 	vector<Real> old_eta;
 	vector<Real> start_eta = eta;
-	bool stopComputationEta = false;
+	bool recomputeEta = FIXETA != TRUE;
 	for (unsigned iteration = 0; iteration < maxNumberIteration && precisionReached > precision ; ++iteration)
 	{
 		#if defined(DEBUG) && DEBUG >= 2
@@ -171,7 +171,7 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 		}
 		#endif
 
-		if ( (!FIXETA) && (!stopComputationEta) )	//eta is to be recalculated each iteration.
+		if (recomputeEta)	//eta is to be recalculated each iteration.
 		{
 			old_eta = eta;
 			computeEta();
@@ -180,7 +180,7 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 			{
 				if ( (start_eta[i] / eta[i] > maxFactor) || (start_eta[i] / eta[i] < 1. / maxFactor) )
 				{
-					stopComputationEta = true;
+					recomputeEta = false;
 				}
 			}
 		}
@@ -209,7 +209,9 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 		#if defined(DEBUG) && DEBUG >= 3
 		cout<<"iteration :"<<iteration;
 		cout<<"\tprecisionReached :"<<precisionReached;
-		cout<<"\tJPCM :"<<computeJ();
+		#if DEBUG >= 4
+			cout<<"\tJPCM :"<<computeJ();
+		#endif
 		cout<<"\tB :"<<B;
 		cout<<endl;
 		#endif
@@ -274,7 +276,7 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 
 	#if defined(DEBUG) && DEBUG >= 2
 	filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = crispSegmentedMap();
+	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
 	segmentedMap->writeFitsImage(filename);
 	delete segmentedMap;
 	#endif
@@ -392,7 +394,9 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 		#if defined(DEBUG) && DEBUG >= 3
 		cout<<"iteration :"<<iteration;
 		cout<<"\tprecisionReached :"<<precisionReached;
-		cout<<"\tJPCM :"<<computeJ();
+		#if DEBUG >= 4
+			cout<<"\tJPCM :"<<computeJ();
+		#endif
 		cout<<"\tB :"<<B;
 		cout<<endl;
 		#endif
@@ -401,7 +405,7 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 
 	#if defined(DEBUG) && DEBUG >= 2
 	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = crispSegmentedMap();
+	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
 	segmentedMap->writeFitsImage(filename);
 	delete segmentedMap;
 	#endif
@@ -413,11 +417,11 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 
 #endif
 
-void PCMClassifier::fixCentersClassification()
+void PCMClassifier::attribution()
 {
 
 	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--PCMClassifier::fixCentersClassification--START--"<<endl;
+	cout<<"--PCMClassifier::attribution--START--"<<endl;
 	#endif
 
 	//Initialisation of U
@@ -426,12 +430,12 @@ void PCMClassifier::fixCentersClassification()
 
 	#if defined(DEBUG) && DEBUG >= 2
 	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = crispSegmentedMap();
+	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
 	segmentedMap->writeFitsImage(filename);
 	delete segmentedMap;
 	#endif
 	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--PCMClassifier::fixCentersClassification--END--"<<endl;
+	cout<<"--PCMClassifier::attribution--END--"<<endl;
 	#endif
 
 }
