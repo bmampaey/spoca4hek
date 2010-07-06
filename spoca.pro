@@ -641,13 +641,13 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 
 	; Required keywords from document SDO EDS API
 	
-	IF tag_exist(header171, "QUALITY") THEN FlareVStruct.optional.OBS_Quality = header171.QUALITY 
-	IF tag_exist(header171, "FLAT") THEN FlareVStruct.optional.OBS_Flat = header171.QUALITY ; ???
-	IF tag_exist(header171, "FLAT_VER") THEN FlareVStruct.optional.OBS_Flat_ver = header171.QUALITY 
-	IF tag_exist(header171, "LVL_NUM") THEN FlareVStruct.optional.OBS_Lvl_num = header171.LVL_NUM
-	IF tag_exist(header171, "REL_VER") THEN FlareVStruct.optional.OBS_Rel_ver = header171.REL_VER
-	IF tag_exist(header171, "PIPELNVR") THEN FlareVStruct.optional.OBS_Pipelnvf = header171.PIPELNVR
-	IF tag_exist(header171, "SCIRFBSV") THEN FlareVStruct.optional.OBS_Scirfbsv = header171.SCIRFBSV
+	IF tag_exist(header171, "QUALITY") THEN event.optional.OBS_Quality = header171.QUALITY 
+	IF tag_exist(header171, "FLAT") THEN event.optional.OBS_Flat = header171.QUALITY ; ???
+	IF tag_exist(header171, "FLAT_VER") THEN event.optional.OBS_Flat_ver = header171.QUALITY 
+	IF tag_exist(header171, "LVL_NUM") THEN event.optional.OBS_Lvl_num = header171.LVL_NUM
+	IF tag_exist(header171, "REL_VER") THEN event.optional.OBS_Rel_ver = header171.REL_VER
+	IF tag_exist(header171, "PIPELNVR") THEN event.optional.OBS_Pipelnvf = header171.PIPELNVR
+	IF tag_exist(header171, "SCIRFBSV") THEN event.optional.OBS_Scirfbsv = header171.SCIRFBSV
 	
 	; We write the VOevent
 	

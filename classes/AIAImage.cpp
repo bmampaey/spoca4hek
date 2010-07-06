@@ -58,7 +58,7 @@ int AIAImage::readFitsImageP(fitsfile* fptr)
 		//END of HACK
 	}
 
-
+	/* We remove it for Ryan
 	if (fits_read_key(fptr, datatype, "DATAP01", &datap01,comment, &status))
 	{
 		
@@ -73,7 +73,7 @@ int AIAImage::readFitsImageP(fitsfile* fptr)
 		fits_report_error(stderr, status);
 		status = 0;
 	}
-
+	*/
 
 	if (fits_read_key(fptr, datatype, "DATAMEDN", &median,comment, &status))
 	{

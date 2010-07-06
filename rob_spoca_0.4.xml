@@ -19,7 +19,7 @@
     <Parameter>
         <ParameterName>spocaArgsPreprocessing</ParameterName>
         <Type>string</Type>
-        <Value>DivMedian,DivExpTime</Value>
+        <Value>ALC,DivMedian,DivExpTime</Value>
         <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
     </Parameter>
     <Parameter>
@@ -43,7 +43,7 @@
     <Parameter>
         <ParameterName>trackingArgsDeltat</ParameterName>
         <Type>string</Type>
-        <!-- Time in seconds an AR should stay more or less at the same place--> 
+        <!-- Time in seconds an AR should stay more or less at the same place 1h--> 
         <Value>3600</Value>
         <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
     </Parameter>

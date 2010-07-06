@@ -651,12 +651,18 @@ void Classifier::saveARmap(SunImage* outImage)
 	filename = outputFileName + "ARmap.tracking.fits";
 	outImage->writeFitsImage(filename);
 
-	
-
 }
 
 
-
+void Classifier::saveB(const string& filename, const RealFeature& wavelengths)
+{
+	ofstream centersFile(filename.c_str());
+	if (centersFile.good())
+	{
+		centersFile<<wavelengths<<"\t"<<B<<endl;
+		centersFile.close();
+	}
+}
 
 
 vector<PixelFeature> Classifier::percentiles(vector<Real> percentileValues)

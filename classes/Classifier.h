@@ -75,9 +75,9 @@ class Classifier
 		unsigned sursegmentation(unsigned C = 0);
 
 		//Utilities function for outputing results
-		void saveAllResults(SunImage* outImage);
-		void saveARmap(SunImage* outImage);	
-		void saveB(const std::string& histogramFilename);
+		virtual void saveAllResults(SunImage* outImage);
+		virtual void saveARmap(SunImage* outImage);	
+		void saveB(const std::string& filename, const RealFeature& wavelengths);
 		
 		//Accessors
 		SunImage* getImage(unsigned p);
