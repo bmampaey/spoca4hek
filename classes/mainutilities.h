@@ -24,9 +24,12 @@ extern const char * instruments[];
 extern const char * limb_corrections[];
 
 //Read the centers and the wavelength from a file
-void readCentersFromFile(std::vector<RealFeature>& B, RealFeature& wavelengths, const std::string& centersFileName);
+unsigned readCentersFromFile(std::vector<RealFeature>& B, RealFeature& wavelengths, const std::string& centersFileName);
 
+// Read the binsize
+bool readbinSize(RealFeature& binSize, const std::string& sbinSize);
 
 //Read the images from fits files
+SunImage* getImageFromFile(const std::string type, const std::string sunImageFileName);
 std::vector<SunImage*> getImagesFromFiles(const std::string type, const std::vector<std::string>& sunImagesFileNames, bool align = false);
 #endif

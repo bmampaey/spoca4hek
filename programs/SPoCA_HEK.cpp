@@ -12,16 +12,18 @@
 
 #include "../classes/tools.h"
 #include "../classes/constants.h"
+#include "../classes/mainutilities.h"
+#include "../classes/ArgumentHelper.h"
 
 #include "../classes/SunImage.h"
-
+#include "../classes/FeatureVector.h"
 #include "../classes/HistogramFCMClassifier.h"
 #include "../classes/HistogramPCM2Classifier.h"
 #include "../classes/HistogramPCMClassifier.h"
 
-#include "../classes/FeatureVector.h"
-#include "../classes/ArgumentHelper.h"
-#include "../classes/MainUtilities.h"
+
+
+
 
 
 using namespace std;
@@ -76,7 +78,7 @@ int main(int argc, const char **argv)
 	programDescription+="\nReal: " + string(typeid(Real).name());
 
 	ArgumentHelper arguments;
-	arguments.new_named_string('T',"classifierType", "string", "\n\tThe type of classifier to use for the classification.\n\tPossible values are : FCM, PCM, PCM2, SPOCA, SPOCA2, HFCM(Histogram FCM), HPCM(Histogram PCM), HPCM2(Histogram PCM2)\n\t", classifierType);
+	arguments.new_named_string('T',"classifierType", "string", "\n\tThe type of classifier to use for the classification.\n\tPossible values are : HFCM(Histogram FCM), HPCM(Histogram PCM), HPCM2(Histogram PCM2)\n\t", classifierType);
 	arguments.new_named_unsigned_int('i', "maxNumberIteration", "positive integer", "\n\tThe maximal number of iteration for the classification.\n\t", maxNumberIteration);
 	arguments.new_named_double('p',"precision", "positive real", "\n\tThe precision to be reached to stop the classification.\n\t",precision);
 	arguments.new_named_double('f',"fuzzifier", "positive real", "\n\tThe fuzzifier (m).\n\t",fuzzifier);
@@ -124,31 +126,22 @@ int main(int argc, const char **argv)
 	outputFileName += ".";
 	
 	// We read the wavelengths and the initial centers from the centers file
-	if(! centersFileName.empty())
+	if(readCentersFromFile(B, wavelengths, centersFileName))
 	{
-		readCentersFromFile(B, wavelengths, centersFileName);
 		if(B.size() != numberClasses)
 		{
 			cerr<<"Error : The number of classes is different than the number of centers read in the center file."<<endl;
-			if(B.size() != 0)
-			{
-				numberClasses = B.size();
-				cerr<<"The number of classes will be set to "<<numberClasses<<endl;
-			}
+			numberClasses = B.size();
+			cerr<<"The number of classes will be set to "<<numberClasses<<endl;
+			
 		}
 	}
 	
 	
 	// We read the bin size
-	if(!sbinSize.empty())
+	if(!readbinSize(binSize,sbinSize))
 	{
-		istringstream Z(sbinSize);
-		Z>>binSize;
-		if(Z.fail())
-		{
-			cerr<<"Error reading the binSize."<<endl;
-			return EXIT_FAILURE;
-		}
+		return EXIT_FAILURE;
 	}
 
 	// We declare the type of Classifier we want

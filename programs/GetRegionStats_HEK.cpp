@@ -8,9 +8,10 @@
 
 #include "../classes/tools.h"
 #include "../classes/constants.h"
-#include "../classes/AIAImage.h"
-#include "../dsr/ArgumentHelper.h"
-#include "../classes/MainUtilities.h"
+#include "../classes/mainutilities.h"
+#include "../classes/ArgumentHelper.h"
+
+#include "../classes/SunImage.h"
 #include "../classes/RegionStats.h"
 #include "../classes/Coordinate.h"
 #include "../classes/FeatureVector.h"
@@ -29,13 +30,18 @@ int main(int argc, const char **argv)
 	cout<<setiosflags(ios::fixed);
 	#endif
 	
+	// The list of names of the sun images to process
+	string imageType = "AIA";
+	vector<string> sunImagesFileNames;
+
+	// Options for the preprocessing of images
 	string preprocessingSteps = "NAR";
 	double radiusRatio = 0.95;
-	string colorizedComponentsMapFileName;
-	vector<string> sunImagesFileNames;
 	
-	vector<SunImage*> images;
-	AIAImage* colorizedComponentsMap;
+
+	// The map of colored regions
+	string colorizedComponentsMapFileName;
+
 	
 	string programDescription = "This Programm output regions info and statistics.\n";
 	programDescription+="Compiled with options :";
@@ -45,9 +51,10 @@ int main(int argc, const char **argv)
 	programDescription+="\nReal: " + string(typeid(Real).name());
 
 	ArgumentHelper arguments;
-	arguments.new_named_double('r',"radiusratio","radiusratio","The ratio of the radius of the sun that will be processed",radiusRatio);
-	arguments.new_named_string('M',"colorizedComponentsMap","colorizedComponentsMap", "The name of the file containing a colorizedComponentsMap of regions (i.e. each one must have a different color).", colorizedComponentsMapFileName);
-	arguments.new_named_string('P', "preprocessingSteps", "preprocessingSteps", "The step of preprocessing to apply to the sun images.\n\tNullify above radius : NAR, ALC : Annulus Limb Correction, Division median : DivMedian, Take the square root : TakeSqrt, Take the log : TakeLog, Division by the mode : DivMode, Division by the Exposure Time : DivExpTime", preprocessingSteps);
+	arguments.new_named_string('I', "imageType","string", "\n\tThe type of the images.\n\tPossible values are : EIT, EUVI, AIA, SWAP\n\t", imageType);
+	arguments.new_named_string('P', "preprocessingSteps", "comma separated list of string (no spaces)", "\n\tThe steps of preprocessing to apply to the sun images.\n\tPossible values :\n\t\tNAR (Nullify above radius)\n\t\tALC (Annulus Limb Correction)\n\t\tDivMedian (Division by the median)\n\t\tTakeSqrt (Take the square root)\n\t\tTakeLog (Take the log)\n\t\tDivMode (Division by the mode)\n\t\tDivExpTime (Division by the Exposure Time)\n\t", preprocessingSteps);
+	arguments.new_named_double('r', "radiusratio", "positive real", "\n\tThe ratio of the radius of the sun that will be processed.\n\t",radiusRatio);
+	arguments.new_named_string('M',"colorizedComponentsMap","file name", "\n\tA colorized Components Map of regions (i.e. each one must have a different color).\n\t", colorizedComponentsMapFileName);
 	arguments.set_string_vector("fitsFileName1 fitsFileName2 ...", "The name of the fits files containing the images of the sun.", sunImagesFileNames);
 
 	arguments.set_description(programDescription.c_str());
@@ -56,6 +63,7 @@ int main(int argc, const char **argv)
 	arguments.set_version("1.0");
 	arguments.process(argc, argv);
 
+
 	if(sunImagesFileNames.size() < 1 )
 	{
 		cerr<<"No fits image file given as parameter!"<<endl;
@@ -63,7 +71,7 @@ int main(int argc, const char **argv)
 	}
 	
 	//We read and preprocess the sun images
-	images = getImagesFromFiles("AIA", sunImagesFileNames, false);
+	vector<SunImage*> images = getImagesFromFiles(imageType, sunImagesFileNames, false);
 	for (unsigned p = 0; p < images.size(); ++p)
 	{
 		images[p]->preprocessing(preprocessingSteps, radiusRatio);
@@ -72,15 +80,9 @@ int main(int argc, const char **argv)
 		#endif
 	}
 
-	//We do the same for the colorizedComponentsMap
-	#if defined(DEBUG) && DEBUG >= 1
-		if(colorizedComponentsMapFileName.find(".fits")==string::npos && colorizedComponentsMapFileName.find(".fts")==string::npos)
-		{
-			cerr<<colorizedComponentsMapFileName<<" is not a fits file! (must end in .fits or .fts)"<<endl;
-		}
-	#endif
 	
-	colorizedComponentsMap = new AIAImage(colorizedComponentsMapFileName);
+	SunImage* colorizedComponentsMap = getImageFromFile(imageType, colorizedComponentsMapFileName);
+	
 	
 	#if defined(DEBUG) && DEBUG >= 1
 

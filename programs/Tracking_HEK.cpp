@@ -10,10 +10,12 @@
 
 #include "../classes/tools.h"
 #include "../classes/constants.h"
+#include "../classes/mainutilities.h"
+#include "../classes/ArgumentHelper.h"
+
 #include "../classes/SunImage.h"
 #include "../classes/Region.h"
-#include "../classes/ArgumentHelper.h"
-#include "../classes/MainUtilities.h"
+
 #include "../classes/trackable.h"
 #include "../cgt/graph.h"
 
@@ -189,19 +191,22 @@ int main(int argc, const char **argv)
 	//We output the number of Active Events and the last color assigned
 	cout<<regions[images.size() - 1].size()<<" "<<newColor<<endl;
 
-	// We output the relations between the AR of the last images and the ones from images[overlap] 
+	// We output the relations between the AR of the last region map and the ones from the previous last (i.e. the last from the previous call to tracking) 
 	
 	/* First we recolor the graph top to bottom by giving to any child the color of its biggest parent
-	map[overlap] (previous outputted map)
-	map[overlap + 1]	|
-	map[overlap + 2]	|
-	map[overlap + 2]	| Must only contain colors from map[overlap]
-	...				|
-	map[last - 1]		|
+	map[previous_last] 	(== overlap - 1)
+	map[previous_last + 1]	|
+	map[previous_last + 2]	|
+	map[previous_last + 3]	| Must only contain colors from map[previous_last]
+	...					|
+	map[last - 1]			|
 	map[last]
 	*/
 	
-	for (unsigned s = overlap + 1; s < regions.size() - 1; ++s)
+	unsigned last = regions.size() - 1;
+	unsigned previous_last = overlap - 1;
+	
+	for (unsigned s = previous_last + 1 ; s < last; ++s)
 	{
 		for (unsigned r = 0; r < regions[s].size(); ++r)
 		{
@@ -211,21 +216,21 @@ int main(int argc, const char **argv)
 		}
 	}
 	
-	// Now we create for each region of map[last] the list of parents that have a color existing in map[overlap]
-	unsigned s = regions.size() - 1;
-	for (unsigned r = 0; r < regions[s].size(); ++r)
+	// Now we create for each region of map[last] the list of parents that have a color existing in map[previous_last]
+
+	for (unsigned r = 0; r < regions[last].size(); ++r)
 	{
-		const RegionGraph::node* n = tracking_graph.get_node(regions[s][r]);
+		const RegionGraph::node* n = tracking_graph.get_node(regions[last][r]);
 		const RegionGraph::adjlist &parentsList = n->iadjlist();
 		const RegionGraph::adjlist::const_iterator itadjEnd = parentsList.end();
 		vector<unsigned> ancestors_color;
 		for (RegionGraph::adjlist::const_iterator itadj = parentsList.begin(); itadj != itadjEnd; ++itadj)
 		{
-			for (unsigned r1 = 0; r1 < regions[overlap].size(); ++r1)
+			for (unsigned r1 = 0; r1 < regions[previous_last].size(); ++r1)
 			{
-				if(itadj->node().value()->Color() == regions[overlap][r1]->Color())
+				if(itadj->node().value()->Color() == regions[previous_last][r1]->Color())
 				{
-					ancestors_color.push_back(regions[overlap][r1]->Color());
+					ancestors_color.push_back(regions[previous_last][r1]->Color());
 					break;
 				}
 			}
@@ -236,25 +241,25 @@ int main(int argc, const char **argv)
 		if(ancestors_color.size() == 0)
 		{
 			// I have no ancestors, so I am a new color 
-			cout<< regions[s][r]->Color() << " new " << 0 <<endl;
+			cout<< regions[last][r]->Color() << " new " << 0 <<endl;
 		}
-		else if(ancestors_color.size() == 1 && ancestors_color[0] != regions[s][r]->Color())
+		else if(ancestors_color.size() == 1 && ancestors_color[0] != regions[last][r]->Color())
 		{
 			// I have one ancestor of a different color, I am a split from him
-			cout<< regions[s][r]->Color() << " splits_from " <<  ancestors_color[0]<<endl;
+			cout<< regions[last][r]->Color() << " splits_from " <<  ancestors_color[0]<<endl;
 		}
 		else
 		{
 			// I have many ancestors, I am a merge of them (unless we have the same color then I am a follow)
 			for (unsigned a = 0; a < ancestors_color.size(); ++a)
 			{
-				if(ancestors_color[a] == regions[s][r]->Color())
+				if(ancestors_color[a] == regions[last][r]->Color())
 				{
-					cout<<  regions[s][r]->Color() << " follows " <<  ancestors_color[a] <<endl;
+					cout<<  regions[last][r]->Color() << " follows " <<  ancestors_color[a] <<endl;
 				}
 				else
 				{
-					cout<<  regions[s][r]->Color() << " merges_from " << ancestors_color[a] <<endl;
+					cout<<  regions[last][r]->Color() << " merges_from " << ancestors_color[a] <<endl;
 				}
 			}
 		}

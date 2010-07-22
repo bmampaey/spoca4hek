@@ -442,9 +442,9 @@ ENDIF ELSE BEGIN
 	numActiveEvents = LONG(output[0])
 	last_color_assigned = LONG(output[1])
 	
-	; The following lines are couples past_color -> present_color
+	; The following lines are triples  present_color reference_type past_color (with reference_type one of follows, merges_from, splits_from, new) 
 	; We declare the array of colour transformation
-	color_tracking = REPLICATE({past_color:0, reference_type:"U", present_color:0}, numActiveEvents) 
+	color_tracking = REPLICATE({past_color:0, reference_type:"Unknown", present_color:0}, numActiveEvents) 
 	FOR t = 0, numActiveEvents - 1 DO BEGIN 
 		output = strsplit( tracking_output[t+1] , ' 	(),', /EXTRACT) 
 		color_tracking[t].present_color = output[0]
@@ -669,7 +669,7 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	IF tag_exist(header171, "SCIRFBSV") THEN event.optional.OBS_Scirfbsv = header171.SCIRFBSV
 	
 	; We chain the event with past ones
-	
+	; i.e. we search if the past_color of my event is among the color of the past_events
 	r = 0
 	FOR t = 0,  N_ELEMENTS(color_tracking) - 1 DO BEGIN 
 		IF color_tracking[t].present_color EQ color AND color_tracking[t].reference_type NE "new"  THEN BEGIN
@@ -709,6 +709,7 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 ENDFOR 
 
 last_event_written_date = current_observation_date ; We update the time we wrote an event
+past_events = present_events ; We update the past events
 
 IF (debug GT 0) THEN BEGIN
 	PRINT, endl, STRPAD('END OF GETREGIONSTATS', 100, fill='_')
@@ -750,7 +751,7 @@ status.spoca_lastrun_number = spoca_lastrun_number
 status.last_event_written_date = last_event_written_date
 status.numActiveEvents = numActiveEvents
 status.last_color_assigned = last_color_assigned
-status.past_events = present_events
+status.past_events = past_events
 
 SAVE, status , DESCRIPTION='Spoca last run status variable at ' + SYSTIME() , FILENAME=outputStatusFilename, VERBOSE = debug
  
