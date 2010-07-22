@@ -25,7 +25,7 @@
 ;	spocaArgsPrecision: in, optional, type string, precision for spoca
 ;	spocaArgsBinsize: in, optional, type string, bin size for spoca
 ;	trackingArgsDeltat: in, optional, type string, maximal time difference between 2 images for tracking
-;	trackingNumberImages: in, optional, type integer, number of images to track at the same time
+;	trackingNumberImages: in, optional, type integer, minimum number of images for the tracking
 ;	trackingOverlap: in, optional, type integer, proportion of the number of images to overlap between tracking succesive run
 ; -
  
@@ -91,8 +91,18 @@ SWITCH runMode OF
 				last_event_written_date = 'First Run'
 				numActiveEvents = 0
 				last_color_assigned = 0
-				past_events = REPLICATE({color:0, ivorn:''}, 1) 
+				past_events = REPLICATE({match, color:0, ivorn:'unknown'}, 1) 
 				status = {spoca_lastrun_number : spoca_lastrun_number, last_event_written_date : last_event_written_date, numActiveEvents : numActiveEvents, last_color_assigned : last_color_assigned, past_events : past_events}
+				
+				; For safety we cleanup the outputDirectory first
+				AllFiles = FILE_SEARCH(outputDirectory, '*', /TEST_READ, /TEST_REGULAR , /TEST_WRITE  )
+				IF (debug GT 0) THEN BEGIN
+					PRINT, "Construct called"
+					PRINT , "Deleting all files from outputDirectory : ", endl + AllFiles
+				ENDIF
+		
+				FILE_DELETE, AllFiles , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug 
+				
 				BREAK
 
    			END
@@ -537,7 +547,7 @@ ENDIF
 events = strarr(N_ELEMENTS(getregionstats_output))
 
 ; We declare the array of couples color, Ivorn
-present_events = REPLICATE({color:0, ivorn:''}, N_ELEMENTS(getregionstats_output)) 
+present_events = REPLICATE({match, color:0, ivorn:'unknown'}, N_ELEMENTS(getregionstats_output)) 
 
 
 
@@ -746,12 +756,15 @@ ENDIF
 
 
 ; We save the variables for next run
+; Because the size of past_events can change, we need to overwrite the status structure
 
-status.spoca_lastrun_number = spoca_lastrun_number
-status.last_event_written_date = last_event_written_date
-status.numActiveEvents = numActiveEvents
-status.last_color_assigned = last_color_assigned
-status.past_events = past_events
+status = {	spoca_lastrun_number : spoca_lastrun_number, $
+			last_event_written_date : last_event_written_date, $
+			numActiveEvents : numActiveEvents, $
+			last_color_assigned : last_color_assigned, $
+			past_events : past_events $
+		}
+				
 
 SAVE, status , DESCRIPTION='Spoca last run status variable at ' + SYSTIME() , FILENAME=outputStatusFilename, VERBOSE = debug
  

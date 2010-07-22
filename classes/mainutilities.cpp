@@ -104,3 +104,14 @@ inline SunImage* getImageFromFile(const string type, const string sunImageFileNa
 }
 
 
+
+inline bool fileExists(const string& filename)
+{
+	struct stat fileinfo;
+  	// Attempt to get the file attributes
+	if(!stat(filename.c_str(),&fileinfo))
+		return true;
+	else
+		return false;
+}
+

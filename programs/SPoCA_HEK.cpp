@@ -147,7 +147,7 @@ int main(int argc, const char **argv)
 	// We declare the type of Classifier we want
 	if (classifierType == "HFCM")
 	{
-		if(!histogramFile.empty())
+		if(fileExists(histogramFile))
 		{
 			F = new HistogramFCMClassifier(histogramFile, fuzzifier);
 		}
@@ -164,7 +164,7 @@ int main(int argc, const char **argv)
 	else if (classifierType == "HPCM")
 	{
 
-		if(!histogramFile.empty())
+		if(fileExists(histogramFile))
 		{
 			F = new HistogramPCMClassifier(histogramFile, fuzzifier);
 		}
@@ -183,7 +183,7 @@ int main(int argc, const char **argv)
 	else if (classifierType == "HPCM2")
 	{
 
-		if(!histogramFile.empty())
+		if(fileExists(histogramFile))
 		{
 			F = new HistogramPCM2Classifier(histogramFile, fuzzifier);
 		}

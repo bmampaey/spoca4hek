@@ -35,7 +35,7 @@ int main(int argc, const char **argv)
 	vector<string> sunImagesFileNames;
 
 	// Options for the preprocessing of images
-	string preprocessingSteps = "NAR";
+	string preprocessingSteps = "NAR,DivExpTime";
 	double radiusRatio = 0.95;
 	
 

@@ -1,7 +1,7 @@
 PRO test_spoca
 
-files171 = FILE_SEARCH('/home/benjamin/data/aia/lev1p5', '*171.fits', /TEST_READ, /TEST_REGULAR)
-files195 = FILE_SEARCH('/home/benjamin/data/aia/lev1p5', '*193.fits', /TEST_READ, /TEST_REGULAR)
+files171 = FILE_SEARCH('/home/benjamin/spoca/spoca_hek/data', '*171.fits', /TEST_READ, /TEST_REGULAR)
+files195 = FILE_SEARCH('/home/benjamin/spoca/spoca_hek/data', '*193.fits', /TEST_READ, /TEST_REGULAR)
 inputStatusFilename = "spoca.sav"
 outputStatusFilename = "spoca.sav"
 write_file = 1

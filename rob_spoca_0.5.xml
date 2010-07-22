@@ -2,7 +2,7 @@
 <ParameterizedAlgorithmFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="file:hek.xsd">
     <AlgorithmDescriptionFile>rob_spoca.xml</AlgorithmDescriptionFile>
-    <CodeVersion>0.4</CodeVersion>
+    <CodeVersion>0.5</CodeVersion>
     <Parameter>
         <ParameterName>outputDirectory</ParameterName>
         <Type>string</Type>
