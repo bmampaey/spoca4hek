@@ -160,38 +160,10 @@ void FCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 
 	}
 
-	#if defined(DEBUG) && DEBUG >= 2
-	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
-	segmentedMap->writeFitsImage(filename);
-	delete segmentedMap;
-	#endif
 	#if defined(DEBUG) && DEBUG >= 3
 	cout<<"--FCMClassifier::classification--END--"<<endl;
 	#endif
 
-}
-
-
-void FCMClassifier::attribution()
-{
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--FCMClassifier::attribution--START--"<<endl;
-	#endif
-
-	//Initialisation of U
-
-	computeU();
-
-	#if defined(DEBUG) && DEBUG >= 2
-	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
-	segmentedMap->writeFitsImage(filename);
-	delete segmentedMap;
-	#endif
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--FCMClassifier::attribution--END--"<<endl;
-	#endif
 }
 
 
@@ -288,7 +260,7 @@ void FCMClassifier::merge(unsigned i1, unsigned i2)
 	B.erase(B.begin()+i2);
 	--numberClasses;
 
-	FCMClassifier::computeU();
+	computeU();
 }
 
 

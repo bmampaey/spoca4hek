@@ -37,12 +37,22 @@
 #define MIN_AR_SIZE 1500
 #endif
 
+//The minimal size for an CH in (arc/sec)square (otherwise it is a dark point)
+#if ! defined(MIN_CH_SIZE)
+#define MIN_CH_SIZE 1500
+#endif
+
+
+
 // If the computaion of eta is to be fixed or not
 // Acceptables values are TRUE or FALSE
 #define FIXETA FALSE
 
 // The maximum deviation in the computation of eta
 #define ETA_MAXFACTOR 100
+
+// The reduction factor in the computation of eta2
+#define ETA2_REDUCTION_FACTOR 95
 
 // Type of merge function to use
 // Possible values are MERGEMAX , MERGECIS
@@ -102,10 +112,6 @@
 
 
 /*---------------- Do NOT modify below please ------------------*/
-
-
-#define FALSE 0
-#define TRUE 1
 
 
 #if ! defined(REALTYPE)

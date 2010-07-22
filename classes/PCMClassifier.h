@@ -28,18 +28,18 @@ class PCMClassifier : public virtual FCMClassifier
 		Real assess(std::vector<Real>& V);
 
 	public :
-		//Constructors & Destructors
+		// Constructors & Destructors
 		PCMClassifier(Real fuzzifier = 1.5);
 
-		//Classification functions
+		// Classification functions
 		void classification(Real precision = 1., unsigned maxNumberIteration = 100);
-		void attribution();
 
-		//Function to initialise the centers
+		// Function to initialise the centers
+		using Classifier::init;
 		void init(const std::vector<RealFeature>& initB, const std::vector<Real>& initEta);
-		void init(const std::vector<RealFeature>& initB, Real precision = std::numeric_limits<Real>::max(), unsigned maxNumberIteration = 0);
-		void randomInit(unsigned C, Real precision = 1., unsigned maxNumberIteration = 100);
+		virtual void FCMinit(Real precision = 0.00001, unsigned maxNumberIteration = 100, Real FCMfuzzifier = 2);
 
+		// Accessors
 		std::vector<Real> getEta();
 
 };

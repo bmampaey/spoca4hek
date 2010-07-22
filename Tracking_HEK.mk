@@ -1,17 +1,27 @@
 CC=g++
 CFLAGS=-Wall -fkeep-inline-functions -O3
-LFLAGS=-l cfitsio -l pthread
-DFLAGS=-DDEBUG=1 -DNUMBERWAVELENGTH=2
+TRACKINGLFLAGS=-lpthread
+IDLLFLAGS=-L /usr/local/idl/idl706/bin/bin.linux.x86_64 -lpthread -lidl -lXp -lXpm -lXmu -lXext -lXt -lSM -lICE  -lXinerama -lX11 -ldl -ltermcap -lrt -lm /usr/lib/libXm.a
+MAGICKLFLAGS=`Magick++-config --cppflags --cxxflags --ldflags --libs`
+MAGICKCFLAGS=-I /usr/include/ImageMagick/
+DFLAGS=
+LFLAGS=-lcfitsio  $(TRACKINGLFLAGS)
 
 all:bin/Tracking_HEK.x
-clean: rm bin/Tracking_HEK.x objects/Tracking_HEK.o objects/MainUtilities.o objects/SWAPImage.o objects/AIAImage.o objects/EUVIImage.o objects/EITImage.o objects/FeatureVector.o objects/ArgumentHelper.o objects/Region.o objects/Coordinate.o objects/SunImage.o objects/Image.o objects/tools.o
+clean: rm bin/Tracking_HEK.x objects/Tracking_HEK.o objects/trackable.o objects/gradient.o objects/MainUtilities.o objects/SWAPImage.o objects/AIAImage.o objects/EUVIImage.o objects/EITImage.o objects/FeatureVector.o objects/ArgumentHelper.o objects/Region.o objects/Coordinate.o objects/SunImage.o objects/Image.o objects/tools.o
 
 
-bin/Tracking_HEK.x : Tracking_HEK.mk objects/Tracking_HEK.o objects/MainUtilities.o objects/SWAPImage.o objects/AIAImage.o objects/EUVIImage.o objects/EITImage.o objects/FeatureVector.o objects/ArgumentHelper.o objects/Region.o objects/Coordinate.o objects/SunImage.o objects/Image.o objects/tools.o
-	$(CC) $(CFLAGS) $(DFLAGS) objects/Tracking_HEK.o objects/MainUtilities.o objects/SWAPImage.o objects/AIAImage.o objects/EUVIImage.o objects/EITImage.o objects/FeatureVector.o objects/ArgumentHelper.o objects/Region.o objects/Coordinate.o objects/SunImage.o objects/Image.o objects/tools.o $(LFLAGS) -o bin/Tracking_HEK.x
+bin/Tracking_HEK.x : Tracking_HEK.mk objects/Tracking_HEK.o objects/trackable.o objects/gradient.o objects/MainUtilities.o objects/SWAPImage.o objects/AIAImage.o objects/EUVIImage.o objects/EITImage.o objects/FeatureVector.o objects/ArgumentHelper.o objects/Region.o objects/Coordinate.o objects/SunImage.o objects/Image.o objects/tools.o
+	$(CC) $(CFLAGS) $(DFLAGS) objects/Tracking_HEK.o objects/trackable.o objects/gradient.o objects/MainUtilities.o objects/SWAPImage.o objects/AIAImage.o objects/EUVIImage.o objects/EITImage.o objects/FeatureVector.o objects/ArgumentHelper.o objects/Region.o objects/Coordinate.o objects/SunImage.o objects/Image.o objects/tools.o $(LFLAGS) -o bin/Tracking_HEK.x
 
-objects/Tracking_HEK.o : Tracking_HEK.mk programs/Tracking_HEK.cpp classes/tools.h classes/constants.h classes/SunImage.h classes/Region.h classes/gradient.h dsr/ArgumentHelper.h classes/MainUtilities.h cgt/graph.h
+objects/Tracking_HEK.o : Tracking_HEK.mk programs/Tracking_HEK.cpp classes/tools.h classes/constants.h classes/SunImage.h classes/Region.h classes/ArgumentHelper.h classes/MainUtilities.h classes/trackable.h
 	$(CC) -c $(CFLAGS) $(DFLAGS) programs/Tracking_HEK.cpp -o objects/Tracking_HEK.o
+
+objects/trackable.o : Tracking_HEK.mk classes/trackable.cpp classes/tools.h classes/constants.h classes/SunImage.h classes/Region.h classes/gradient.h cgt/graph.h
+	$(CC) -c $(CFLAGS) $(DFLAGS) classes/trackable.cpp -o objects/trackable.o
+
+objects/gradient.o : Tracking_HEK.mk classes/gradient.cpp 
+	$(CC) -c $(CFLAGS) $(DFLAGS) classes/gradient.cpp -o objects/gradient.o
 
 objects/MainUtilities.o : Tracking_HEK.mk classes/MainUtilities.cpp classes/FeatureVector.h classes/SunImage.h classes/EITImage.h classes/EUVIImage.h classes/AIAImage.h classes/SWAPImage.h
 	$(CC) -c $(CFLAGS) $(DFLAGS) classes/MainUtilities.cpp -o objects/MainUtilities.o
@@ -31,8 +41,8 @@ objects/EITImage.o : Tracking_HEK.mk classes/EITImage.cpp classes/fitsio.h class
 objects/FeatureVector.o : Tracking_HEK.mk classes/FeatureVector.cpp classes/constants.h
 	$(CC) -c $(CFLAGS) $(DFLAGS) classes/FeatureVector.cpp -o objects/FeatureVector.o
 
-objects/ArgumentHelper.o : Tracking_HEK.mk dsr/ArgumentHelper.cpp 
-	$(CC) -c $(CFLAGS) $(DFLAGS) dsr/ArgumentHelper.cpp -o objects/ArgumentHelper.o
+objects/ArgumentHelper.o : Tracking_HEK.mk classes/ArgumentHelper.cpp 
+	$(CC) -c $(CFLAGS) $(DFLAGS) classes/ArgumentHelper.cpp -o objects/ArgumentHelper.o
 
 objects/Region.o : Tracking_HEK.mk classes/Region.cpp classes/constants.h classes/Coordinate.h classes/SunImage.h
 	$(CC) -c $(CFLAGS) $(DFLAGS) classes/Region.cpp -o objects/Region.o

@@ -2,10 +2,11 @@
 
 using namespace std;
 
+
 void readCentersFromFile(vector<RealFeature>& B, RealFeature& wavelengths, const string& centersFileName)
 {
 	ifstream centersFile(centersFileName.c_str());
-	if (centersFile.is_open())
+	if (centersFile.good())
 	{
 		centersFile>>wavelengths;
 		RealFeature Bi;
@@ -17,31 +18,9 @@ void readCentersFromFile(vector<RealFeature>& B, RealFeature& wavelengths, const
 		}
 		centersFile.close();
 	}
-}
-
-
-void ordonateImages(vector<SunImage*>& images, const RealFeature& wavelengths)
-{
-	for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
+	else
 	{
-		if(wavelengths.v[p] != images[p]->Wavelength())
-		{
-			unsigned pp = p+1;
-			while(pp < NUMBERWAVELENGTH && wavelengths.v[p] != images[pp]->Wavelength())
-				++pp;
-			if(pp < NUMBERWAVELENGTH)
-			{
-				SunImage* temp = images[pp];
-				images[pp] = images[p];
-				images[p] = temp;
-			}
-			else
-			{
-
-				cerr<<"Error : the wavelengths of the sun images provided do not match the wavelengths of the centers file!"<<endl;
-				exit(EXIT_FAILURE);
-			}
-		}
+		cerr<<"Error : could not read centers from file "<<centersFileName<<endl;
 	}
 }
 

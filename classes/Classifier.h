@@ -24,6 +24,9 @@ class Classifier
 		unsigned    numberClasses;
 		unsigned    numberValidPixels;
 		unsigned    Xaxes, Yaxes;
+		
+		//Feature vector descibing the channels (usually the wavelength)
+		RealFeature channels;
 
 		//vector of membership
 		std::vector<Real> U;
@@ -44,6 +47,10 @@ class Classifier
 		//Asses & Merge functions for the sursegmentation
 		virtual Real assess(std::vector<Real>& V) = 0;
 		virtual void merge(unsigned i1, unsigned i2);
+		
+		//Function to initialise the centers
+		virtual void init(const std::vector<RealFeature>& initB);
+		
 
 	public :
 		//Constructors & Destructors
@@ -52,14 +59,15 @@ class Classifier
 
 		//Functions to add and check images
 		void checkImages(const std::vector<SunImage*>& images);
-		virtual void addImages (const std::vector<SunImage*>& images);
+		void ordonateImages(std::vector<SunImage*>& images);
+		virtual void addImages (std::vector<SunImage*>& images);
 
 		//Classification functions
 		virtual void classification(Real precision = 1., unsigned maxNumberIteration = 100) = 0;
-		virtual void attribution() = 0;
+		void attribution();
 
 		//Function to initialise the centers
-		virtual void init(const std::vector<RealFeature>& initB);
+		virtual void init(const std::vector<RealFeature>& initB, const RealFeature& channels);
 		virtual void randomInit(unsigned C);
 		
 		//Segmentation functions
@@ -76,8 +84,10 @@ class Classifier
 
 		//Utilities function for outputing results
 		virtual void saveAllResults(SunImage* outImage);
-		virtual void saveARmap(SunImage* outImage);	
-		void saveB(const std::string& filename, const RealFeature& wavelengths);
+		virtual void saveARmap(SunImage* outImage);
+		virtual void saveCHmap(SunImage* outImage);	
+		void saveB(const std::string& filename);
+		virtual std::vector<RealFeature> classAverage() const;
 		
 		//Accessors
 		SunImage* getImage(unsigned p);

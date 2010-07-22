@@ -15,18 +15,16 @@
 #include "HistogramFeatureVector.h"
 #include "FeatureVector.h"
 #include "FCMClassifier.h"
+#include "HistogramClassifier.h"
 
-class HistogramFCMClassifier : public virtual FCMClassifier
+class HistogramFCMClassifier : public virtual FCMClassifier, public HistogramClassifier
 {
-	protected :
-		std::vector<HistoPixelFeature> HistoX;
 
 	protected :
 		void computeB();
 		void computeU();
 		Real computeJ() const;
 
-		unsigned insert(const HistoPixelFeature& xj);
 
 		//Asses & Merge functions for the sursegmentation
 		Real assess(std::vector<Real>& V);
@@ -35,7 +33,9 @@ class HistogramFCMClassifier : public virtual FCMClassifier
 	public :
 		//Constructors & Destructors
 		HistogramFCMClassifier(Real fuzzifier = 2.);
-		void addImages(const std::vector<SunImage*>& images, const RealFeature& binSize);
+		HistogramFCMClassifier(const RealFeature& binSize, Real fuzzifier = 2.);
+		HistogramFCMClassifier(const std::string& histogramFilename, Real fuzzifier = 2.);
+		virtual void addImages(std::vector<SunImage*>& images);
 
 		//Classification functions
 		void classification(Real precision = 1., unsigned maxNumberIteration = 100);
@@ -43,9 +43,12 @@ class HistogramFCMClassifier : public virtual FCMClassifier
 		//Utilities functions for outputing results
 		void saveAllResults(SunImage* outImage);
 		void saveARmap(SunImage* outImage);
+		void saveCHmap(SunImage* outImage);	
+		std::vector<RealFeature> classAverage() const;
 		
-		//Function to initialise/save the Histogram
-		void initHistogram(const std::string& histogramFilename, RealFeature& binSize, bool reset = true);
-		void saveHistogram(const std::string& histogramFilename, const RealFeature& binSize);
+		//Function to initialise the centers
+		void init(const std::vector<RealFeature>& initB, const RealFeature& channels);
+		void randomInit(unsigned C);
+
 };
 #endif

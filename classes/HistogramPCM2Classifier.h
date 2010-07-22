@@ -15,47 +15,41 @@
 #include "HistogramPCMClassifier.h"
 #include "PCM2Classifier.h"
 
-class HistogramPCM2Classifier : public virtual HistogramPCMClassifier, public virtual PCM2Classifier
+class HistogramPCM2Classifier : public PCM2Classifier, public virtual HistogramPCMClassifier
 {
 	protected :
 
-		void computeB()
-			{HistogramPCMClassifier::computeB();}
+		using HistogramPCMClassifier::computeB;
 		void computeU();
 		void computeEta();
+
+		
 		//We don't know how to compute J for PCM2H
-		Real computeJ() const
-			{return HistogramPCMClassifier::computeJ();}
+		using HistogramPCMClassifier::computeJ;
 
 		//Asses & Merge functions for the sursegmentation
-		Real assess(std::vector<Real>& V)
-			{return HistogramPCMClassifier::assess(V);}
-		void merge(unsigned i1, unsigned i2)
-			{HistogramPCMClassifier::merge(i1, i2);}
+		using HistogramPCMClassifier::assess;
+		using HistogramPCMClassifier::merge;
 
 	public :
 		//Constructors & Destructors
 		HistogramPCM2Classifier(Real fuzzifier = 2);
-		void addImages(const std::vector<SunImage*>& images, RealFeature binSize)
-			{HistogramFCMClassifier::addImages(images, binSize);}
+		HistogramPCM2Classifier(const RealFeature& binSize, Real fuzzifier = 2.);
+		HistogramPCM2Classifier(const std::string& histogramFilename, Real fuzzifier = 2.);
 
 		//Classification functions
-		void classification(Real precision = 1., unsigned maxNumberIteration = 100)
-			{HistogramPCMClassifier::classification(precision, maxNumberIteration);}
-		void attribution()
-			{HistogramPCMClassifier::attribution();}
+		void classification(Real precision = 1., unsigned maxNumberIteration = 100);
 
 		//Function to initialise the centers
-		void init(const std::vector<RealFeature>& initB, const std::vector<Real>& initEta)
-			{HistogramPCMClassifier::init(initB, initEta);}
-		void init(const std::vector<RealFeature>& initB, Real precision = std::numeric_limits<Real>::max(), unsigned maxNumberIteration = 0)
-			{HistogramPCMClassifier::init(initB, precision, maxNumberIteration);}
-		void randomInit(unsigned C, Real precision = 1., unsigned maxNumberIteration = 100)
-			{HistogramPCMClassifier::randomInit(C, precision, maxNumberIteration);}
+		using HistogramPCMClassifier::init;
+		using HistogramPCMClassifier::randomInit;
+		using HistogramPCMClassifier::FCMinit;
 
 		//Utilities functions for outputing results
 		void saveAllResults(SunImage* outImage);
 		void saveARmap(SunImage* outImage);
+		void saveCHmap(SunImage* outImage);
+		using HistogramFCMClassifier::classAverage;
 
 };
 #endif

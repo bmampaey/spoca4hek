@@ -118,6 +118,33 @@ class FeatureVector
 			for (unsigned p = 0; p < N; ++p)
 				v[p] /= value;
 		}
+		operator bool() const
+		{
+			for (unsigned p = 0; p < N; ++p)
+			{
+				if(v[p])
+					return true;
+			}
+			return false;
+		}
+		bool operator == (const FeatureVector<T, N>& fv) const
+		{
+			for (unsigned p = 0; p < N; ++p)
+			{
+				if(v[p] != fv.v[p])
+					return false;
+			}
+			return true;
+		}
+		bool operator != (const FeatureVector<T, N>& fv) const
+		{
+			for (unsigned p = 0; p < N; ++p)
+			{
+				if(v[p] != fv.v[p])
+					return true;
+			}
+			return false;
+		}
 
 };
 

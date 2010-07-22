@@ -26,12 +26,14 @@ class SunImage : public Image<PixelType>
 		Coordinate suncenter;
 		double cdelt[2];
 		PixelType median, mode, datap01, datap95;
-		std::vector<char*> header;
 		char date_obs[80];
 		double exposureTime;
 	
 		virtual Real MINRADIUS()
 		{ return SINE_CORR_R1 / 100.; }
+		
+	public :
+		std::vector<char*> header;
 
 	public :
 		

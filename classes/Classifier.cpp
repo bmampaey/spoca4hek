@@ -3,7 +3,7 @@
 using namespace std;
 
 Classifier::Classifier()
-:numberClasses(0),numberValidPixels(0),Xaxes(0),Yaxes(0)
+:numberClasses(0),numberValidPixels(0),Xaxes(0),Yaxes(0),channels(0)
 {}
 
 void Classifier::checkImages(const vector<SunImage*>& images)
@@ -34,10 +34,11 @@ void Classifier::checkImages(const vector<SunImage*>& images)
 }
 
 
-void Classifier::addImages(const vector<SunImage*>& images)
+void Classifier::addImages(vector<SunImage*>& images)
 {
 
 	checkImages(images);
+	ordonateImages(images);
 	unsigned numberValidPixelsEstimate = images[0]->numberValidPixelsEstimate();
 	Xaxes = images[0]->Xaxes();
 	Yaxes = images[0]->Yaxes();
@@ -45,7 +46,7 @@ void Classifier::addImages(const vector<SunImage*>& images)
 	{
 		Xaxes = images[p]->Xaxes() < Xaxes ? images[p]->Xaxes() : Xaxes;
 		Yaxes = images[p]->Yaxes() < Yaxes ? images[p]->Yaxes() : Yaxes;
-		numberValidPixelsEstimate = images[p]->numberValidPixelsEstimate() > numberValidPixelsEstimate ? : numberValidPixelsEstimate;
+		numberValidPixelsEstimate = images[p]->numberValidPixelsEstimate() > numberValidPixelsEstimate ? images[p]->numberValidPixelsEstimate() : numberValidPixelsEstimate;
 	}
 
 	//We initialise the valid pixels vector X
@@ -76,6 +77,12 @@ void Classifier::addImages(const vector<SunImage*>& images)
 
 	numberValidPixels = X.size();
 
+}
+
+void Classifier::attribution()
+{
+	//Initialisation of U
+	computeU();
 }
 
 
@@ -455,6 +462,11 @@ void Classifier::saveAllResults(SunImage* outImage)
 	segmentedMap->writeFitsImage(filename);
 	#endif
 	#if defined(DEBUG) && DEBUG >= 4
+	if(!outImage)
+	{
+		delete segmentedMap;
+		return;
+	}
 	unsigned numberRegions;
 	vector<Region*> regions;
 	for (unsigned i = 1; i <= numberClasses; ++i)
@@ -653,13 +665,53 @@ void Classifier::saveARmap(SunImage* outImage)
 
 }
 
+// Work in progress
+// Function that saves the CH map for tracking
+// You pass it a SunImage that has already all the keywords correctly set
+void Classifier::saveCHmap(SunImage* outImage)
+{
+	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
+	string filename;
+	unsigned CHclass = 0;
+	RealFeature minB = numeric_limits<Real>::max();
+	// The Active Regions class has the biggest center
+	for (unsigned i = 0; i < numberClasses; ++i)
+	{
+		if (minB < B[i])
+		{
+			minB = B[i];
+			CHclass = i + 1;
+		}
+	}
+	outImage->zero();
 
-void Classifier::saveB(const string& filename, const RealFeature& wavelengths)
+	//We create a map of the class CHclass
+	outImage->bitmap(segmentedMap, CHclass);
+
+	delete segmentedMap;
+
+	//We erase small regions
+	unsigned minSize = unsigned(MIN_CH_SIZE / outImage->PixelArea());
+	outImage->tresholdConnectedComponents(minSize, 0);
+	
+	//We agregate the blobs together
+	outImage->blobsIntoAR(); //TODO
+	
+	//We don't need the CH post limb anymore
+	outImage->nullifyAboveRadius(1.); 
+
+	filename = outputFileName + "CHmap.tracking.fits";
+	outImage->writeFitsImage(filename);
+
+}
+
+
+void Classifier::saveB(const string& filename)
 {
 	ofstream centersFile(filename.c_str());
 	if (centersFile.good())
 	{
-		centersFile<<wavelengths<<"\t"<<B<<endl;
+		centersFile<<channels<<"\t"<<B<<endl;
 		centersFile.close();
 	}
 }
@@ -737,4 +789,74 @@ void Classifier::init(const vector<RealFeature>& initB)
 {
 	B = initB;
 	numberClasses = B.size();
+}
+
+void Classifier::init(const vector<RealFeature>& initB, const RealFeature& channels)
+{
+	B = initB;
+	numberClasses = B.size();
+	this->channels = channels;
+}
+
+void Classifier::ordonateImages(vector<SunImage*>& images)
+{
+	if(channels)
+	{
+		for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
+		{
+			if(channels.v[p] != images[p]->Wavelength())
+			{
+				unsigned pp = p+1;
+				while(pp < NUMBERWAVELENGTH && channels.v[p] != images[pp]->Wavelength())
+					++pp;
+				if(pp < NUMBERWAVELENGTH)
+				{
+					SunImage* temp = images[pp];
+					images[pp] = images[p];
+					images[p] = temp;
+				}
+				else
+				{
+
+					cerr<<"Error : the wavelengths of the sun images provided do not match the wavelengths of the centers file!"<<endl;
+					exit(EXIT_FAILURE);
+				}
+			}
+		}
+	}
+	else
+	{
+		for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
+			channels.v[p] = images[p]->Wavelength();
+	}
+	
+}
+
+// Computes the real average of each class
+vector<RealFeature> Classifier::classAverage() const
+{
+	
+	vector<RealFeature> class_average(numberClasses, 0.);
+	vector<Real> cardinal(numberClasses, 0.);
+	for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+	{
+		Real max_uij = U[j];
+		unsigned belongsTo = 0;
+		for (unsigned i = 1 ; i < numberClasses ; ++i)
+		{
+			if (U[i*numberValidPixels+j] > max_uij)
+			{
+				max_uij = U[i*numberValidPixels+j];
+				belongsTo = i;
+			}
+		}
+		class_average[belongsTo] += X[j];
+		++cardinal[belongsTo];
+
+	}
+	for (unsigned i = 0 ; i < numberClasses ; ++i)
+	{
+		class_average[i]/=cardinal[i];
+	}
+	return class_average;
 }

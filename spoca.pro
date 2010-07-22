@@ -91,7 +91,8 @@ SWITCH runMode OF
 				last_event_written_date = 'First Run'
 				numActiveEvents = 0
 				last_color_assigned = 0
-				status = {spoca_lastrun_number : spoca_lastrun_number, last_event_written_date : last_event_written_date, numActiveEvents : numActiveEvents, last_color_assigned : last_color_assigned}
+				past_events = REPLICATE({color:0, ivorn:''}, 1) 
+				status = {spoca_lastrun_number : spoca_lastrun_number, last_event_written_date : last_event_written_date, numActiveEvents : numActiveEvents, last_color_assigned : last_color_assigned, past_events : past_events}
 				BREAK
 
    			END
@@ -113,6 +114,7 @@ SWITCH runMode OF
 				last_event_written_date = status.last_event_written_date
 				numActiveEvents = status.numActiveEvents
 				last_color_assigned = status.last_color_assigned
+				past_events = status.past_events
 				BREAK
    			END 
 
@@ -139,6 +141,7 @@ IF (debug GT 0) THEN BEGIN
 	PRINT, 'last_event_written_date : ', last_event_written_date
 	PRINT, 'numActiveEvents : ', numActiveEvents
 	PRINT, 'last_color_assigned : ', last_color_assigned
+	PRINT, 'past_events : ', endl, past_events
 ENDIF
 
 ; We verify our module arguments
@@ -434,10 +437,22 @@ IF (N_ELEMENTS(tracking_output) LT 1 || STRLEN(tracking_output[0]) LE 1 ) THEN B
 	
 ENDIF ELSE BEGIN
 
-	; The output of Tracking is numActiveEvents last_color_assigned
+	; The first output line of Tracking is numActiveEvents last_color_assigned
 	output = strsplit( tracking_output[0] , ' 	(),', /EXTRACT) 
 	numActiveEvents = LONG(output[0])
 	last_color_assigned = LONG(output[1])
+	
+	; The following lines are couples past_color -> present_color
+	; We declare the array of colour transformation
+	color_tracking = REPLICATE({past_color:0, reference_type:"U", present_color:0}, numActiveEvents) 
+	FOR t = 0, numActiveEvents - 1 DO BEGIN 
+		output = strsplit( tracking_output[t+1] , ' 	(),', /EXTRACT) 
+		color_tracking[t].present_color = output[0]
+		color_tracking[t].reference_type = output[1]
+		color_tracking[t].past_color = output[2]
+		
+	ENDFOR
+	
 	
 ENDELSE
 
@@ -520,6 +535,10 @@ ENDIF
 
 ; We allocate space for the events
 events = strarr(N_ELEMENTS(getregionstats_output))
+
+; We declare the array of couples color, Ivorn
+present_events = REPLICATE({color:0, ivorn:''}, N_ELEMENTS(getregionstats_output)) 
+
 
 
 ; We need the wcs info in the header of one of the image to transform the coordinates
@@ -649,6 +668,29 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	IF tag_exist(header171, "PIPELNVR") THEN event.optional.OBS_Pipelnvf = header171.PIPELNVR
 	IF tag_exist(header171, "SCIRFBSV") THEN event.optional.OBS_Scirfbsv = header171.SCIRFBSV
 	
+	; We chain the event with past ones
+	
+	r = 0
+	FOR t = 0,  N_ELEMENTS(color_tracking) - 1 DO BEGIN 
+		IF color_tracking[t].present_color EQ color AND color_tracking[t].reference_type NE "new"  THEN BEGIN
+			FOR p = 0, N_ELEMENTS(past_events) - 1 DO BEGIN 
+				IF color_tracking[t].past_color EQ past_events[p].color THEN BEGIN
+					event.reference_names[r] = "Edge"
+					event.reference_links[r] = past_events[p].ivorn
+					event.reference_types[r] = color_tracking[t].reference_type
+					r = r + 1
+					; We cannot put more than 20 relations
+					IF r GE 20 THEN GOTO, MaxRelationsReached
+				ENDIF
+			ENDFOR
+
+		ENDIF
+	ENDFOR
+	
+	
+	MaxRelationsReached : ; Label for when we have more than 20 relations
+	
+	
 	; We write the VOevent
 	
 	IF KEYWORD_SET(write_file) THEN BEGIN
@@ -658,6 +700,10 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	ENDELSE
 	
 	events[k]=STRJOIN(buff, /SINGLE) ;
+	
+	present_events[k].color = color
+	present_events[k].ivorn = event.required.kb_archivid
+
 	
 
 ENDFOR 
@@ -704,6 +750,7 @@ status.spoca_lastrun_number = spoca_lastrun_number
 status.last_event_written_date = last_event_written_date
 status.numActiveEvents = numActiveEvents
 status.last_color_assigned = last_color_assigned
+status.past_events = present_events
 
 SAVE, status , DESCRIPTION='Spoca last run status variable at ' + SYSTIME() , FILENAME=outputStatusFilename, VERBOSE = debug
  

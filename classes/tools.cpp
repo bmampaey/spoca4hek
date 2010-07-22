@@ -3,6 +3,7 @@
 using namespace std;
 
 
+
 ostream& operator<<(ostream& out, const vector<Real>& v)
 {
 	if (v.size() > 0)
@@ -73,6 +74,13 @@ istream& operator>>(istream& in, vector<unsigned>& v)
 
 
 string itos(const int& i)
+{
+	ostringstream ss;
+	ss << i;
+	return ss.str();
+}
+
+string dtos(const double& i)
 {
 	ostringstream ss;
 	ss << i;

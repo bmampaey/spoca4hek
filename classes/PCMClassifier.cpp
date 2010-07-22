@@ -13,53 +13,23 @@ void PCMClassifier::computeU()
 	{
 		for (unsigned j = 0 ; j < numberValidPixels ; ++j)
 		{
-			if(fuzzifier == 2)
-				U[i*numberValidPixels+j] = 1. / (1. + d2(X[j],B[i]) / eta[i] ) ;
-			else if(fuzzifier == 1.5)
-				U[i*numberValidPixels+j] = 1. / (1. + ( d2(X[j],B[i]) / eta[i] ) *  ( d2(X[j],B[i]) / eta[i] )) ;
-			else
-				U[i*numberValidPixels+j] = 1. / (1. + pow( d2(X[j],B[i]) / eta[i] , 1./(fuzzifier-1.) ) );
-
+			U[i*numberValidPixels+j] = d2(X[j],B[i]) / eta[i] ;
+			if(fuzzifier == 1.5)
+			{
+				U[i*numberValidPixels+j] *=  U[i*numberValidPixels+j];
+			}
+			else if(fuzzifier != 2)
+			{
+				U[i*numberValidPixels+j] = pow( U[i*numberValidPixels+j] , 1./(fuzzifier-1.) );
+			}
+			U[i*numberValidPixels+j] = 1. / (1. + U[i*numberValidPixels+j]);
 		}
 
 	}
 
 }
 
-#ifndef ETA_CIS
 
-void PCMClassifier::computeEta()
-{
-
-	eta = vector<Real>(numberClasses,0.);
-
-	Real sum, uij_m;
-	for (unsigned i = 0 ; i < numberClasses ; ++i)
-	{
-		sum = 0;
-		for (unsigned j = 0 ; j < numberValidPixels ; ++j)
-		{
-
-			if(fuzzifier == 2)
-				uij_m = U[i*numberValidPixels+j] * U[i*numberValidPixels+j];
-			else
-				uij_m = pow(U[i*numberValidPixels+j],fuzzifier);
-
-			eta[i] += uij_m*d2(X[j],B[i]);
-			sum += uij_m;
-		}
-		eta[i] /= sum;
-	}
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"eta:\t"<<eta<<endl;
-	#endif
-
-}
-
-#endif
-
-#ifdef ETA_CIS
-//This is the new version of eta of CIS
 void PCMClassifier::computeEta()
 {
 	eta = vector<Real>(numberClasses,0.);
@@ -81,65 +51,39 @@ void PCMClassifier::computeEta()
 		}
 		eta[i] /= sum;
 	}
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"\t\t eta:\t"<<eta<<"\t";
-	#endif
-
-	#if defined(DEBUG) && DEBUG >= 2
-	string filename = outputFileName + "iterations.txt";
-	ofstream iterationsFile(filename.c_str(), ios_base::app);
-	if (iterationsFile.good())
-	{
-		iterationsFile << eta << "\t";
-	}
-	iterationsFile.close();
-	#endif
 }
-#endif
 
-#ifdef ETA_CIS
+//This is the other method to calculate eta, descibed by Krishnapuram and Keller. It is a little faster by the way
+void PCMClassifier::computeEta(Real alpha)
+{
+	
+	eta = vector<Real>(numberClasses,0.);
+
+	Real sum;
+	for (unsigned i = 0 ; i < numberClasses ; ++i)
+	{
+		sum = 0;
+		for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+		{
+			if (U[i*numberValidPixels+j]>alpha)
+			{
+				eta[i] += d2(X[j],B[i]);
+				++sum;
+			}
+
+		}
+
+		eta[i] /= sum;
+
+	}
+
+}
 
 // VERSION WITH LIMITED VARIATION OF ETA W.R.T. ITS INITIAL VALUE
-
 void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 {	
 	const Real maxFactor = ETA_MAXFACTOR;
 
-	#if defined(DEBUG) && DEBUG >= 2
-	string filename = outputFileName + "iterations.txt";
-	ofstream iterationsFile(filename.c_str());
-	if (iterationsFile.good())
-	{
-		iterationsFile << "iteration";
-		for (unsigned i = 0; i < numberClasses; i++)
-		{
-			iterationsFile << "\teta_" + itos(i + 1);
-		}
-		for (unsigned i = 0; i < numberClasses; i++)
-		{
-			iterationsFile << "\teta2_" + itos(i + 1);
-		}
-		iterationsFile << "\tprecisionReached\tJPCM";
-		for (unsigned i = 0; i < numberClasses; i++)
-		{
-			for (unsigned p = 0; p < NUMBERWAVELENGTH; p++)
-			{
-				iterationsFile << "\tb" + itos(i + 1) + "_" + itos(p + 1);
-			}
-		}
-		for (unsigned i = 0; i < numberClasses; i++)
-		{
-			iterationsFile << "\t#C" + itos(i + 1);
-			for (unsigned p = 0; p < NUMBERWAVELENGTH; p++)
-			{
-				iterationsFile << "\tcrisp b" + itos(i + 1) + "_" + itos(p + 1);
-			}
-		}
-		iterationsFile << "\n\n";
-
-
-	}
-	#endif
 
 	#if defined(DEBUG) && DEBUG >= 1
 	if(X.size() == 0 || B.size() == 0 || B.size() != eta.size())
@@ -159,24 +103,15 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 
 	Real precisionReached = numeric_limits<Real>::max();
 	vector<RealFeature> oldB = B;
-	vector<Real> old_eta;
 	vector<Real> start_eta = eta;
 	bool recomputeEta = FIXETA != TRUE;
 	for (unsigned iteration = 0; iteration < maxNumberIteration && precisionReached > precision ; ++iteration)
 	{
-		#if defined(DEBUG) && DEBUG >= 2
-		if (iterationsFile.good())
-		{
-			iterationsFile << iteration << "\t";
-		}
-		#endif
 
 		if (recomputeEta)	//eta is to be recalculated each iteration.
 		{
-			old_eta = eta;
 			computeEta();
-	
-			for (unsigned i = 0 ; i < numberClasses && !stopComputationEta ; ++i)
+			for (unsigned i = 0 ; i < numberClasses && recomputeEta ; ++i)
 			{
 				if ( (start_eta[i] / eta[i] > maxFactor) || (start_eta[i] / eta[i] < 1. / maxFactor) )
 				{
@@ -184,15 +119,6 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 				}
 			}
 		}
-		#if defined(DEBUG) && DEBUG >= 2
-		else
-		{	// write eta just as it happens if computeEta is called
-			if (iterationsFile.good())
-			{
-				iterationsFile << eta;
-			}
-		}
-		#endif
 
 		computeU();
 		computeB();
@@ -213,110 +139,41 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 			cout<<"\tJPCM :"<<computeJ();
 		#endif
 		cout<<"\tB :"<<B;
-		cout<<endl;
-		#endif
-
-		#if defined(DEBUG) && DEBUG >= 2
-		if (iterationsFile.good())
-		{
-			iterationsFile << "\t" << eta;	 // this is eta2
-			iterationsFile << "\t" << precisionReached << "\t" << computeJ();
+		cout<<"\teta :"<<eta;
 		
-			for (unsigned i = 0; i < numberClasses; i++)
+		// We compute the real average of each class
+		vector<RealFeature> class_average(numberClasses, 0.);
+		vector<Real> cardinal(numberClasses, 0.);
+		for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+		{
+			Real max_uij = U[j];
+			unsigned belongsTo = 0;
+			for (unsigned i = 1 ; i < numberClasses ; ++i)
 			{
-				for (unsigned p = 0; p < NUMBERWAVELENGTH; p++)
+				if (U[i*numberValidPixels+j] > max_uij)
 				{
-					iterationsFile << "\t" << B[i].v[p];
+					max_uij = U[i*numberValidPixels+j];
+					belongsTo = i;
 				}
 			}
+			class_average[belongsTo] += X[j];
+			++cardinal[belongsTo];
 
-			// calculate real average of classes
-			for (unsigned i = 0 ; i < numberClasses ; ++i)
-			{
-				PixelFeature crispB(0.);
-				unsigned number = 0;
-				for (unsigned j = 0 ; j < numberValidPixels ; ++j)
-				{
-					bool belongsToClassI = true;
-					for (unsigned k = 0 ; k < numberClasses ; ++k)
-					{
-						if (U[i*numberValidPixels+j] < U[k*numberValidPixels+j])
-						{
-							belongsToClassI = false;
-						}
-					}
-
-					if (belongsToClassI)
-					{
-						crispB += X[j];
-						number++;
-					}
-				}
-
-				if (number)
-				{
-					crispB /= number;
-				}
-				else
-				{	// should never happen
-					crispB = 0.;
-				}
-
-				iterationsFile << "\t" << number;				
-				for (unsigned p = 0; p < NUMBERWAVELENGTH; p++)
-				{
-					iterationsFile << "\t" << crispB.v[p];
-				}
-			}
-
-			iterationsFile << "\n";
 		}
+		cout<<"\tclass_average :";
+		for (unsigned i = 0 ; i < numberClasses ; ++i)
+		{
+			cout<<class_average[i]/cardinal[i]<<"\t";
+		}
+		cout<<endl;
+	
 		#endif
 	}
 
-	#if defined(DEBUG) && DEBUG >= 2
-	filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
-	segmentedMap->writeFitsImage(filename);
-	delete segmentedMap;
-	#endif
 	
 	#if defined(DEBUG) && DEBUG >= 3
 	cout<<"--PCMClassifier::classification--END--"<<endl;
 	#endif
-
-	#if defined(DEBUG) && DEBUG >= 2
-	iterationsFile.close();
-	#endif
-}
-
-
-#endif
-
-
-
-void PCMClassifier::computeEta(Real alpha)
-{
-	//This is the other method to calculate eta, descibed by Krishnapuram and Keller. It is a little faster by the way
-	eta = vector<Real>(numberClasses,0.);
-
-	Real sum;
-	for (unsigned i = 0 ; i < numberClasses ; ++i)
-	{
-		sum = 0;
-		for (unsigned j = 0 ; j < numberValidPixels ; ++j)
-		{
-			if (U[i*numberValidPixels+j]>alpha)
-			{
-				eta[i] += d2(X[j],B[i]);
-				++sum;
-			}
-
-		}
-
-		eta[i] /= sum;
-
-	}
 
 }
 
@@ -349,96 +206,6 @@ Real PCMClassifier::computeJ() const
 
 }
 
-#ifndef ETA_CIS
-
-void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
-{
-
-	#if defined(DEBUG) && DEBUG >= 1
-	if(X.size() == 0 || B.size() == 0|| B.size() != eta.size())
-	{
-		cerr<<"Error : The Classifier must be initialized before doing classification."<<endl;
-		exit(EXIT_FAILURE);
-
-	}
-	#endif
-
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--PCMClassifier::classification--START--"<<endl;
-	#endif
-
-	//Initialisation of precision & U
-
-	this->precision = precision;
-
-	Real precisionReached = numeric_limits<Real>::max();
-	vector<RealFeature> oldB = B;
-	for (unsigned iteration = 0; iteration < maxNumberIteration && precisionReached > precision ; ++iteration)
-	{
-		if(! FIXETA)							  //eta is to be recalculated each iteration.
-			computeEta();
-
-		computeU();
-		computeB();
-
-		for (unsigned i = 0 ; i < numberClasses ; ++i)
-		{
-			precisionReached = d2(oldB[i],B[i]);
-			if (precisionReached > precision)
-				break;
-
-		}
-
-		oldB = B;
-
-		#if defined(DEBUG) && DEBUG >= 3
-		cout<<"iteration :"<<iteration;
-		cout<<"\tprecisionReached :"<<precisionReached;
-		#if DEBUG >= 4
-			cout<<"\tJPCM :"<<computeJ();
-		#endif
-		cout<<"\tB :"<<B;
-		cout<<endl;
-		#endif
-
-	}
-
-	#if defined(DEBUG) && DEBUG >= 2
-	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
-	segmentedMap->writeFitsImage(filename);
-	delete segmentedMap;
-	#endif
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--PCMClassifier::classification--END--"<<endl;
-	#endif
-
-}
-
-#endif
-
-void PCMClassifier::attribution()
-{
-
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--PCMClassifier::attribution--START--"<<endl;
-	#endif
-
-	//Initialisation of U
-
-	computeU();
-
-	#if defined(DEBUG) && DEBUG >= 2
-	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
-	segmentedMap->writeFitsImage(filename);
-	delete segmentedMap;
-	#endif
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--PCMClassifier::attribution--END--"<<endl;
-	#endif
-
-}
 
 
 Real PCMClassifier::assess(vector<Real>& V)
@@ -453,13 +220,15 @@ Real PCMClassifier::assess(vector<Real>& V)
 
 	Real distBiBii;
 	for (unsigned i = 0 ; i < numberClasses ; ++i)
-		for (unsigned ii = i + 1 ; ii < numberClasses ; ++ii)
 	{
-		distBiBii = d2(B[i],B[ii]);
-		if(distBiBii < minDist[i])
-			minDist[i] = distBiBii;
-		if(distBiBii < minDist[ii])
-			minDist[ii] = distBiBii;
+		for (unsigned ii = i + 1 ; ii < numberClasses ; ++ii)
+		{
+			distBiBii = d2(B[i],B[ii]);
+			if(distBiBii < minDist[i])
+				minDist[i] = distBiBii;
+			if(distBiBii < minDist[ii])
+				minDist[ii] = distBiBii;
+		}
 	}
 
 	for (unsigned i = 0 ; i < numberClasses ; ++i)
@@ -513,90 +282,53 @@ void PCMClassifier::init(const vector<RealFeature>& initB, const vector<Real>& i
 	}
 	#endif
 
-	B = initB;
+	init(initB);
 	eta = initEta;
-	numberClasses = B.size();
 }
 
 
-void PCMClassifier::init(const vector<RealFeature>& initB, Real precision, unsigned maxNumberIteration)
+void PCMClassifier::FCMinit(Real precision, unsigned maxNumberIteration, Real FCMfuzzifier)
 {
 
 	#if defined(DEBUG) && DEBUG >= 1
 	if(X.size() == 0)
 	{
-		cerr<<"Error : The vector of FeatureVector must be initialized before doing a centers only init."<<endl;
+		cerr<<"Error : The vector of FeatureVector must be initialized before doing a FCM init."<<endl;
+		exit(EXIT_FAILURE);
+
+	}
+	if(B.size() == 0)
+	{
+		cerr<<"Error : The centers must be initialised before doing a FCM init."<<endl;
 		exit(EXIT_FAILURE);
 
 	}
 	#endif
 
-	B = initB;
 	numberClasses = B.size();
 	Real temp = fuzzifier;
-	fuzzifier = 2.;
-	if ( maxNumberIteration != 0 )
-	{
-		FCMClassifier::classification(precision, maxNumberIteration);
-	}
-	
-	//We like our centers to be sorted 
-	sort(B.begin(), B.end());
-	FCMClassifier::computeU();
-	fuzzifier = temp;
-	//We initialise eta
-	computeEta();
-
-	#ifdef ETA_BEN
-	//This is just a test
-	vector<Real> oldEta = eta;
-	Real precisionReached = numeric_limits<Real>::max();
-	for (unsigned iteration = 0; iteration < maxNumberIteration && precisionReached > precision ; ++iteration)
-	{		
-		computeU();
-		computeEta();
-
-		
-		for (unsigned i = 0 ; i < numberClasses ; ++i)
-		{
-			precisionReached = abs(oldEta[i] - eta[i]);
-			if (precisionReached > precision)
-				break;
-		}
-		cout<<"eta :"<<eta<<endl;
-		oldEta = eta;
-	}
-	#endif
-}
-
-
-void PCMClassifier::randomInit(unsigned C, Real precision, unsigned maxNumberIteration)
-{
-	#if defined(DEBUG) && DEBUG >= 1
-	if(X.size() == 0)
-	{
-		cerr<<"Error : The vector of FeatureVector must be initialized before doing a randominit."<<endl;
-		exit(EXIT_FAILURE);
-
-	}
-	#endif
-
-
-	numberClasses = C;
-	//We initialise the centers by setting each one randomly to one of the actual pixel, then we do a FCM classification!
-	Classifier::randomInit(C);
-	Real temp = fuzzifier;
-	fuzzifier = 2.;
+	fuzzifier = FCMfuzzifier;
 	FCMClassifier::classification(precision, maxNumberIteration);
+	
 	//We like our centers to be sorted 
 	sort(B.begin(), B.end());
 	FCMClassifier::computeU();
 	fuzzifier = temp;
 	//We initialise eta
 	computeEta();
-	
+
+	// We output the FCM segementation for comparison with PCM 
+	#if defined(DEBUG) && DEBUG >= 2
+	string tempName = outputFileName;
+	outputFileName += "FCM.";
+	saveAllResults(NULL);
+	outputFileName = tempName;
+	#endif
+
+
 	#ifdef ETA_BEN
 	//This is just a test
+	//We try to stabilize eta before starting the classification
 	vector<Real> oldEta = eta;
 	Real precisionReached = numeric_limits<Real>::max();
 	for (unsigned iteration = 0; iteration < maxNumberIteration && precisionReached > precision ; ++iteration)
@@ -616,3 +348,6 @@ void PCMClassifier::randomInit(unsigned C, Real precision, unsigned maxNumberIte
 	}
 	#endif
 }
+
+
+

@@ -3,43 +3,68 @@
 using namespace std;
 
 HistogramPCMClassifier::HistogramPCMClassifier(Real fuzzifier)
-:HistogramFCMClassifier(fuzzifier),PCMClassifier()
-{}
+:PCMClassifier(), HistogramFCMClassifier()
+{
+	this->fuzzifier = fuzzifier;
+}
 
-//Because the numberValidPixels of X is not the same as numberValidPixels of HistoX
+HistogramPCMClassifier::HistogramPCMClassifier(const RealFeature& binSize, Real fuzzifier)
+:PCMClassifier(), HistogramFCMClassifier()
+{
+	this->fuzzifier = fuzzifier;
+	initBinSize(binSize);
+}
+
+HistogramPCMClassifier::HistogramPCMClassifier(const std::string& histogramFilename, Real fuzzifier)
+:PCMClassifier(), HistogramFCMClassifier()
+{
+	this->fuzzifier = fuzzifier;
+	initHistogram(histogramFilename);
+}
+
+
+//Because we need to use the value fund for B to classify the normal images
 void HistogramPCMClassifier::saveAllResults(SunImage* outImage)
 {
-	numberValidPixels = X.size();
 	PCMClassifier::computeU();
-	Classifier::saveAllResults(outImage);
-	numberValidPixels = HistoX.size();
+	PCMClassifier::saveAllResults(outImage);
 }
 
 
 void HistogramPCMClassifier::saveARmap(SunImage* outImage)
 {
-	numberValidPixels = X.size();
+
 	PCMClassifier::computeU();
-	Classifier::saveARmap(outImage);
-	numberValidPixels = HistoX.size();
+	PCMClassifier::saveARmap(outImage);
+}
+
+void HistogramPCMClassifier::saveCHmap(SunImage* outImage)
+{
+
+	PCMClassifier::computeU();
+	PCMClassifier::saveCHmap(outImage);
 }
 
 
 void HistogramPCMClassifier::computeU()
 {
-	U.resize(numberValidPixels * numberClasses);
+	U.resize(numberBins * numberClasses);
 	for (unsigned i = 0 ; i < numberClasses ; ++i)
 	{
-		for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+		for (unsigned j = 0 ; j < numberBins ; ++j)
 		{
 
-			U[i*numberValidPixels+j] = d2(HistoX[j],B[i]) / eta[i] ;
+			U[i*numberBins+j] = d2(HistoX[j],B[i]) / eta[i] ;
 			if(fuzzifier == 1.5)
-				U[i*numberValidPixels+j] *=  U[i*numberValidPixels+j];
+			{
+				U[i*numberBins+j] *=  U[i*numberBins+j];
+			}
 			else if(fuzzifier != 2)
-				U[i*numberValidPixels+j] = pow( U[i*numberValidPixels+j] , 1./(fuzzifier-1.) );
-
-			U[i*numberValidPixels+j] = 1. / (1. + U[i*numberValidPixels+j]);
+			{
+				U[i*numberBins+j] = pow( U[i*numberBins+j] , 1./(fuzzifier-1.) );
+			}
+			
+			U[i*numberBins+j] = 1. / (1. + U[i*numberBins+j]);
 
 		}
 
@@ -59,13 +84,13 @@ void HistogramPCMClassifier::computeEta()
 	{
 		sum = 0;
 
-		for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+		for (unsigned j = 0 ; j < numberBins ; ++j)
 		{
 
 			if(fuzzifier == 2)
-				uij_m = U[i*numberValidPixels+j] * HistoX[j].c * U[i*numberValidPixels+j] ;
+				uij_m = U[i*numberBins+j] * HistoX[j].c * U[i*numberBins+j] ;
 			else
-				uij_m = pow(U[i*numberValidPixels+j],fuzzifier) * HistoX[j].c;
+				uij_m = pow(U[i*numberBins+j],fuzzifier) * HistoX[j].c;
 
 			eta[i] += uij_m*d2(HistoX[j],B[i]);
 			sum += uij_m;
@@ -86,9 +111,9 @@ void HistogramPCMClassifier::computeEta(Real alpha)
 	for (unsigned i = 0 ; i < numberClasses ; ++i)
 	{
 		sum = 0;
-		for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+		for (unsigned j = 0 ; j < numberBins ; ++j)
 		{
-			if (U[i*numberValidPixels+j]>alpha)
+			if (U[i*numberBins+j]>alpha)
 			{
 				eta[i] += d2(HistoX[j],B[i]) * HistoX[j].c;
 				sum +=  HistoX[j].c;
@@ -110,18 +135,18 @@ Real HistogramPCMClassifier::computeJ() const
 	{
 		Real sum1 = 0, sum2 = 0;
 
-		for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+		for (unsigned j = 0 ; j < numberBins ; ++j)
 		{
 
 			if(fuzzifier == 2)
-				sum1 +=  U[i*numberValidPixels+j] * U[i*numberValidPixels+j] * d2(HistoX[j],B[i]) * HistoX[j].c;
+				sum1 +=  U[i*numberBins+j] * U[i*numberBins+j] * d2(HistoX[j],B[i]) * HistoX[j].c;
 			else
-				sum1 +=  pow(U[i*numberValidPixels+j], fuzzifier) * d2(HistoX[j],B[i]) * HistoX[j].c;
+				sum1 +=  pow(U[i*numberBins+j], fuzzifier) * d2(HistoX[j],B[i]) * HistoX[j].c;
 
 			if(fuzzifier == 2)
-				sum2 += (1 - U[i*numberValidPixels+j]) * (1 - U[i*numberValidPixels+j]) * HistoX[j].c;
+				sum2 += (1 - U[i*numberBins+j]) * (1 - U[i*numberBins+j]) * HistoX[j].c;
 			else
-				sum2 +=  pow(1 - U[i*numberValidPixels+j], fuzzifier) * HistoX[j].c;
+				sum2 +=  pow(1 - U[i*numberBins+j], fuzzifier) * HistoX[j].c;
 
 		}
 		result += sum1 + (eta[i] * sum2);
@@ -130,17 +155,15 @@ Real HistogramPCMClassifier::computeJ() const
 
 }
 
-#ifdef ETA_CIS
+
 
 // VERSION WITH LIMITED VARIATION OF ETA W.R.T. ITS INITIAL VALUE
 
 void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIteration)
-{	
-	
-	const Real maxFactor = ETA_MAXFACTOR;
+{
 
 	#if defined(DEBUG) && DEBUG >= 1
-	if(X.size() == 0 || B.size() == 0|| B.size() != eta.size())
+	if(HistoX.size() == 0 || B.size() == 0 || B.size() != eta.size())
 	{
 		cerr<<"Error : The Classifier must be initialized before doing classification."<<endl;
 		exit(EXIT_FAILURE);
@@ -149,15 +172,16 @@ void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIt
 	#endif
 
 	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--PCMClassifier::classification--START--"<<endl;
+	cout<<"--HistogramPCMClassifier::classification--START--"<<endl;
 	#endif
+
+	const Real maxFactor = ETA_MAXFACTOR;
 
 	//Initialisation of precision & U
 	this->precision = precision;
 
 	Real precisionReached = numeric_limits<Real>::max();
 	vector<RealFeature> oldB = B;
-	vector<Real> old_eta;
 	vector<Real> start_eta = eta;
 	bool recomputeEta = FIXETA != TRUE;
 	for (unsigned iteration = 0; iteration < maxNumberIteration && precisionReached > precision ; ++iteration)
@@ -165,10 +189,8 @@ void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIt
 
 		if (recomputeEta)	//eta is to be recalculated each iteration.
 		{
-			old_eta = eta;
 			computeEta();
-	
-			for (unsigned i = 0 ; i < numberClasses && !stopComputationEta ; ++i)
+			for (unsigned i = 0 ; i < numberClasses && recomputeEta ; ++i)
 			{
 				if ( (start_eta[i] / eta[i] > maxFactor) || (start_eta[i] / eta[i] < 1. / maxFactor) )
 				{
@@ -196,117 +218,43 @@ void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIt
 			cout<<"\tJPCM :"<<computeJ();
 		#endif
 		cout<<"\tB :"<<B;
-		cout<<endl;
-		#endif
-
-
-	}
-
-	#if defined(DEBUG) && DEBUG >= 2
-	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
-	segmentedMap->writeFitsImage(filename);
-	delete segmentedMap;
-	#endif
-	
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--PCMClassifier::classification--END--"<<endl;
-	#endif
-
-
-}
-
-
-#endif
-
-#ifndef ETA_CIS
-
-void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIteration)
-{
-
-	#if defined(DEBUG) && DEBUG >= 1
-	if(HistoX.size() == 0 || B.size() == 0 || B.size() != eta.size())
-	{
-		cerr<<"Error : The Classifier must be initialized before doing classification."<<endl;
-		exit(EXIT_FAILURE);
-
-	}
-	#endif
-
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--HistogramPCMClassifier::classification--START--"<<endl;
-	#endif
-
-	//Initialisation of precision & U
-
-	this->precision = precision;
-
-	Real precisionReached = numeric_limits<Real>::max();
-	vector<RealFeature> oldB = B;
-	for (unsigned iteration = 0; iteration < maxNumberIteration && precisionReached > precision ; ++iteration)
-	{
-		if(! FIXETA)							  //eta is to be recalculated each iteration.
-			computeEta();
-
-		computeU();
-		computeB();
-
-		for (unsigned i = 0 ; i < numberClasses ; ++i)
+		cout<<"\teta :"<<eta;
+		
+		// We compute the real average of each class
+		vector<RealFeature> class_average(numberClasses, 0.);
+		vector<Real> cardinal(numberClasses, 0.);
+		for (unsigned j = 0 ; j < numberBins ; ++j)
 		{
-			precisionReached = d2(oldB[i],B[i]);
-			if (precisionReached > precision)
-				break;
+			Real max_uij = U[j];
+			unsigned belongsTo = 0;
+			for (unsigned i = 1 ; i < numberClasses ; ++i)
+			{
+				if (U[i*numberBins+j] > max_uij)
+				{
+					max_uij = U[i*numberBins+j];
+					belongsTo = i;
+				}
+			}
+			class_average[belongsTo] += HistoX[j];
+			cardinal[belongsTo]+=HistoX[j].c;
 
 		}
-
-		oldB = B;
-
-		#if defined(DEBUG) && DEBUG >= 3
-		cout<<"iteration :"<<iteration;
-		cout<<"\tprecisionReached :"<<precisionReached;
-		#if DEBUG >= 4
-			cout<<"\tJPCM :"<<computeJ();
+		cout<<"\tclass_average :";
+		for (unsigned i = 0 ; i < numberClasses ; ++i)
+		{
+			cout<<class_average[i]/cardinal[i]<<"\t";
+		}
+		cout<<endl;
+	
 		#endif
-		cout<<"\tB :"<<B<<" eta :"<<eta<<endl;
-		#endif
-
 	}
 
-	#if defined(DEBUG) && DEBUG >= 2
-	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
-	segmentedMap->writeFitsImage(filename);
-	delete segmentedMap;
-	#endif
 	#if defined(DEBUG) && DEBUG >= 3
 	cout<<"--HistogramPCMClassifier::classification--END--"<<endl;
 	#endif
 }
 
-#endif
 
-void HistogramPCMClassifier::attribution()
-{
-
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--HistogramPCMClassifier::attribution--START--"<<endl;
-	#endif
-
-	//Initialisation of U
-
-	computeU();
-
-	#if defined(DEBUG) && DEBUG >= 2
-	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
-	segmentedMap->writeFitsImage(filename);
-	delete segmentedMap;
-	#endif
-	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"--HistogramPCMClassifier::attribution--END--"<<endl;
-	#endif
-
-}
 
 
 Real HistogramPCMClassifier::assess(vector<Real>& V)
@@ -334,18 +282,18 @@ Real HistogramPCMClassifier::assess(vector<Real>& V)
 	{
 		Real sum1 = 0, sum2 = 0;
 
-		for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+		for (unsigned j = 0 ; j < numberBins ; ++j)
 		{
 
 			if(fuzzifier == 2)
-				sum1 +=  U[i*numberValidPixels+j] * U[i*numberValidPixels+j] * d2(HistoX[j],B[i]) * HistoX[j].c;
+				sum1 +=  U[i*numberBins+j] * U[i*numberBins+j] * d2(HistoX[j],B[i]) * HistoX[j].c;
 			else
-				sum1 +=  pow(U[i*numberValidPixels+j], fuzzifier) * d2(HistoX[j],B[i]) * HistoX[j].c;
+				sum1 +=  pow(U[i*numberBins+j], fuzzifier) * d2(HistoX[j],B[i]) * HistoX[j].c;
 
 			if(fuzzifier == 2)
-				sum2 += (1 - U[i*numberValidPixels+j]) * (1 - U[i*numberValidPixels+j]) * HistoX[j].c;
+				sum2 += (1 - U[i*numberBins+j]) * (1 - U[i*numberBins+j]) * HistoX[j].c;
 			else
-				sum2 +=  pow(1 - U[i*numberValidPixels+j], fuzzifier) * HistoX[j].c;
+				sum2 +=  pow(1 - U[i*numberBins+j], fuzzifier) * HistoX[j].c;
 
 		}
 
@@ -354,34 +302,19 @@ Real HistogramPCMClassifier::assess(vector<Real>& V)
 		if(minDist[i] < minDistBiBii)
 			minDistBiBii = minDist[i];
 
-		V[i] /= (minDist[i] * numberValidPixels);
+		V[i] /= (minDist[i] * numberBins);
 
 	}
 
-	score /= (minDistBiBii * numberValidPixels);
+	score /= (minDistBiBii * numberBins);
 	return score;
 
 }
 
 
-void HistogramPCMClassifier::init(const vector<RealFeature>& initB, const vector<Real>& initEta)
-{
-	#if defined(DEBUG) && DEBUG >= 1
-	if(initB.size() != initEta.size())
-	{
-		cerr<<"Error : The size of initB is different than the size of initEta"<<endl;
-		exit(EXIT_FAILURE);
-
-	}
-	#endif
-
-	B = initB;
-	eta = initEta;
-	numberClasses = B.size();
-}
 
 
-void HistogramPCMClassifier::init(const vector<RealFeature>& initB, Real precision, unsigned maxNumberIteration)
+void HistogramPCMClassifier::FCMinit(Real precision, unsigned maxNumberIteration, Real FCMfuzzifier)
 {
 
 	#if defined(DEBUG) && DEBUG >= 1
@@ -391,65 +324,20 @@ void HistogramPCMClassifier::init(const vector<RealFeature>& initB, Real precisi
 		exit(EXIT_FAILURE);
 
 	}
-	#endif
-
-	B = initB;
-	numberClasses = B.size();
-	Real temp = fuzzifier;
-	fuzzifier = 2.;
-	if ( maxNumberIteration != 0 )
+	if(B.size() == 0)
 	{
-		HistogramFCMClassifier::classification(precision, maxNumberIteration);
-	}
-	
-	//We like our centers to be sorted 
-	sort(B.begin(), B.end());
-	HistogramFCMClassifier::computeU();
-	fuzzifier = temp;
-	//We initialise eta
-	computeEta();
-
-	#ifdef ETA_BEN
-	//This is just a test
-	vector<Real> oldEta = eta;
-	Real precisionReached = numeric_limits<Real>::max();
-	for (unsigned iteration = 0; iteration < maxNumberIteration && precisionReached > precision ; ++iteration)
-	{		
-		computeU();
-		computeEta();
-
-		
-		for (unsigned i = 0 ; i < numberClasses ; ++i)
-		{
-			precisionReached = abs(oldEta[i] - eta[i]);
-			if (precisionReached > precision)
-				break;
-		}
-		cout<<"eta :"<<eta<<endl;
-		oldEta = eta;
-	}
-	#endif
-}
-
-
-void HistogramPCMClassifier::randomInit(unsigned C, Real precision, unsigned maxNumberIteration)
-{
-
-	#if defined(DEBUG) && DEBUG >= 1
-	if(HistoX.size() == 0)
-	{
-		cerr<<"Error : The vector of FeatureVector must be initialized before doing a centers only init."<<endl;
+		cerr<<"Error : The centers must be initialised before doing FCM."<<endl;
 		exit(EXIT_FAILURE);
 
 	}
 	#endif
-	
-	numberClasses = C;
-	//We initialise the centers by setting each one randomly to one of the actual pixel, then we do a FCM classification!
-	Classifier::randomInit(C);
+
+	numberClasses = B.size();
 	Real temp = fuzzifier;
-	fuzzifier = 2.;
+	fuzzifier = FCMfuzzifier;
 	HistogramFCMClassifier::classification(precision, maxNumberIteration);
+
+	
 	//We like our centers to be sorted 
 	sort(B.begin(), B.end());
 	HistogramFCMClassifier::computeU();
@@ -457,8 +345,17 @@ void HistogramPCMClassifier::randomInit(unsigned C, Real precision, unsigned max
 	//We initialise eta
 	computeEta();
 	
+	// We output the FCM segementation for comparison with PCM 
+	#if defined(DEBUG) && DEBUG >= 2
+	string tempName = outputFileName;
+	outputFileName += "HFCM.";
+	saveAllResults(NULL);
+	outputFileName = tempName;
+	#endif
+
 	#ifdef ETA_BEN
 	//This is just a test
+	//We try to stabilize eta before starting the classification
 	vector<Real> oldEta = eta;
 	Real precisionReached = numeric_limits<Real>::max();
 	for (unsigned iteration = 0; iteration < maxNumberIteration && precisionReached > precision ; ++iteration)
@@ -477,7 +374,7 @@ void HistogramPCMClassifier::randomInit(unsigned C, Real precision, unsigned max
 		oldEta = eta;
 	}
 	#endif
-	
-
 }
+
+
 

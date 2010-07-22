@@ -1,0 +1,6 @@
+1. Put the histofile as argument to SPoCA_HEK.x DONE
+2. Check for the mandatory event keywords describing the data (page 13 of the EDS API) DONE
+3. GetRegionStats on 95% unpreprocessed images DONE
+4. Include information on split and merge
+
+

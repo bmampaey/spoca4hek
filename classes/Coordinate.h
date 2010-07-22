@@ -2,6 +2,7 @@
 #ifndef Coordinate_H
 #define Coordinate_H
 
+#include <stdio.h> 
 #include <limits>
 #include <iostream>
 

@@ -17,23 +17,20 @@ class PCM2Classifier : public virtual PCMClassifier
 {
 	protected :
 
-		void computeB()
-			{PCMClassifier::computeB();}
+		using PCMClassifier::computeB;
 		void computeU();
 		void computeEta();
-		//We don't know how to compute J for PCM2
-		Real computeJ() const
-			{return PCMClassifier::computeJ();}
+		void reduceEta();
+		
+		using PCMClassifier::computeJ;
 
 	public :
+		
 		//Constructors & Destructors
 		PCM2Classifier(Real fuzzifier = 2);
 
 		//Classification functions
-		void classification(Real precision = 1., unsigned maxNumberIteration = 100)
-			{PCMClassifier::classification(precision, maxNumberIteration);}
-		void attribution()
-			{PCMClassifier::attribution();}
+		void classification(Real precision = 1., unsigned maxNumberIteration = 100);
 
 };
 #endif

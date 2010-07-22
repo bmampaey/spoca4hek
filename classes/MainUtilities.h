@@ -26,8 +26,6 @@ extern const char * limb_corrections[];
 //Read the centers and the wavelength from a file
 void readCentersFromFile(std::vector<RealFeature>& B, RealFeature& wavelengths, const std::string& centersFileName);
 
-//Put the images in the same order of the wavelength vector
-void ordonateImages(std::vector<SunImage*>& images, const RealFeature& wavelengths);
 
 //Read the images from fits files
 std::vector<SunImage*> getImagesFromFiles(const std::string type, const std::vector<std::string>& sunImagesFileNames, bool align = false);

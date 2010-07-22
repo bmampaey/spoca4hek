@@ -12,9 +12,9 @@
 #include "../classes/constants.h"
 #include "../classes/SunImage.h"
 #include "../classes/Region.h"
-#include "../classes/gradient.h"
-#include "../dsr/ArgumentHelper.h"
+#include "../classes/ArgumentHelper.h"
 #include "../classes/MainUtilities.h"
+#include "../classes/trackable.h"
 #include "../cgt/graph.h"
 
 using namespace std;
@@ -22,188 +22,6 @@ using namespace dsr;
 using namespace cgt;
 
 string outputFileName;
-unsigned long newColor;
-
-typedef graph<Region*, int> RegionGraph;
-
-// Comparison of 2 images according to time (for sorting)
-inline bool compare(const SunImage* a, const SunImage* b)
-{
-	return a->ObservationTime() < b->ObservationTime();
-}
-
-
-// Compute the number of pixels common to 2 regions from 2 images
-unsigned overlay(SunImage* image1, const Region* region1, SunImage* image2, const Region* region2)
-{
-	unsigned intersectPixels = 0;
-	PixelType setValue1 = image1->pixel(region1->FirstPixel());
-	PixelType setValue2 = image2->pixel(region2->FirstPixel());
-	unsigned Xmin = region1->Boxmin().x > region2->Boxmin().x ? region1->Boxmin().x : region2->Boxmin().x;
-	unsigned Ymin = region1->Boxmin().y > region2->Boxmin().y ? region1->Boxmin().y : region2->Boxmin().y;
-	unsigned Xmax = region1->Boxmax().x < region2->Boxmax().x ? region1->Boxmax().x : region2->Boxmax().x;
-	unsigned Ymax = region1->Boxmax().y < region2->Boxmax().y ? region1->Boxmax().y : region2->Boxmax().y;
-
-	// We scan the intersection between the 2 boxes of the regions
-	// If the 2 regions don't overlay, we will not even enter the loops
-	for (unsigned y = Ymin; y <= Ymax; ++y)
-	{
-		for (unsigned x = Xmin; x <= Xmax; ++x)
-		{
-												  //There is overlay between the two regions
-			if(image1->pixel(x,y) == setValue1 && image2->pixel(x,y) == setValue2)
-				++intersectPixels;
-		}
-	}
-	return intersectPixels;
-
-}
-
-
-// Find the biggest parrent of a node (the one I have the biggest intersection with)
-RegionGraph::node& biggestParent(RegionGraph::node& n)
-{
-	const RegionGraph::adjlist &parentsList = n.iadjlist();
-	const RegionGraph::adjlist::const_iterator itadjEnd = parentsList.end();
-	RegionGraph::adjlist::const_iterator biggest = parentsList.begin();
-	for (RegionGraph::adjlist::const_iterator itadj = parentsList.begin(); itadj != itadjEnd; ++itadj)
-	{
-		if(itadj->edge().value() > biggest->edge().value())
-			biggest = itadj;
-
-	}
-	return biggest->node();
-}
-
-
-// Find the biggest son of a node (the one I have the biggest intersection with)
-RegionGraph::node& biggestSon(RegionGraph::node& n)
-{
-	const RegionGraph::adjlist &sonsList = n.adjlist();
-	const RegionGraph::adjlist::const_iterator itadjEnd = sonsList.end();
-	RegionGraph::adjlist::const_iterator biggest = sonsList.begin();
-	for (RegionGraph::adjlist::const_iterator itadj = sonsList.begin(); itadj != itadjEnd; ++itadj)
-	{
-		if(itadj->edge().value() > biggest->edge().value())
-			biggest = itadj;
-
-	}
-	return biggest->node();
-}
-
-
-//TODO : fix the case of splitting followed by a merging
-// Color a node
-void colorize(RegionGraph::node& me)
-{
-	//If I'm already colored than I am fine
-	if(me.value()->Color() != 0)
-		return;
-
-	// I need all my parents to have their color
-	const RegionGraph::adjlist &parentsList = me.iadjlist();
-	const RegionGraph::adjlist::const_iterator itadjEnd = parentsList.end();
-	RegionGraph::adjlist::const_iterator biggestParent = parentsList.begin();
-	for (RegionGraph::adjlist::const_iterator itadj = parentsList.begin(); itadj != itadjEnd; ++itadj)
-	{
-		colorize(itadj->node());				  //Carefull there is recursion here
-		// We search for the biggest parent
-		if(itadj->edge().value() > biggestParent->edge().value())
-			biggestParent = itadj;
-
-	}
-												  //Either I am the only child of my biggest parrent, or I am his biggest Son
-	if(biggestParent != itadjEnd && me.value() == biggestSon(biggestParent->node()).value())
-		me.value()->setColor(biggestParent->node().value()->Color());
-	else										  //There was a split or a merge, or I have no parrents
-		me.value()->setColor(++newColor);
-
-}
-
-
-// Tell if there is a path between a node and a region
-bool path(const RegionGraph::node* n, const Region* r)
-{
-	if (n->value() == r)
-		return true;
-
-	const RegionGraph::adjlist &adjList = n->adjlist();
-	const RegionGraph::adjlist::const_iterator itadjEnd = adjList.end();
-	for (RegionGraph::adjlist::const_iterator itadj = adjList.begin(); itadj != itadjEnd; ++itadj)
-	{
-		if(path(&(itadj->node()), r))
-			return true;
-
-	}
-	return false;
-}
-
-
-// Output a graph in the dot format
-void ouputGraph(const RegionGraph& g, const vector<vector<Region*> >& regions, const string graphName)
-{
-	string filename = outputFileName + graphName + ".dot";
-	ofstream graphFile(filename.c_str());
-	if (graphFile.good())
-	{
-
-		graphFile<<"digraph "<<graphName<<" {"<<endl;
-		graphFile<<"node [colorscheme=set312 penwidth=4];"<<endl;
-		//First we output all node info
-		for (unsigned s = 0; s < regions.size(); ++s)
-		{
-			string rank;
-			for (unsigned r = 0; r < regions[s].size(); ++r)
-			{
-				rank += " \"" + regions[s][r]->Label() + "\"";
-				graphFile <<"\""<< regions[s][r]->Label()<<"\"";
-				if(regions[s][r]->Color() != 0)
-					graphFile<<" [color=\""<< gradient[ (int(regions[s][r]->Color()) % gradientMax) + 1 ] <<"\"];" << endl;
-				else
-					graphFile<<" [color="<< (s%12) + 1 <<"];" << endl;
-
-			}
-			graphFile<<"{ rank=same; "<< rank <<" };" << endl;
-
-		}
-		// Then we output all edges info
-		const RegionGraph::const_iterator itnEnd = g.end();
-		for (RegionGraph::const_iterator itn = g.begin(); itn != itnEnd; ++itn)
-		{
-			const RegionGraph::adjlist &adjList = itn->adjlist();
-			const RegionGraph::adjlist::const_iterator itadjEnd = adjList.end();
-			for (RegionGraph::adjlist::const_iterator itadj = adjList.begin(); itadj != itadjEnd; ++itadj)
-			{
-				graphFile <<"\""<< itn->value()->Label()<<"\" -> \"" << itadj->node().value()->Label()<< "\" [label="<<itadj->edge().value()<<"];" << endl;
-			}
-
-		}
-		graphFile<<"}"<<endl;
-	}
-	graphFile.close();
-}
-
-
-// Output regions in the region format
-void ouputRegions(const vector<vector<Region*> >& regions, string filename)
-{
-	filename = outputFileName + filename;
-	ofstream regionFile(filename.c_str());
-	if (regionFile.good())
-	{
-		regionFile<<Region::header<<endl<<endl;
-		for (unsigned s = 0; s < regions.size(); ++s)
-		{
-			for (unsigned r = 0; r < regions[s].size(); ++r)
-			{
-				regionFile<<*(regions[s][r])<<endl;
-			}
-			regionFile<<endl;
-		}
-	}
-	regionFile.close();
-}
-
 
 int main(int argc, const char **argv)
 {
@@ -212,11 +30,14 @@ int main(int argc, const char **argv)
 	cout<<setiosflags(ios::fixed);
 	#endif
 
-	string filename;
-	vector<string> sunImagesFileNames;
+	// Options for the tracking
 	newColor = 0;
-	unsigned delta_time = 3600, overlap = 1;
-	vector<SunImage*> images;
+	unsigned delta_time = 3600;
+	unsigned overlap = 1;
+	
+	// The list of names of the sun images to process
+	string imageType = "AIA";
+	vector<string> sunImagesFileNames;
 
 	string programDescription = "This Programm will track active regions.\n";
 	programDescription+="Compiled with options :";
@@ -225,39 +46,28 @@ int main(int argc, const char **argv)
 	programDescription+="\nReal: " + string(typeid(Real).name());
 
 	ArgumentHelper arguments;
-	arguments.set_string_vector("fitsFileName1 fitsFileName2 ...", "The name of the fits files containing the images of the sun.", sunImagesFileNames);
-	arguments.new_named_unsigned_long('n',"newColor","newColor","The last color given to active regions",newColor);
-	arguments.new_named_unsigned_int('d',"delta_time","delta_time","The maximal delta time between 2 tracked regions",delta_time);
-	arguments.new_named_unsigned_int('D',"overlap","overlap","The number of images that overlap between 2 tracking run",overlap);
+	arguments.set_string_vector("fitsFileName1 fitsFileName2 ...", "\n\tThe name of the fits files containing the maps of the regions to track.\n\t", sunImagesFileNames);
+	arguments.new_named_unsigned_long('n',"newColor","positive integer","\n\tThe last color given to active regions\n\t",newColor);
+	arguments.new_named_unsigned_int('d',"delta_time","positive integer","\n\tThe maximal delta time between 2 tracked regions\n\t",delta_time);
+	arguments.new_named_unsigned_int('D',"overlap","positive integer","\n\tThe number of images that overlap between 2 tracking run\n\t",overlap);
+	arguments.new_named_string('I', "imageType","string", "\n\tThe type of the images.\n\tPossible values are : EIT, EUVI, AIA, SWAP\n\t", imageType);
 	arguments.set_description(programDescription.c_str());
 	arguments.set_author("Benjamin Mampaey, benjamin.mampaey@sidc.be");
 	arguments.set_build_date(__DATE__);
 	arguments.set_version("1.0");
 	arguments.process(argc, argv);
 
-	// We get the images
-	images = getImagesFromFiles("AIA", sunImagesFileNames, true);
-	
-	//We ordonate the images according to time
-	sort(images.begin(), images.end(), compare);
+	// We read the color maps
+	vector<SunImage*> images = getImagesFromFiles(imageType, sunImagesFileNames, true);
 
-	#if defined(DEBUG) && DEBUG >= 1
-	//We remove the ones that have duplicate time
-	vector<SunImage*>::iterator s1 = images.begin();
-	vector<SunImage*>::iterator s2 = images.begin() + 1;
-	while (s2 != images.end())
+	//We ordonate the images according to time
+	ordonate(images);
+
+	// We crop the images
+	for (unsigned p = 0; p < images.size(); ++p)
 	{
-		if (unsigned(difftime((*s2)->ObservationTime(),(*s1)->ObservationTime())) == 0)
-		{
-			s1 = images.erase(s1,s2);
-		}
-		else
-		{
-			++s1;
-		}
-		s2 = s1 + 1;
+		images[p]->preprocessing("NAR", 1);
 	}
-	#endif
 	
 	// We get the regions out of the images
 	vector<vector<Region*> > regions;
@@ -358,8 +168,7 @@ int main(int argc, const char **argv)
 			if(images[s]->pixel(regions[s][r]->FirstPixel()) != regions[s][r]->Color())
 				images[s]->propagateColor(regions[s][r]->Color(), regions[s][r]->FirstPixel());
 		}
-		filename = sunImagesFileNames[s];
-		images[s]->writeFitsImage(filename);
+		images[s]->writeFitsImage(sunImagesFileNames[s]);
 		delete images[s];
 
 	}
@@ -372,8 +181,7 @@ int main(int argc, const char **argv)
 			if(images[s]->pixel(regions[s][r]->FirstPixel()) != regions[s][r]->Color())
 				images[s]->propagateColor(regions[s][r]->Color(), regions[s][r]->FirstPixel());
 		}
-		filename = sunImagesFileNames[s];
-		images[s]->writeFitsImage(filename);
+		images[s]->writeFitsImage(sunImagesFileNames[s]);
 		delete images[s];
 
 	}
@@ -381,14 +189,78 @@ int main(int argc, const char **argv)
 	//We output the number of Active Events and the last color assigned
 	cout<<regions[images.size() - 1].size()<<" "<<newColor<<endl;
 
-	//We output the relations between the AR of the last images and the ones from images[overlap] ?? Is this index correct ?
-	/*Parcours en depth first ou on suit les fils par ordre de grosseur(pas oublier de marquer comme vu les noeuds deja pris)
-	si le fils a la meme couleur -> follows
-	sinon on ajoute 1 au fils
-	a la fin, si un fils a plus d'un pere on a un merge sinon un split
+	// We output the relations between the AR of the last images and the ones from images[overlap] 
 	
+	/* First we recolor the graph top to bottom by giving to any child the color of its biggest parent
+	map[overlap] (previous outputted map)
+	map[overlap + 1]	|
+	map[overlap + 2]	|
+	map[overlap + 2]	| Must only contain colors from map[overlap]
+	...				|
+	map[last - 1]		|
+	map[last]
 	*/
 	
+	for (unsigned s = overlap + 1; s < regions.size() - 1; ++s)
+	{
+		for (unsigned r = 0; r < regions[s].size(); ++r)
+		{
+			const RegionGraph::node* myBiggestParent = biggestParent( tracking_graph.get_node(regions[s][r]) );
+			if(myBiggestParent)
+			 	regions[s][r]->setColor( myBiggestParent->value()->Color() );
+		}
+	}
+	
+	// Now we create for each region of map[last] the list of parents that have a color existing in map[overlap]
+	unsigned s = regions.size() - 1;
+	for (unsigned r = 0; r < regions[s].size(); ++r)
+	{
+		const RegionGraph::node* n = tracking_graph.get_node(regions[s][r]);
+		const RegionGraph::adjlist &parentsList = n->iadjlist();
+		const RegionGraph::adjlist::const_iterator itadjEnd = parentsList.end();
+		vector<unsigned> ancestors_color;
+		for (RegionGraph::adjlist::const_iterator itadj = parentsList.begin(); itadj != itadjEnd; ++itadj)
+		{
+			for (unsigned r1 = 0; r1 < regions[overlap].size(); ++r1)
+			{
+				if(itadj->node().value()->Color() == regions[overlap][r1]->Color())
+				{
+					ancestors_color.push_back(regions[overlap][r1]->Color());
+					break;
+				}
+			}
+					
+
+		}
+		// Now that I know the list of my ancestors_color I can output the relations
+		if(ancestors_color.size() == 0)
+		{
+			// I have no ancestors, so I am a new color 
+			cout<< regions[s][r]->Color() << " new " << 0 <<endl;
+		}
+		else if(ancestors_color.size() == 1 && ancestors_color[0] != regions[s][r]->Color())
+		{
+			// I have one ancestor of a different color, I am a split from him
+			cout<< regions[s][r]->Color() << " splits_from " <<  ancestors_color[0]<<endl;
+		}
+		else
+		{
+			// I have many ancestors, I am a merge of them (unless we have the same color then I am a follow)
+			for (unsigned a = 0; a < ancestors_color.size(); ++a)
+			{
+				if(ancestors_color[a] == regions[s][r]->Color())
+				{
+					cout<<  regions[s][r]->Color() << " follows " <<  ancestors_color[a] <<endl;
+				}
+				else
+				{
+					cout<<  regions[s][r]->Color() << " merges_from " << ancestors_color[a] <<endl;
+				}
+			}
+		}
+				
+	}
+
 	 
 	return EXIT_SUCCESS;
 }

@@ -15,7 +15,7 @@
 #include "HistogramFCMClassifier.h"
 #include "PCMClassifier.h"
 
-class HistogramPCMClassifier : public virtual HistogramFCMClassifier, public virtual PCMClassifier
+class HistogramPCMClassifier : public virtual PCMClassifier,  public virtual HistogramFCMClassifier
 {
 	protected :
 
@@ -27,27 +27,27 @@ class HistogramPCMClassifier : public virtual HistogramFCMClassifier, public vir
 
 		//Asses & Merge functions for the sursegmentation
 		Real assess(std::vector<Real>& V);
-		void merge(unsigned i1, unsigned i2)
-			{HistogramFCMClassifier::merge(i1, i2);}
+		using HistogramFCMClassifier::merge;
 
 	public :
 		//Constructors & Destructors
 		HistogramPCMClassifier(Real fuzzifier = 1.5);
-		void addImages(const std::vector<SunImage*>& images, RealFeature binSize)
-			{HistogramFCMClassifier::addImages(images, binSize);}
-
+		HistogramPCMClassifier(const RealFeature& binSize, Real fuzzifier = 2.);
+		HistogramPCMClassifier(const std::string& histogramFilename, Real fuzzifier = 2.);
+		
 		//Classification functions
 		void classification(Real precision = 1., unsigned maxNumberIteration = 100);
-		void attribution();
 
 		//Function to initialise the centers
-		void init(const std::vector<RealFeature>& initB, const std::vector<Real>& initEta);
-		void init(const std::vector<RealFeature>& initB, Real precision = std::numeric_limits<Real>::max(), unsigned maxNumberIteration = 0);
-		void randomInit(unsigned C, Real precision = 1., unsigned maxNumberIteration = 100);
+		using HistogramFCMClassifier::init;
+		using HistogramFCMClassifier::randomInit;
+		void FCMinit(Real precision = 0.00001, unsigned maxNumberIteration = 100, Real FCMfuzzifier = 2);
 
 		//Utilities functions for outputing results
 		void saveAllResults(SunImage* outImage);
 		void saveARmap(SunImage* outImage);
+		void saveCHmap(SunImage* outImage);
+		using HistogramFCMClassifier::classAverage;
 
 };
 #endif

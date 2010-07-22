@@ -18,15 +18,18 @@ void PCM2Classifier::computeU()
 			{
 				U[i*numberValidPixels+j] *= U[i*numberValidPixels+j];
 				U[i*numberValidPixels+j] *= U[i*numberValidPixels+j];
-				U[i*numberValidPixels+j] = 1. / (1. + U[i*numberValidPixels+j] ) ;
 			}
 			else if(fuzzifier == 2)
 			{
 				U[i*numberValidPixels+j] *= U[i*numberValidPixels+j];
-				U[i*numberValidPixels+j] = 1. / (1. + U[i*numberValidPixels+j] ) ;
+				
 			}
 			else
-				U[i*numberValidPixels+j] = 1. / (1. + pow( U[i*numberValidPixels+j] , 2./(fuzzifier-1.) ) );
+			{
+				U[i*numberValidPixels+j] = pow( U[i*numberValidPixels+j] , 2./(fuzzifier-1.) ) ;
+			}
+				
+			U[i*numberValidPixels+j] = 1. / (1. + U[i*numberValidPixels+j] ) ;
 
 		}
 
@@ -34,42 +37,152 @@ void PCM2Classifier::computeU()
 
 }
 
-
 void PCM2Classifier::computeEta()
 {
 	PCMClassifier::computeEta();
-	const Real reduction = 0.95;
+	
+	#if defined(DEBUG) && DEBUG >= 3
+		cout<<"pre_eta:\t"<<eta<<"\t";
+	#endif
+	
+	reduceEta();
+}
 
+
+void PCM2Classifier::reduceEta()
+{
+
+	
+	const Real reduction = ETA2_REDUCTION_FACTOR / 100.;
+	
+	// We need to treat the eta in ascending order of B
+	// Therefore we create an indice vector of the sorted values
+	vector<RealFeature> sortedB = B;
+	sort(sortedB.begin(), sortedB.end());
+	vector<unsigned> indice(numberClasses);
+	for (unsigned i = 0; i < numberClasses; ++i)
+	{
+		for(unsigned ii = 0; ii < numberClasses; ++ii)
+		{
+			if(sortedB[i] == B[ii])
+			{
+				indice[i] = ii;
+				break;
+			}
+		}
+	}
+	
 	for (unsigned i = 1; i < numberClasses; ++i)
 	{
 		Real min = numeric_limits<Real>::max();
 		for(unsigned ii = 0; ii < i; ++ii)
 		{
-			if (eta[ii] < eta[i])
+			if (eta.at(indice[ii]) < eta.at(indice[i]))
 			{
-				Real min_Bi_above_Bii = B[i].v[0]/B[ii].v[0];
+				Real min_Bi_above_Bii = B.at(indice[i]).v[0]/B.at(indice[ii]).v[0];
 				for(unsigned p = 1; p < NUMBERWAVELENGTH; ++p)
-					if (B[i].v[p]/B[ii].v[p] < min_Bi_above_Bii )
-						min_Bi_above_Bii = B[i].v[p]/B[ii].v[p];
+					if (B.at(indice[i]).v[p]/B.at(indice[ii]).v[p] < min_Bi_above_Bii )
+						min_Bi_above_Bii = B.at(indice[i]).v[p]/B.at(indice[ii]).v[p];
 
-				if( eta[ii]*min_Bi_above_Bii < min)
-					min = eta[ii]*min_Bi_above_Bii;
+				if( eta.at(indice[ii])*min_Bi_above_Bii < min)
+					min = eta.at(indice[ii])*min_Bi_above_Bii;
 			}
 		}
 
-		if(eta[i] > reduction * min)
+		if(eta.at(indice[i]) > reduction * min)
 		{
-			eta[i] = reduction * min;
-
+			eta.at(indice[i]) = reduction * min;
 		}
 
-	}
+	} 
 	
+}
+
+
+
+// VERSION WITH LIMITED VARIATION OF ETA W.R.T. ITS INITIAL VALUE
+void PCM2Classifier::classification(Real precision, unsigned maxNumberIteration)
+{	
+	const Real maxFactor = ETA_MAXFACTOR;
+
+
+	#if defined(DEBUG) && DEBUG >= 1
+	if(X.size() == 0 || B.size() == 0 || B.size() != eta.size())
+	{
+		cerr<<"Error : The Classifier must be initialized before doing classification."<<endl;
+		exit(EXIT_FAILURE);
+
+	}
+	#endif
+
 	#if defined(DEBUG) && DEBUG >= 3
-	cout<<"eta2:\t"<<eta<<endl;
+	cout<<"--PCM2Classifier::classification--START--"<<endl;
+	#endif
+
+	//Initialisation of precision & U
+	this->precision = precision;
+
+	Real precisionReached = numeric_limits<Real>::max();
+	vector<RealFeature> oldB = B;
+	vector<Real> start_eta = eta;
+	bool recomputeEta = FIXETA != TRUE;
+	for (unsigned iteration = 0; iteration < maxNumberIteration && precisionReached > precision ; ++iteration)
+	{
+
+		if (recomputeEta)	//eta is to be recalculated each iteration.
+		{
+			computeEta();
+			for (unsigned i = 0 ; i < numberClasses && recomputeEta ; ++i)
+			{
+				if ( (start_eta[i] / eta[i] > maxFactor) || (start_eta[i] / eta[i] < 1. / maxFactor) )
+				{
+					recomputeEta = false;
+				}
+			}
+		}
+
+		computeU();
+		computeB();
+
+		for (unsigned i = 0 ; i < numberClasses ; ++i)
+		{
+			precisionReached = d2(oldB[i],B[i]);
+			if (precisionReached > precision)
+			{
+				break;
+			}
+		}
+		
+		// avoid class cannibalism
+		if (precisionReached <= precision)
+		{    
+		   reduceEta();
+		   computeU();
+		   computeB();
+		} 
+
+		oldB = B;
+
+		#if defined(DEBUG) && DEBUG >= 3
+		cout<<"iteration :"<<iteration;
+		cout<<"\tprecisionReached :"<<precisionReached;
+		#if DEBUG >= 4
+			cout<<"\tJPCM :"<<computeJ();
+		#endif
+		cout<<"\tB :"<<B;
+		cout<<"\teta :"<<eta;
+		cout<<"\tclass_average :"<<classAverage();
+		cout<<endl;
+	
+		#endif
+	}
+
+	#if defined(DEBUG) && DEBUG >= 3
+	cout<<"--PCM2Classifier::classification--END--"<<endl;
 	#endif
 
 }
+
 
 /*
 // BAD RESULTS, BUT KEEP FOR NOW

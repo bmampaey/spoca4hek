@@ -3,55 +3,28 @@
 using namespace std;
 
 HistogramFCMClassifier::HistogramFCMClassifier(Real fuzzifier)
-:FCMClassifier(fuzzifier)
+:FCMClassifier(), HistogramClassifier()
 {
+	this->fuzzifier = fuzzifier;
 }
 
-
-// Function to insert a new FeatureVector into HistoX, if it is necessary (no doublon)
-// Returns the position of insertion into the vector
-// It assumes that the vector is sorted
-inline unsigned HistogramFCMClassifier::insert(const HistoPixelFeature& xj)
+HistogramFCMClassifier::HistogramFCMClassifier(const RealFeature& binSize, Real fuzzifier)
+:FCMClassifier(), HistogramClassifier()
 {
-	unsigned bsup = HistoX.size();
-	unsigned binf = 0;
-	unsigned pos = 0;
-	while(binf < bsup)
-	{
-		pos = unsigned((bsup+binf)/2);
-		switch(compare(HistoX[pos], xj))
-		{
-			case -1 :
-				binf = pos + 1;
-				break;
-			case 1 :
-				bsup = pos;
-				break;
-			default :
-				return pos;
-
-		}
-	}
-	if (bsup == HistoX.size())
-	{
-		HistoX.push_back(xj);
-	}
-	else
-	{
-
-		vector<HistoPixelFeature>::iterator there = HistoX.begin();
-		there += bsup;
-		HistoX.insert(there,xj);
-	}
-	return bsup;
-
+	this->fuzzifier = fuzzifier;
+	initBinSize(binSize);
 }
 
+HistogramFCMClassifier::HistogramFCMClassifier(const std::string& histogramFilename, Real fuzzifier)
+:FCMClassifier(), HistogramClassifier()
+{
+	this->fuzzifier = fuzzifier;
+	initHistogram(histogramFilename);
+}
 
-void HistogramFCMClassifier::addImages(const std::vector<SunImage*>& images, const RealFeature& binSize)
+void HistogramFCMClassifier::addImages(std::vector<SunImage*>& images)
 {
 
-	#if defined(DEBUG) && DEBUG >= 1
 	for (unsigned p = 0; p <  NUMBERWAVELENGTH; ++p)
 	{
 		if( binSize.v[p] == 0 )
@@ -60,11 +33,33 @@ void HistogramFCMClassifier::addImages(const std::vector<SunImage*>& images, con
 			exit(EXIT_FAILURE);
 		}
 	}
-	#endif
+	
+	if(channels)
+	{
+		if(!histoChannels)
+		{
+			histoChannels = channels;
+		}
+		else if(histoChannels != channels)
+		{
+			cerr<<"Error : channels in the histogram file do not correspond to channels of the classifier (check centers file or order of the images)."<<endl;
+			exit(EXIT_FAILURE);
+		}
+	}
+	else 
+	{
+		if(!histoChannels)
+		{
+			for (unsigned p = 0; p< NUMBERWAVELENGTH; ++p)
+				histoChannels.v[p] = images[p]->Wavelength();
+		}
+		channels = histoChannels;
+	}
+		
 
 	//I will need the images in the end to show the classification anyway
-	Classifier::addImages(images);
-	PixelFeature xj;
+	FCMClassifier::addImages(images);
+	HistoPixelFeature xj;
 	for (unsigned j = 0; j < numberValidPixels; ++j)
 	{
 		for (unsigned p = 0; p <  NUMBERWAVELENGTH; ++p)
@@ -76,120 +71,34 @@ void HistogramFCMClassifier::addImages(const std::vector<SunImage*>& images, con
 		++HistoX[pos].c;
 	}
 
-	//Be carefull here
-	numberValidPixels = HistoX.size();
+	numberBins = HistoX.size();
+	
 	#if defined(DEBUG) && DEBUG >= 2
-	string filename = outputFileName + "histogram.txt";
-	saveHistogram(filename, binSize);
+	saveHistogram(outputFileName + "histogram.txt");
 	#endif
 
 }
 
-void HistogramFCMClassifier::initHistogram(const std::string& histogramFilename, RealFeature& binSize, bool reset)
-{
-	ifstream histoFile(histogramFilename.c_str());
-	stringstream histoStream;
-	vector<char> buffer;
-	//We put the file into a stringstream for rapidity
-	if (histoFile.good())
-	{
-		// We get the size of the file   
-		histoFile.seekg(0,ios::end);
-		streampos length = histoFile.tellg();
-		histoFile.seekg(0,ios::beg);
-		buffer.resize(length);
 
-		//We read the whole file into the buffer.
-		histoFile.read(&buffer[0],length);
 
-		// We create the string stream.
-		histoStream.rdbuf()->pubsetbuf(&buffer[0],length);
-
-	}
-	else
-	{
-		cerr<<"Error : file "<<histogramFilename<<" not found."<<endl;
-		return;
-	}
-	histoFile.close();
-	
-	//We initialise the histogram
-	unsigned numberBins = 0;
-	for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
-		histoStream>>binSize.v[p];
-		
-	histoStream>>numberBins;
-	
-	HistoX.resize(numberBins);
-
-	if (!reset)
-	{
-		for (unsigned j = 0; j < numberBins && histoStream.good(); ++j)
-		{
-			for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
-				histoStream>>HistoX[j].v[p];
-			histoStream>>HistoX[j].c;
-		}
-	}
-	else
-	{
-		unsigned garbage;
-		for (unsigned j = 0; j < numberBins && histoStream.good(); ++j)
-		{
-			for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
-				histoStream>>HistoX[j].v[p];
-			histoStream>>garbage;
-		}
-
-	}
-	
-}
-
-void HistogramFCMClassifier::saveHistogram(const std::string& histogramFilename, const RealFeature& binSize)
-{
-	ofstream histoFile(histogramFilename.c_str());
-	if (histoFile)
-	{
-		//We save the binSize and the number of bins
-		for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
-				histoFile<<binSize.v[p]<<" ";
-		histoFile<<HistoX.size()<<endl;
-		
-		//We save the Histogram
-		for (unsigned j = 0; j < numberValidPixels && histoFile.good(); ++j)
-		{
-			for (unsigned p = 0; p < NUMBERWAVELENGTH; ++p)
-				histoFile<<HistoX[j].v[p]<<" ";
-			histoFile<<HistoX[j].c<<endl;
-		}
-
-	}
-	else
-	{
-		cerr<<"Error : Could not open file "<<histogramFilename<<" for writing."<<endl;
-
-	}
-	
-
-	histoFile.close();
-}
-
-//Because the numberValidPixels of X is not the same as numberValidPixels of HistoX
+//Because we need to use the value fund for B to classify the normal images
 void HistogramFCMClassifier::saveAllResults(SunImage* outImage)
 {
-	numberValidPixels = X.size();
 	FCMClassifier::computeU();
-	Classifier::saveAllResults(outImage);
-	numberValidPixels = HistoX.size();
+	FCMClassifier::saveAllResults(outImage);
 }
 
 
 void HistogramFCMClassifier::saveARmap(SunImage* outImage)
 {
-	numberValidPixels = X.size();
 	FCMClassifier::computeU();
-	Classifier::saveARmap(outImage);
-	numberValidPixels = HistoX.size();
+	FCMClassifier::saveARmap(outImage);
+}
+
+void HistogramFCMClassifier::saveCHmap(SunImage* outImage)
+{
+	FCMClassifier::computeU();
+	FCMClassifier::saveCHmap(outImage);
 }
 
 
@@ -202,12 +111,12 @@ void HistogramFCMClassifier::computeB()
 	{
 		B[i] = 0.;
 		sum = 0;
-		for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+		for (unsigned j = 0 ; j < numberBins ; ++j)
 		{
 			if (fuzzifier == 2)
-				uij_m = U[i*numberValidPixels+j] * U[i*numberValidPixels+j] * HistoX[j].c;
+				uij_m = U[i*numberBins+j] * U[i*numberBins+j] * HistoX[j].c;
 			else
-				uij_m = pow(U[i*numberValidPixels+j],fuzzifier) * HistoX[j].c;
+				uij_m = pow(U[i*numberBins+j],fuzzifier) * HistoX[j].c;
 
 			B[i] += HistoX[j] * uij_m ;
 			sum += uij_m;
@@ -226,8 +135,8 @@ void HistogramFCMClassifier::computeU()
 	Real sum;
 	vector<Real> d2XjB(numberClasses);
 	unsigned i;
-	U.resize(numberValidPixels * numberClasses);
-	for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+	U.resize(numberBins * numberClasses);
+	for (unsigned j = 0 ; j < numberBins ; ++j)
 	{
 		for (i = 0 ; i < numberClasses ; ++i)
 		{
@@ -239,9 +148,9 @@ void HistogramFCMClassifier::computeU()
 		{
 			for (unsigned ii = 0 ; ii < numberClasses ; ++ii)
 			{
-				U[ii*numberValidPixels+j] = 0.;
+				U[ii*numberBins+j] = 0.;
 			}
-			U[i*numberValidPixels+j] = 1.;
+			U[i*numberBins+j] = 1.;
 		}
 		else
 		{
@@ -256,7 +165,7 @@ void HistogramFCMClassifier::computeU()
 						sum += pow(d2XjB[i]/d2XjB[ii],1./(fuzzifier-1.));
 
 				}
-				U[i*numberValidPixels+j] = 1./sum;
+				U[i*numberBins+j] = 1./sum;
 			}
 
 		}
@@ -273,13 +182,13 @@ Real HistogramFCMClassifier::computeJ() const
 	for (unsigned i = 0 ; i < numberClasses ; ++i)
 	{
 
-		for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+		for (unsigned j = 0 ; j < numberBins ; ++j)
 		{
 
 			if (fuzzifier == 2)
-				result +=  U[i*numberValidPixels+j] * HistoX[j].c * U[i*numberValidPixels+j] * d2(HistoX[j],B[i]) ;
+				result +=  U[i*numberBins+j] * HistoX[j].c * U[i*numberBins+j] * d2(HistoX[j],B[i]) ;
 			else
-				result +=  pow(U[i*numberValidPixels+j], fuzzifier) * HistoX[j].c * d2(HistoX[j],B[i]) ;
+				result +=  pow(U[i*numberBins+j], fuzzifier) * HistoX[j].c * d2(HistoX[j],B[i]) ;
 
 		}
 	}
@@ -303,7 +212,7 @@ void HistogramFCMClassifier::classification(Real precision, unsigned maxNumberIt
 	cout<<"--HistogramFCMClassifier::classification--START--"<<endl;
 	#endif
 
-	//Initialisation of precision & U
+	//Initialisation of precision
 
 	this->precision = precision;
 
@@ -334,12 +243,6 @@ void HistogramFCMClassifier::classification(Real precision, unsigned maxNumberIt
 
 	}
 
-	#if defined(DEBUG) && DEBUG >= 2
-	string filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
-	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
-	segmentedMap->writeFitsImage(filename);
-	delete segmentedMap;
-	#endif
 	#if defined(DEBUG) && DEBUG >= 3
 	cout<<"--HistogramFCMClassifier::classification--END--"<<endl;
 	#endif
@@ -370,12 +273,12 @@ Real HistogramFCMClassifier::assess(vector<Real>& V)
 
 	for (unsigned i = 0 ; i < numberClasses ; ++i)
 	{
-		for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+		for (unsigned j = 0 ; j < numberBins ; ++j)
 		{
 			if (fuzzifier == 2)
-				V[i] += d2(HistoX[j],B[i]) * U[i*numberValidPixels+j] * U[i*numberValidPixels+j] * HistoX[j].c;
+				V[i] += d2(HistoX[j],B[i]) * U[i*numberBins+j] * U[i*numberBins+j] * HistoX[j].c;
 			else
-				V[i] += d2(HistoX[j],B[i]) * pow(U[i*numberValidPixels+j],fuzzifier) * HistoX[j].c;
+				V[i] += d2(HistoX[j],B[i]) * pow(U[i*numberBins+j],fuzzifier) * HistoX[j].c;
 
 		}
 
@@ -383,11 +286,11 @@ Real HistogramFCMClassifier::assess(vector<Real>& V)
 		if(minDist[i] < minDistBiBii)
 			minDistBiBii = minDist[i];
 
-		V[i] /= (minDist[i] * numberValidPixels);
+		V[i] /= (minDist[i] * numberBins);
 
 	}
 
-	score /= (minDistBiBii * numberValidPixels);
+	score /= (minDistBiBii * numberBins);
 
 	return score;
 
@@ -406,14 +309,14 @@ void HistogramFCMClassifier::merge(unsigned i1, unsigned i2)
 	Real max_uij, uij_m, sum = 0;
 	unsigned max_i;
 	B[i1] = 0;
-	for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+	for (unsigned j = 0 ; j < numberBins ; ++j)
 	{
 		max_uij = 0;
 		max_i = 0;
 		for (unsigned i = 0 ; i < numberClasses ; ++i)
-			if (U[i*numberValidPixels+j] > max_uij)
+			if (U[i*numberBins+j] > max_uij)
 		{
-			max_uij = U[i*numberValidPixels+j];
+			max_uij = U[i*numberBins+j];
 			max_i = i;
 		}
 		if(max_i == i1 || max_i == i2)
@@ -439,7 +342,7 @@ void HistogramFCMClassifier::merge(unsigned i1, unsigned i2)
 	B.erase(B.begin()+i2);
 	--numberClasses;
 
-	HistogramFCMClassifier::computeU();
+	computeU();
 }
 
 
@@ -454,15 +357,15 @@ void HistogramFCMClassifier::merge(unsigned i1, unsigned i2)
 
 	Real uij_m, sum = 0;
 	B[i1] = 0;
-	for (unsigned j = 0 ; j < numberValidPixels ; ++j)
+	for (unsigned j = 0 ; j < numberBins ; ++j)
 	{
-		if(U[i1*numberValidPixels+j] < U[i2*numberValidPixels+j])
-			U[i1*numberValidPixels+j] = U[i2*numberValidPixels+j];
+		if(U[i1*numberBins+j] < U[i2*numberBins+j])
+			U[i1*numberBins+j] = U[i2*numberBins+j];
 
 		if (fuzzifier == 2)
-			uij_m = U[i1*numberValidPixels+j] * U[i1*numberValidPixels+j] * HistoX[j].c;
+			uij_m = U[i1*numberBins+j] * U[i1*numberBins+j] * HistoX[j].c;
 		else
-			uij_m = pow(U[i1*numberValidPixels+j],fuzzifier) * HistoX[j].c;
+			uij_m = pow(U[i1*numberBins+j],fuzzifier) * HistoX[j].c;
 
 		B[i1] += HistoX[j] * uij_m;
 		sum += uij_m;
@@ -477,9 +380,74 @@ void HistogramFCMClassifier::merge(unsigned i1, unsigned i2)
 
 	B.erase(B.begin()+i2);
 	--numberClasses;
-	U.erase(U.begin() + i2 * numberValidPixels, U.begin() + (i2 + 1)  * numberValidPixels);
+	U.erase(U.begin() + i2 * numberBins, U.begin() + (i2 + 1)  * numberBins);
 }
 #endif
 
+// Computes the real average of each class
+vector<RealFeature> HistogramFCMClassifier::classAverage() const
+{
+	
+	vector<RealFeature> class_average(numberClasses, 0.);
+	vector<Real> cardinal(numberClasses, 0.);
+	for (unsigned j = 0 ; j < numberBins ; ++j)
+	{
+		Real max_uij = U[j];
+		unsigned belongsTo = 0;
+		for (unsigned i = 1 ; i < numberClasses ; ++i)
+		{
+			if (U[i*numberBins+j] > max_uij)
+			{
+				max_uij = U[i*numberBins+j];
+				belongsTo = i;
+			}
+		}
+		class_average[belongsTo] += HistoX[j];
+		cardinal[belongsTo]+=HistoX[j].c;
 
+	}
+	for (unsigned i = 0 ; i < numberClasses ; ++i)
+	{
+		class_average[i]/=cardinal[i];
+	}
+	return class_average;
+}
+
+void HistogramFCMClassifier::init(const vector<RealFeature>& initB, const RealFeature& channels)
+{
+	if(!histoChannels)
+	{
+		histoChannels = channels;
+	}
+	else if(histoChannels != channels)
+	{
+		cerr<<"Error : channels in the histogram file do not correspond to channels of the classifier (check centers file or order of the images)."<<endl;
+		exit(EXIT_FAILURE);
+	}
+	FCMClassifier::init(initB, channels);
+}
+
+
+void HistogramFCMClassifier::randomInit(unsigned C)
+{
+	#if defined(DEBUG) && DEBUG >= 1
+	if(HistoX.size() == 0)
+	{
+		cerr<<"Error : The vector of FeatureVector must be initialized before doing a random init."<<endl;
+		exit(EXIT_FAILURE);
+
+	}
+	#endif
+	numberClasses = C;
+	//We initialise the centers by setting each one randomly to one of the actual pixel. This is vincent's method!
+	srand(unsigned(time(0)));
+	B.resize(numberClasses);
+	for (unsigned i = 0; i < numberClasses; ++i)
+	{
+		B[i]=HistoX[rand() % numberBins];
+
+	}
+	//We like our centers to be sorted
+	sort(B.begin(), B.end());
+}
 

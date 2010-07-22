@@ -3,7 +3,7 @@
     xsi:noNamespaceSchemaLocation="file:hek.xsd">
     <AlgorithmName>SPoCA</AlgorithmName>
     <!-- We run SPoCA every 15 minutes-->
-    <Cadence>90</Cadence>
+    <Cadence>75</Cadence>
     <CodeFilename>spoca.sav</CodeFilename>
     <Description>Run the SPoCA Algorithm for detecting AR on EIT/EUVI/AIA images</Description>
     <ImageInput>

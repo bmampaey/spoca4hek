@@ -130,6 +130,7 @@ int SunImage::readFitsImageP(fitsfile* fptr)
 
 
 	// We save all keywords for future usage
+	status = 0;
 	char record[81];
 	const char* inclist[] = {"*"};
 	const char* exclist[] = {"SIMPLE", "BITPIX", "NAXIS*", "EXTEND", "Z*", "XTENSION", "TTYPE1", "TFORM1", "PCOUNT", "GCOUNT", "TFIELDS"};

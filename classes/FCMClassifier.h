@@ -14,7 +14,7 @@
 #include "FeatureVector.h"
 #include "Classifier.h"
 
-class FCMClassifier : public virtual Classifier
+class FCMClassifier : public Classifier
 {
 	protected :
 		Real precision;
