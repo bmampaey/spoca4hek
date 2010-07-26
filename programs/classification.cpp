@@ -13,16 +13,21 @@
 #include "../classes/tools.h"
 #include "../classes/constants.h"
 #include "../classes/mainutilities.h"
-#include "../classes/ArgumentHelper.h"
 
 #include "../classes/SunImage.h"
-#include "../classes/FeatureVector.h"
+
+#include "../classes/Classifier.h"
+#include "../classes/FCMClassifier.h"
+#include "../classes/PCMClassifier.h"
+#include "../classes/PCM2Classifier.h"
+#include "../classes/SPoCAClassifier.h"
+#include "../classes/SPoCA2Classifier.h"
 #include "../classes/HistogramFCMClassifier.h"
 #include "../classes/HistogramPCM2Classifier.h"
 #include "../classes/HistogramPCMClassifier.h"
 
-
-
+#include "../classes/FeatureVector.h"
+#include "../classes/ArgumentHelper.h"
 
 
 
@@ -78,7 +83,7 @@ int main(int argc, const char **argv)
 	programDescription+="\nReal: " + string(typeid(Real).name());
 
 	ArgumentHelper arguments;
-	arguments.new_named_string('T',"classifierType", "string", "\n\tThe type of classifier to use for the classification.\n\tPossible values are : HFCM(Histogram FCM), HPCM(Histogram PCM), HPCM2(Histogram PCM2)\n\t", classifierType);
+	arguments.new_named_string('T',"classifierType", "string", "\n\tThe type of classifier to use for the classification.\n\tPossible values are : FCM, PCM, PCM2, SPOCA, SPOCA2, HFCM(Histogram FCM), HPCM(Histogram PCM), HPCM2(Histogram PCM2)\n\t", classifierType);
 	arguments.new_named_unsigned_int('i', "maxNumberIteration", "positive integer", "\n\tThe maximal number of iteration for the classification.\n\t", maxNumberIteration);
 	arguments.new_named_double('p',"precision", "positive real", "\n\tThe precision to be reached to stop the classification.\n\t",precision);
 	arguments.new_named_double('f',"fuzzifier", "positive real", "\n\tThe fuzzifier (m).\n\t",fuzzifier);
@@ -106,6 +111,7 @@ int main(int argc, const char **argv)
 	RealFeature binSize(0);
 
 	bool classifierIsPossibilistic = false;
+	bool classifierIsHistogram = false;
 
 	// We process the arguments
 
@@ -145,7 +151,31 @@ int main(int argc, const char **argv)
 	}
 
 	// We declare the type of Classifier we want
-	if (classifierType == "HFCM")
+	if (classifierType == "FCM")
+	{
+		F = new FCMClassifier(fuzzifier);
+	}
+	else if (classifierType == "PCM")
+	{
+		F = new PCMClassifier(fuzzifier);
+		classifierIsPossibilistic = true;
+	}
+	else if (classifierType == "PCM2")
+	{
+		F = new PCM2Classifier(fuzzifier);
+		classifierIsPossibilistic = true;
+	}
+	else if (classifierType == "SPoCA")
+	{
+		F = new SPoCAClassifier(neighboorhoodRadius, fuzzifier);
+		classifierIsPossibilistic = true;
+	}
+	else if (classifierType == "SPoCA2")
+	{
+		F = new SPoCA2Classifier(neighboorhoodRadius, fuzzifier);
+		classifierIsPossibilistic = true;
+	}
+	else if (classifierType == "HFCM")
 	{
 		if(fileExists(histogramFile))
 		{
@@ -160,6 +190,7 @@ int main(int argc, const char **argv)
 			cerr<<"Error : for histogram classification you must provide the bin size or an histogram file."<<endl;
 			return EXIT_FAILURE;
 		}
+		classifierIsHistogram = true;
 	}
 	else if (classifierType == "HPCM")
 	{
@@ -177,7 +208,7 @@ int main(int argc, const char **argv)
 			cerr<<"Error : for histogram classification you must provide the bin size or an histogram file."<<endl;
 			return EXIT_FAILURE;
 		}
-
+		classifierIsHistogram = true;
 		classifierIsPossibilistic = true;
 	}
 	else if (classifierType == "HPCM2")
@@ -196,6 +227,7 @@ int main(int argc, const char **argv)
 			cerr<<"Error : for histogram classification you must provide the bin size or an histogram file."<<endl;
 			return EXIT_FAILURE;
 		}
+		classifierIsHistogram = true;
 		classifierIsPossibilistic = true;
 	}
 	else 
@@ -204,6 +236,7 @@ int main(int argc, const char **argv)
 		return EXIT_FAILURE;
 	}
 	
+		
 	// We read and preprocess the sun images
 	vector<SunImage*> images = getImagesFromFiles(imageType, sunImagesFileNames, true);
 	for (unsigned p = 0; p < images.size(); ++p)
@@ -218,12 +251,13 @@ int main(int argc, const char **argv)
 	// We add the images to the classifier
 	F->addImages(images);
 		
-	// We delete the images to gain memory space
+	// We delete all images but the first one to gain memory space
 	for (unsigned p = 1; p < images.size(); ++p)
 	{
 		delete images[p];
 	}
 	images.resize(1);
+		
 		
 	// If we don't have centers we initialise randomly
 	if(B.size() == 0)
@@ -238,6 +272,10 @@ int main(int argc, const char **argv)
 	if(classifierIsPossibilistic)
 	{
 		dynamic_cast<PCMClassifier*>(F)->FCMinit(precision, maxNumberIteration);
+		#if defined(DEBUG) && DEBUG >= 2
+		// We save the centers we found
+		F->saveB(outputFileName + "FCM.centers.txt");
+		#endif
 	}	
 	
 	#if defined(DEBUG) && DEBUG >= 3
@@ -247,6 +285,10 @@ int main(int argc, const char **argv)
 	// We have all the information we need, we can do the classification
 	F->classification(precision, maxNumberIteration);
 
+	#if defined(DEBUG) && DEBUG >= 2
+	// We save the results
+	F->saveAllResults(images[0]);
+	#endif
 	
 	// We save the map of AR
 	F->saveARmap(images[0]);
@@ -258,7 +300,7 @@ int main(int argc, const char **argv)
 	}
 
 	//We save the histogram for the next run
-	if(!histogramFile.empty())
+	if(classifierIsHistogram && !histogramFile.empty())
 	{
 		dynamic_cast<HistogramClassifier*>(F)->saveHistogram(histogramFile);
 	}
@@ -267,8 +309,7 @@ int main(int argc, const char **argv)
 	F->saveARmap(images[0]);
 	
 	delete F;
+	delete images[0];
 
 	return EXIT_SUCCESS;
 }
-
-

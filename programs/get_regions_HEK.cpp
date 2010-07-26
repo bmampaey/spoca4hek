@@ -25,10 +25,7 @@ string outputFileName;
 
 int main(int argc, const char **argv)
 {
-	#if defined(DEBUG) && DEBUG >= 1
-	feenableexcept(FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW);
 	cout<<setiosflags(ios::fixed);
-	#endif
 	
 	// The list of names of the sun images to process
 	string imageType = "AIA";
@@ -70,53 +67,42 @@ int main(int argc, const char **argv)
 		return EXIT_FAILURE;
 	}
 	
-	//We read and preprocess the sun images
-	vector<SunImage*> images = getImagesFromFiles(imageType, sunImagesFileNames, false);
-	for (unsigned p = 0; p < images.size(); ++p)
-	{
-		images[p]->preprocessing(preprocessingSteps, radiusRatio);
-		#if defined(DEBUG) && DEBUG >= 2
-		images[p]->writeFitsImage(outputFileName + "preprocessed."+sunImagesFileNames[p].substr(sunImagesFileNames[p].rfind('/')!=string::npos?sunImagesFileNames[p].rfind('/')+1:0));
-		#endif
-	}
-
-	
 	SunImage* colorizedComponentsMap = getImageFromFile(imageType, colorizedComponentsMapFileName);
-	
-	
-	#if defined(DEBUG) && DEBUG >= 1
-
-		
+	colorizedComponentsMap->nullifyAboveRadius(1);		
 	Coordinate sunCenter = colorizedComponentsMap->SunCenter();
 	double sunRadius = colorizedComponentsMap->SunRadius();
+	
 
 	for (unsigned p = 0; p < sunImagesFileNames.size(); ++p)
 	{
-		if( sunCenter.d2(images[p]->SunCenter()) > 2 )
+	
+		//We read and preprocess the sun image
+		SunImage* image = getImageFromFile(imageType, sunImagesFileNames[p]);
+		image->preprocessing(preprocessingSteps, radiusRatio);
+		#if defined(DEBUG) && DEBUG >= 2
+		image->writeFitsImage(outputFileName + "preprocessed."+sunImagesFileNames[p].substr(sunImagesFileNames[p].rfind('/')!=string::npos?sunImagesFileNames[p].rfind('/')+1:0));
+		#endif
+
+		if( sunCenter.d2(image->SunCenter()) > 2 )
 		{
 			cerr<<"Warning : Image "<<sunImagesFileNames[p]<<" will be recentered to have the same sun centre than image "<<colorizedComponentsMapFileName<<endl;
-			images[p]->recenter(sunCenter);
+			image->recenter(sunCenter);
 		}
-		if( abs(1. - (images[p]->SunRadius() / sunRadius)) > 0.01 )
+		if( abs(1. - (image->SunRadius() / sunRadius)) > 0.01 )
 		{
 			cerr<<"Error : Image "<<sunImagesFileNames[p]<<" does not have the same sun radius than image "<<colorizedComponentsMapFileName<<endl;
 			exit(EXIT_FAILURE);
 		}
-	}
-	#endif
-
-	colorizedComponentsMap->nullifyAboveRadius(1);
-
-	for (unsigned p = 0; p < sunImagesFileNames.size(); ++p)
-	{
-		vector<RegionStats*> regions = getRegions(colorizedComponentsMap, images[p]);
+		
+		// We get the regions stats and output them
+		vector<RegionStats*> regions = getRegions(colorizedComponentsMap, image);
 		for (unsigned r = 0; r < regions.size(); ++r)
 		{
-			cout<<*(regions[r])<<endl;
+			cout<<regions[r]->HekLabel()<<"\t"<<regions[r]->toString()<<endl;
 			delete regions[r];
 		}
-		delete images[p];
+		delete image;
 	}
-
+	delete colorizedComponentsMap;
 	return EXIT_SUCCESS;
 }

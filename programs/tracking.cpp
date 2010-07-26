@@ -1,3 +1,6 @@
+// This programm will do tracking of regions from color maps
+// Written by Benjamin Mampaey on 15 July 2010
+
 #include <vector>
 #include <iostream>
 #include <fstream>
@@ -15,15 +18,16 @@
 
 #include "../classes/SunImage.h"
 #include "../classes/Region.h"
-
 #include "../classes/trackable.h"
 #include "../cgt/graph.h"
+
 
 using namespace std;
 using namespace dsr;
 using namespace cgt;
 
 string outputFileName;
+
 
 int main(int argc, const char **argv)
 {
@@ -41,7 +45,7 @@ int main(int argc, const char **argv)
 	string imageType = "AIA";
 	vector<string> sunImagesFileNames;
 
-	string programDescription = "This Programm will track active regions.\n";
+	string programDescription = "This Programm will track regions from color maps.\n";
 	programDescription+="Compiled with options :";
 	programDescription+="\nDEBUG: "+ itos(DEBUG);
 	programDescription+="\nPixelType: " + string(typeid(PixelType).name());
@@ -70,7 +74,8 @@ int main(int argc, const char **argv)
 	{
 		images[p]->preprocessing("NAR", 1);
 	}
-	
+
+
 	// We get the regions out of the images
 	vector<vector<Region*> > regions;
 	for (unsigned s = 0; s < images.size(); ++s)
@@ -87,7 +92,6 @@ int main(int argc, const char **argv)
 			newColor = regions[0][r]->Color();
 	}
 	
-
 	#if defined(DEBUG) && DEBUG >= 2
 	// We output the regions found
 	ouputRegions(regions, "regions_premodification.txt");
@@ -110,6 +114,7 @@ int main(int argc, const char **argv)
 	// if they overlay and
 	// if there is not already a path between them
 
+	
 	for (unsigned d = 1; d < images.size(); ++d)
 	{	
 		for (unsigned s1 = 0; d + s1 < images.size(); ++s1)
@@ -160,7 +165,7 @@ int main(int argc, const char **argv)
 	ouputRegions(regions, "regions_postmodification.txt");
 	#endif
 
-
+	
 	#if defined(DEBUG) && DEBUG >= 2
 	// We color the first images and output them
 	for (unsigned s = 0; s + overlap < images.size(); ++s)
@@ -170,9 +175,8 @@ int main(int argc, const char **argv)
 			if(images[s]->pixel(regions[s][r]->FirstPixel()) != regions[s][r]->Color())
 				images[s]->propagateColor(regions[s][r]->Color(), regions[s][r]->FirstPixel());
 		}
-		images[s]->writeFitsImage(sunImagesFileNames[s]);
+		images[s]->writeFitsImage(outputFileName + sunImagesFileNames[s]);
 		delete images[s];
-
 	}
 	#endif
 	//We color the last images and output them
@@ -183,11 +187,15 @@ int main(int argc, const char **argv)
 			if(images[s]->pixel(regions[s][r]->FirstPixel()) != regions[s][r]->Color())
 				images[s]->propagateColor(regions[s][r]->Color(), regions[s][r]->FirstPixel());
 		}
-		images[s]->writeFitsImage(sunImagesFileNames[s]);
+		images[s]->writeFitsImage(outputFileName + sunImagesFileNames[s]);
 		delete images[s];
 
 	}
 
+	#ifndef HEK
+	cout<<"Last color assigned: "<<newColor<<endl;	
+	#else
+	
 	//We output the number of Active Events and the last color assigned
 	cout<<regions[images.size() - 1].size()<<" "<<newColor<<endl;
 
@@ -216,6 +224,12 @@ int main(int argc, const char **argv)
 		}
 	}
 	
+	#if defined(DEBUG) && DEBUG >= 2
+	// We output the graph after recolorization
+	ouputGraph(tracking_graph, regions, "ar_graph_recolorization");
+	#endif
+	
+	
 	// Now we create for each region of map[last] the list of parents that have a color existing in map[previous_last]
 
 	for (unsigned r = 0; r < regions[last].size(); ++r)
@@ -237,7 +251,7 @@ int main(int argc, const char **argv)
 					
 
 		}
-		// Now that I know the list of my ancestors_color I can output the relations
+		// Now that I know the list of my ancestors_color, I can output the relations
 		if(ancestors_color.size() == 0)
 		{
 			// I have no ancestors, so I am a new color 
@@ -265,7 +279,8 @@ int main(int argc, const char **argv)
 		}
 				
 	}
-
-	 
+	
+	#endif
+	
 	return EXIT_SUCCESS;
 }

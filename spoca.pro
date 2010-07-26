@@ -180,7 +180,7 @@ IF N_ELEMENTS(cCodeLocation) EQ 0 THEN cCodeLocation = 'bin/'
 
 ; SPoCA parameters
 
-spoca_bin = cCodeLocation + 'SPoCA_HEK.x'
+spoca_bin = cCodeLocation + 'classification.x'
 
 IF ~ FILE_TEST( spoca_bin, /EXECUTABLE)  THEN BEGIN
 	error = [ error, 'Cannot find executable ' + spoca_bin ]
@@ -199,7 +199,7 @@ spoca_args_histogram = outputDirectory + 'histogram.txt'
 
 ; Tracking parameters
 
-tracking_bin = cCodeLocation + 'Tracking_HEK.x'
+tracking_bin = cCodeLocation + 'tracking.x'
 
 IF ~ FILE_TEST( tracking_bin, /EXECUTABLE)  THEN BEGIN
 	error = [ error, 'Cannot find executable ' + tracking_bin ]
@@ -214,7 +214,7 @@ IF N_ELEMENTS(trackingOverlap) EQ 0 THEN trackingOverlap = 3
 
 ; GetRegionStats parameters
 
-getregionstats_bin = cCodeLocation + 'GetRegionStats_HEK.x'
+getregionstats_bin = cCodeLocation + 'get_regions_HEK.x'
 IF ~ FILE_TEST( getregionstats_bin, /EXECUTABLE)  THEN BEGIN
 	error = [ error, 'Cannot find executable ' + getregionstats_bin ]
 	IF (debug GT 0) THEN BEGIN
@@ -558,19 +558,20 @@ wcs = fitshead2wcs(headfits(image171, EXTEN=compressed))
 
 FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN 
 
-	; The output of GetRegionStats is (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) id numberpixels label observationdate color minintensity maxintensity mean variance skewness kurtosis totalintensity (centererror.x, centererror.y) area_raw area_rawuncert area_atdiskcenter area_atdiskcenteruncert
+	; The output of GetRegionStats is: label id color observationdate (center.x, center.y) (boxLL.x, boxLL.y) (boxUR.x, boxUR.y) numberpixels minintensity maxintensity mean variance skewness kurtosis totalintensity (centererror.x, centererror.y) area_raw area_rawuncert area_atdiskcenter area_atdiskcenteruncert
 	output = strsplit( getregionstats_output[k] , ' 	(),', /EXTRACT) 
 	; We parse the output
-	cartesian_x = FLOAT(output[0:4:2])
-	cartesian_y = FLOAT(output[1:5:2])
+	label = output[0]
+	id = output[1]
+	color = LONG(output[2])
+	observationdate = output[3]
+	cartesian_x = FLOAT(output[4:8:2])
+	cartesian_y = FLOAT(output[5:9:2])
 	cartesian = FLTARR(2,N_ELEMENTS(cartesian_x))
 	cartesian[0,*]=cartesian_x
 	cartesian[1,*]=cartesian_y
-	id = output[6]
 	numberpixels = LONG(output[7])
-	label = output[8]
-	observationdate = output[9]
-	color = LONG(output[10])
+
 	minintensity = FLOAT(output[11])
 	maxintensity = FLOAT(output[12])
 	mean = FLOAT(output[13])

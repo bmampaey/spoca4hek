@@ -133,8 +133,8 @@ void ouputGraph(const RegionGraph& g, const vector<vector<Region*> >& regions, c
 			string rank;
 			for (unsigned r = 0; r < regions[s].size(); ++r)
 			{
-				rank += " \"" + regions[s][r]->Label() + "\"";
-				graphFile <<"\""<< regions[s][r]->Label()<<"\"";
+				rank += " \"" + regions[s][r]->HekLabel() + "\"";
+				graphFile <<"\""<< regions[s][r]->HekLabel()<<"\"";
 				if(regions[s][r]->Color() != 0)
 					graphFile<<dot_gradient[ (int(regions[s][r]->Color()) % gradientMax) + 1 ] << endl;
 				else
@@ -152,7 +152,7 @@ void ouputGraph(const RegionGraph& g, const vector<vector<Region*> >& regions, c
 			const RegionGraph::adjlist::const_iterator itadjEnd = adjList.end();
 			for (RegionGraph::adjlist::const_iterator itadj = adjList.begin(); itadj != itadjEnd; ++itadj)
 			{
-				graphFile <<"\""<< itn->value()->Label()<<"\" -> \"" << itadj->node().value()->Label()<< "\" [label="<<itadj->edge().value()<<"];" << endl;
+				graphFile <<"\""<< itn->value()->HekLabel()<<"\" -> \"" << itadj->node().value()->HekLabel()<< "\" [label="<<itadj->edge().value()<<"];" << endl;
 			}
 
 		}
@@ -174,7 +174,7 @@ void ouputRegions(const vector<vector<Region*> >& regions, string filename)
 		{
 			for (unsigned r = 0; r < regions[s].size(); ++r)
 			{
-				regionFile<<*(regions[s][r])<<endl;
+				regionFile<<regions[s][r]->toString()<<endl;
 			}
 			regionFile<<endl;
 		}
