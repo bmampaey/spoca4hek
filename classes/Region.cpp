@@ -144,7 +144,7 @@ string Region::toString(const CoordinateConvertor& coco) const
 	coco.convert(Boxmax(), fx, fy);
 	out<<"\t"<<"("<<fx<<","<<fy<<")";
 	
-	out<<"\t"<<NumberPixels()
+	out<<"\t"<<NumberPixels();
 	return out.str();
 }
 #endif

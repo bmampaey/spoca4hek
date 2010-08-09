@@ -7,7 +7,6 @@
 #include <fstream>
 #include <cstdlib>
 #include <string>
-#include <fenv.h>
 #include <iomanip>
 
 #include "../classes/tools.h"
@@ -40,10 +39,7 @@ string outputFileName;
 
 int main(int argc, const char **argv)
 {
-	#if defined(DEBUG) && DEBUG >= 1
-	feenableexcept(FE_INVALID|FE_DIVBYZERO|FE_OVERFLOW);
 	cout<<setiosflags(ios::fixed);
-	#endif
 
 	// The list of names of the sun images to process
 	string imageType = "AIA";
@@ -262,11 +258,11 @@ int main(int argc, const char **argv)
 	// If we don't have centers we initialise randomly
 	if(B.size() == 0)
 	{
-		F->randomInit(numberClasses);
+		F->randomInitB(numberClasses);
 	}
 	else // We initialize the Classifier with the centers from the centers file
 	{
-		F->init(B, wavelengths);
+		F->initB(B, wavelengths);
 	}
 
 	if(classifierIsPossibilistic)
@@ -304,9 +300,10 @@ int main(int argc, const char **argv)
 	{
 		dynamic_cast<HistogramClassifier*>(F)->saveHistogram(histogramFile);
 	}
-
-	//We save the AR map for tracking
-	F->saveARmap(images[0]);
+	if(classifierIsPossibilistic)
+	{
+		dynamic_cast<PCMClassifier*>(F)->saveEta(outputFileName + "eta.txt");
+	}
 	
 	delete F;
 	delete images[0];
