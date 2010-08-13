@@ -211,3 +211,30 @@ void ordonate(vector<SunImage*>& images)
 	}
 	#endif
 }
+
+void recolorFromRegions(SunImage* image, const vector<Region*>& regions)
+{
+	vector<unsigned> colorTransfo(regions.size() + 1);
+	for (unsigned r = 0; r < regions.size(); ++r)
+	{
+		unsigned pixelcolor = unsigned(image->pixel(regions[r]->FirstPixel()));
+		if(pixelcolor >= colorTransfo.size())
+			colorTransfo.resize(pixelcolor + 100);
+		colorTransfo[pixelcolor] = regions[r]->Color();
+
+	}
+	for (unsigned j = 0; j < image->NumberPixels(); ++j)
+	{
+		if(image->pixel(j) != image->nullvalue)
+		{
+			#if defined(DEBUG) && DEBUG >= 1
+				if(unsigned(image->pixel(j)) > colorTransfo.size())
+				{
+					cerr<<"ERROR trying to colorize image, pixel has no corresponding region"<<endl;
+					exit (EXIT_FAILURE); 
+				}
+			#endif
+			image->pixel(j) = colorTransfo[unsigned(image->pixel(j))];
+		}
+	}
+}

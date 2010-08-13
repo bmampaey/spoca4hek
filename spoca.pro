@@ -20,6 +20,7 @@
 ;	outputDirectory: in, required, type string, folder where spoca can store temporary files (The modules manage the cleanup of old files) 
 ;	writeEventsFrequency: in, required, type integer, number of seconds between events write to the HEK
 ;	cCodeLocation: in, optional, type string, directory of the c executables
+;	instrument: in, optional, type string, instrument that took the images (AIA,EIT,EUVI)
 ;	spocaArgsPreprocessing: in, optional, type string, type of image preprocessing for spoca
 ;	spocaArgsNumberclasses: in, optional, type string, number of classes for spoca
 ;	spocaArgsPrecision: in, optional, type string, precision for spoca
@@ -27,6 +28,8 @@
 ;	trackingArgsDeltat: in, optional, type string, maximal time difference between 2 images for tracking
 ;	trackingNumberImages: in, optional, type integer, minimum number of images for the tracking
 ;	trackingOverlap: in, optional, type integer, proportion of the number of images to overlap between tracking succesive run
+;	getregionArgsPreprocessing:in, optional, type string, type of image preprocessing for getregions
+;	getregionArgsRadiusRatio:in, optional, type string, radius ratio for getregions
 ; -
  
 ; TODO :
@@ -48,18 +51,25 @@ PRO SPoCA, image171=image171, image195=image195, $
 	outputDirectory = outputDirectory, $
 	writeEventsFrequency = writeEventsFrequency, $
 	cCodeLocation = cCodeLocation, $
+	instrument = instrument, $
 	spocaArgsPreprocessing = spocaArgsPreprocessing, $
 	spocaArgsNumberclasses = spocaArgsNumberclasses, $
 	spocaArgsPrecision = spocaArgsPrecision, $
 	spocaArgsBinsize = spocaArgsBinsize, $
 	trackingArgsDeltat = trackingArgsDeltat, $
 	trackingNumberImages = trackingNumberImages, $
-	trackingOverlap = trackingOverlap
+	trackingOverlap = trackingOverlap, $
+	getregionArgsPreprocessing = getregionArgsPreprocessing, $
+	getregionArgsRadiusRatio = getregionArgsRadiusRatio
 
 	
 	
 ; set debugging
 debug = 1
+
+; folder to use to save images corresponding to events for debugging
+
+save_folder = 'save/'
 
 ; when fits files are compressed we read the HDU 1, otherwise the 0
 compressed = 1
@@ -85,7 +95,9 @@ ENDIF
 
 SWITCH runMode OF 
 	'Construct':	BEGIN
-				
+				IF (debug GT 0) THEN BEGIN
+					PRINT, "runMode Construct called"
+				ENDIF
 				spoca_lastrun_number = 0
 				; We will set the start of the first event later
 				last_event_written_date = 'First Run'
@@ -96,17 +108,19 @@ SWITCH runMode OF
 				
 				; For safety we cleanup the outputDirectory first
 				AllFiles = FILE_SEARCH(outputDirectory, '*', /TEST_READ, /TEST_REGULAR , /TEST_WRITE  )
-				IF (debug GT 0) THEN BEGIN
-					PRINT, "Construct called"
-					PRINT , "Deleting all files from outputDirectory : ", endl + AllFiles
+				IF N_ELEMENTS(AllFiles) GT 0 AND STRLEN(AllFiles[0]) GT 0 THEN BEGIN
+					IF (debug GT 0) THEN BEGIN
+						PRINT , "Deleting all files from outputDirectory : ", endl + AllFiles
+					ENDIF
+					FILE_DELETE, AllFiles , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug 
 				ENDIF
-		
-				FILE_DELETE, AllFiles , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug 
-				
 				BREAK
 
    			END
 	'Recovery':	BEGIN
+				IF (debug GT 0) THEN BEGIN
+					PRINT, "runMode Recovery called"
+				ENDIF
 				IF FILE_TEST( inputStatusFilename , /REGULAR ) THEN BEGIN 
 
 					RESTORE ,inputStatusFilename , VERBOSE = debug 
@@ -120,6 +134,7 @@ SWITCH runMode OF
 				; I don't break because now I am in normal mode
    			END 
    	'Normal':	BEGIN ; We read the status
+
 				spoca_lastrun_number = status.spoca_lastrun_number
 				last_event_written_date = status.last_event_written_date
 				numActiveEvents = status.numActiveEvents
@@ -130,16 +145,24 @@ SWITCH runMode OF
 
 	'Clear Events':	BEGIN
 				; TODO close out events (altought I don't think we have that)
-				AllFiles = FILE_SEARCH(outputDirectory, '*', /TEST_READ, /TEST_REGULAR , /TEST_WRITE  )
 				IF (debug GT 0) THEN BEGIN
-					PRINT, "Clear Events called"
-					PRINT , "Deleting all files from outputDirectory : ", endl + AllFiles
+					PRINT, "runMode Clear Events called"
 				ENDIF
-		
-				FILE_DELETE, AllFiles , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug 
+
+				AllFiles = FILE_SEARCH(outputDirectory, '*', /TEST_READ, /TEST_REGULAR , /TEST_WRITE  )
+				IF N_ELEMENTS(AllFiles) GT 0 AND STRLEN(AllFiles[0]) GT 0 THEN BEGIN
+					IF (debug GT 0) THEN BEGIN
+						PRINT , "Deleting all files from outputDirectory : ", endl + AllFiles
+					ENDIF
+					FILE_DELETE, AllFiles , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug 
+				ENDIF
 			END
 			
 	ELSE:		BEGIN
+				IF (debug GT 0) THEN BEGIN
+					PRINT, "runMode unknown called"
+				ENDIF
+
 				error = [ error, "I just don't know what to do with myself. runMode is " + runMode ]
 				RETURN
 			END   	
@@ -177,6 +200,8 @@ ENDIF
 IF N_ELEMENTS(outputDirectory) EQ 0 THEN outputDirectory = 'results/'
 IF N_ELEMENTS(writeEventsFrequency) EQ 0 THEN writeEventsFrequency = 4 * 3600
 IF N_ELEMENTS(cCodeLocation) EQ 0 THEN cCodeLocation = 'bin/'
+IF N_ELEMENTS(instrument) EQ 0 THEN instrument = 'AIA'
+
 
 ; SPoCA parameters
 
@@ -222,7 +247,9 @@ IF ~ FILE_TEST( getregionstats_bin, /EXECUTABLE)  THEN BEGIN
 	ENDIF
 	RETURN
 ENDIF
-getregionstatsArgsPreprocessing = '0' ; We dont do any preprocessing, but we don't output region stats for AR lying beyond 95% of the solar radius (bacause of the limb)
+IF N_ELEMENTS(getregionArgsPreprocessing) EQ 0 THEN getregionArgsPreprocessing = 'NAR'
+IF N_ELEMENTS(getregionArgsRadiusRatio) EQ 0 THEN getregionArgsRadiusRatio = '0.95'
+
 
 ; We verify the quality of the images
 header171 = fitshead2struct(headfits(image171, EXTEN=compressed))
@@ -294,6 +321,7 @@ spoca_args = [	'-P', spocaArgsPreprocessing, $
 			'-H', spoca_args_histogram, $
 			'-B', spoca_args_centersfile, $
 			'-O', outputDirectory + STRING(spoca_lastrun_number, FORMAT='(I010)'), $
+			'-I', instrument, $
 			image171, image195 ]
 
 IF (debug GT 0) THEN BEGIN
@@ -404,8 +432,14 @@ ENDIF
 tracking_args =	[	'-n', STRING(last_color_assigned, FORMAT = '(I)'), $
 					'-d', trackingArgsDeltat, $
 					'-D', STRING(trackingOverlap, FORMAT = '(I)'), $
+					'-I', instrument, $
 					ARmaps ]
+
+IF (debug GT 0) THEN BEGIN 
+	tracking_args = [tracking_args, '-A']	; This tells that all maps must be recolored
+ENDIF
 	
+
 IF (debug GT 0) THEN BEGIN
 	PRINT, 'About to run : ', STRJOIN( [tracking_bin , tracking_args] , ' ', /SINGLE )
 	time_before_run = SYSTIME(/SECONDS) 
@@ -492,8 +526,10 @@ IF numActiveEvents EQ 0 THEN BEGIN
 ENDIF
 
 
-getregionstats_args = [	'-P', getregionstatsArgsPreprocessing, $
+getregionstats_args = [	'-P', getregionArgsPreprocessing, $
+					'-r', getregionArgsRadiusRatio, $
 					'-M', ARmaps[N_ELEMENTS(ARmaps) - 1], $
+					'-I', instrument, $
 					image171 ]
 
 IF (debug GT 0) THEN BEGIN
@@ -740,7 +776,12 @@ ENDIF
 ; We cleanup old files
 
 IF (N_ELEMENTS(ARmaps) GT trackingNumberImages) THEN BEGIN
-
+	
+	; we save the AR map corresponding to the events we write
+	IF (debug GT 0 AND STRLEN(save_folder) NE 0) THEN BEGIN
+		FILE_COPY,  ARmaps[ N_ELEMENTS(ARmaps) - 1], save_folder, /NOEXPAND_PATH, /OVERWRITE, /REQUIRE_DIRECTORY, /VERBOSE 
+	ENDIF
+		
 	number_of_files_to_delete = N_ELEMENTS(ARmaps) - trackingOverlap
 	IF (number_of_files_to_delete GT 0) THEN BEGIN
 

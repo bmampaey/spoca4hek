@@ -110,6 +110,9 @@
 #define SINE_CORR_R3 105
 #define SINE_CORR_R4 115
 
+// Path of solarsoft for CoordinateConvertor
+
+#define SSW_PATH "/usr/local/ssw/gen/"
 
 /*---------------- Do NOT modify below please ------------------*/
 

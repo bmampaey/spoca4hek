@@ -907,7 +907,7 @@ SunImage* SunImage::blobsIntoAR ()
 #endif
 
 
-
+/*
 
 //calculates the differential solar rotation speed for a given pixel
 // Formula coming from Wikipedia, should be verified
@@ -971,7 +971,7 @@ SunImage* SunImage::rotate(const unsigned t)
 		}
 	}
 	PhiRotated.writeFitsImage("PhiRotated.fits");
-	/*
+
 
 	img->zero();
 	Real newx;
@@ -983,10 +983,10 @@ SunImage* SunImage::rotate(const unsigned t)
 			img->pixel(x,y) = pixel(newx,y);
 			img->pixel(x,-y) = pixel(newx,-y);
 	}
-	}*/
+	}
 
 	return img;
 
 }
 
-
+*/

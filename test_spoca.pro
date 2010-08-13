@@ -9,6 +9,7 @@ write_file = 1
 outputDirectory = "results/"
 writeEventsFrequency = 900 ; For my test I write every 15 minutes
 cCodeLocation = "bin/"
+instrument = 'AIA'
 spocaArgsPreprocessing = 'ALC,DivMedian,DivExpTime'
 spocaArgsNumberclasses ='4'
 spocaArgsPrecision = '0.000000001'
@@ -16,6 +17,8 @@ spocaArgsBinsize = '0.01,0.01'
 trackingArgsDeltat = '3600'; == 1h
 trackingNumberImages = 9
 trackingOverlap = 3
+getregionArgsPreprocessing = 'NAR'
+getregionArgsRadiusRatio = '0.95'
 
 
 
@@ -32,13 +35,16 @@ spoca, image171 = files171[0], image195 = files195[0], $
 	outputDirectory = outputDirectory, $
 	writeEventsFrequency = writeEventsFrequency, $
 	cCodeLocation = cCodeLocation, $
+	instrument = instrument, $
 	spocaArgsPreprocessing = spocaArgsPreprocessing, $
 	spocaArgsNumberclasses = spocaArgsNumberclasses, $
 	spocaArgsPrecision = spocaArgsPrecision, $
 	spocaArgsBinsize = spocaArgsBinsize, $
 	trackingArgsDeltat = trackingArgsDeltat, $
 	trackingNumberImages = trackingNumberImages, $
-	trackingOverlap = trackingOverlap
+	trackingOverlap = trackingOverlap, $
+	getregionArgsPreprocessing = getregionArgsPreprocessing, $
+	getregionArgsRadiusRatio = getregionArgsRadiusRatio
 
 FOR i=1, MIN([(N_ELEMENTS(files171) - 1), (N_ELEMENTS(files195) - 1)]) DO BEGIN
 
@@ -55,13 +61,17 @@ spoca, image171 = files171[i], image195 = files195[i], $
 	outputDirectory = outputDirectory, $
 	writeEventsFrequency = writeEventsFrequency, $
 	cCodeLocation = cCodeLocation, $
+	instrument = instrument, $
 	spocaArgsPreprocessing = spocaArgsPreprocessing, $
 	spocaArgsNumberclasses = spocaArgsNumberclasses, $
 	spocaArgsPrecision = spocaArgsPrecision, $
 	spocaArgsBinsize = spocaArgsBinsize, $
 	trackingArgsDeltat = trackingArgsDeltat, $
 	trackingNumberImages = trackingNumberImages, $
-	trackingOverlap = trackingOverlap
+	trackingOverlap = trackingOverlap, $
+	getregionArgsPreprocessing = getregionArgsPreprocessing, $
+	getregionArgsRadiusRatio = getregionArgsRadiusRatio
+
 
 ENDFOR
 
@@ -78,12 +88,16 @@ spoca, image171 = '', image195 = '', $
 	outputDirectory = outputDirectory, $
 	writeEventsFrequency = writeEventsFrequency, $
 	cCodeLocation = cCodeLocation, $
+	instrument = instrument, $
 	spocaArgsPreprocessing = spocaArgsPreprocessing, $
 	spocaArgsNumberclasses = spocaArgsNumberclasses, $
 	spocaArgsPrecision = spocaArgsPrecision, $
 	spocaArgsBinsize = spocaArgsBinsize, $
 	trackingArgsDeltat = trackingArgsDeltat, $
 	trackingNumberImages = trackingNumberImages, $
-	trackingOverlap = trackingOverlap
+	trackingOverlap = trackingOverlap, $
+	getregionArgsPreprocessing = getregionArgsPreprocessing, $
+	getregionArgsRadiusRatio = getregionArgsRadiusRatio
+
 
 end

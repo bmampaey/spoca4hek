@@ -65,6 +65,24 @@
 	 <Value>/home/rtimmons/spoca/spoca_hek/bin/</Value>
 	 <ExcludeFromCoverageID>true</ExcludeFromCoverageID>
     </Parameter>
+    <Parameter>
+         <ParameterName>instrument</ParameterName>
+	 <Type>string</Type>
+	 <Value>AIA</Value>
+	 <ExcludeFromCoverageID>true</ExcludeFromCoverageID>
+    </Parameter>
+    <Parameter>
+         <ParameterName>getregionArgsPreprocessing</ParameterName>
+	 <Type>string</Type>
+	 <Value>NAR</Value>
+	 <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+    </Parameter>
+    <Parameter>
+         <ParameterName>getregionArgsRadiusRatio</ParameterName>
+	 <Type>string</Type>
+	 <Value>0.95</Value>
+	 <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+    </Parameter>
     <DataSpecificationFile>
         <Filename>EUVI_for_SPOCA.txt</Filename>
         <LiveData>false</LiveData>
