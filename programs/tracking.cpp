@@ -90,7 +90,7 @@ int main(int argc, const char **argv)
 			newColor = regions[0][r]->Color();
 	}
 	
-	#if defined(DEBUG) && DEBUG >= 2
+	#if DEBUG >= 2
 	// We output the regions found
 	ouputRegions(regions, "regions_premodification.txt");
 	#endif
@@ -150,7 +150,7 @@ int main(int argc, const char **argv)
 			}
 	}
 
-	#if defined(DEBUG) && DEBUG >= 2
+	#if DEBUG >= 2
 	// We output the graph before tranformation
 	ouputGraph(tracking_graph, regions, "ar_graph_premodification");
 	#endif
@@ -162,7 +162,7 @@ int main(int argc, const char **argv)
 		colorize(*itn);
 	}
 
-	#if defined(DEBUG) && DEBUG >= 2
+	#if DEBUG >= 2
 	// We output the graph after tranformation
 	ouputGraph(tracking_graph, regions, "ar_graph_postmodification");
 	// We output the regions found
@@ -220,7 +220,7 @@ int main(int argc, const char **argv)
 		}
 	}
 	
-	#if defined(DEBUG) && DEBUG >= 2
+	#if DEBUG >= 2
 	// We output the graph after recolorization
 	// Ideally I should remove first all regions before previous_overlap from the graph 
 	ouputGraph(tracking_graph, regions, "ar_graph_recolorization");

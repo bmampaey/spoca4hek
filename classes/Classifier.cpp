@@ -9,7 +9,7 @@ Classifier::Classifier()
 void Classifier::checkImages(const vector<SunImage*>& images)
 {
 
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	if(images.size()!=NUMBERWAVELENGTH)
 	{
 		cerr<<"Error : The number of images to initialize the Classifier must be equal to "<<NUMBERWAVELENGTH<<endl;
@@ -93,13 +93,13 @@ unsigned Classifier::sursegmentation(unsigned Cmin)
 	Real oldScore = numeric_limits<Real>::max();
 	vector<RealFeature> oldB; 
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"--Classifier::sursegmentation--START--"<<endl;
 	cout<<"B :\t"<<B<<endl;
 	cout<<"V :\t"<<V<<"\tscore :"<<newScore<<endl;
 	#endif
 	
-	#if defined(DEBUG) && DEBUG >= 2
+	#if DEBUG >= 2
 	string filename;
 	Image<unsigned> * segmentedMap;
 	#endif
@@ -140,13 +140,13 @@ unsigned Classifier::sursegmentation(unsigned Cmin)
 		oldScore = newScore;
 		newScore = assess(V);
 
-		#if defined(DEBUG) && DEBUG >= 2
+		#if DEBUG >= 2
 		filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits" ;
 		segmentedMap = segmentedMap_maxUij();
 		segmentedMap->writeFitsImage(filename);
 		delete segmentedMap;
 		#endif
-		#if defined(DEBUG) && DEBUG >= 3
+		#if DEBUG >= 3
 		cout<<"new B :"<<B<<endl;
 		cout<<"V :"<<V<<"\tscore :"<<newScore<<endl;
 		#endif
@@ -164,7 +164,7 @@ unsigned Classifier::sursegmentation(unsigned Cmin)
 
 	}
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"--Classifier::sursegmentation--END--"<<endl;
 	#endif
 
@@ -190,7 +190,7 @@ unsigned Classifier::sursegmentation(vector<RealFeature>& B, unsigned Cmin)
 void Classifier::merge(unsigned i1, unsigned i2)
 {
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"Merging centers :"<<B[i1]<<"\t"<<B[i2];
 	#endif
 
@@ -220,7 +220,7 @@ void Classifier::merge(unsigned i1, unsigned i2)
 
 	B[i1] = newB / sum;
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<" into new center :"<<B[i1]<<endl;
 	#endif
 
@@ -237,7 +237,7 @@ void Classifier::merge(unsigned i1, unsigned i2)
 //Merging according to Vincent's method
 void Classifier::merge(unsigned i1, unsigned i2)
 {
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"Merging centers :"<<B[i1]<<"\t"<<B[i2];
 	#endif
 
@@ -265,7 +265,7 @@ void Classifier::merge(unsigned i1, unsigned i2)
 	newB[1] /= caardinal[1];
 	B[i1] = newB[0] + newB[1];
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<" into new center :"<<B[i1]<<endl;
 	#endif
 
@@ -279,14 +279,14 @@ void Classifier::merge(unsigned i1, unsigned i2)
 void Classifier::merge(unsigned i1, unsigned i2)
 {
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"Merging centers :"<<B[i1]<<"\t"<<B[i2];
 	#endif
 
 	B[i1] += B[i2];
 	B[i1] /= 2.;
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<" into new center :"<<B[i1]<<endl;
 	#endif
 
@@ -302,7 +302,7 @@ void Classifier::merge(unsigned i1, unsigned i2)
 Image<unsigned>* Classifier::segmentedMap_maxUij()
 {
 
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	if (U.size() != numberClasses*numberValidPixels)
 		cerr<<"The membership matrix U has not yet been calculated"<<endl;
 	#endif
@@ -331,7 +331,7 @@ Image<unsigned>* Classifier::segmentedMap_maxUij()
 Image<unsigned>* Classifier::segmentedMap_closestCenter()
 {
 
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	if (U.size() != numberClasses*numberValidPixels)
 		cerr<<"The membership matrix U has not yet been calculated"<<endl;
 	#endif
@@ -361,7 +361,7 @@ Image<unsigned>* Classifier::segmentedMap_closestCenter()
 Image<unsigned>* Classifier::segmentedMap_classTreshold(unsigned middleClass, Real lowerIntensity_minMembership, Real higherIntensity_minMembership)
 {
 
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	if (U.size() != numberClasses*numberValidPixels)
 		cerr<<"The membership matrix U has not yet been calculated."<<endl;
 	if (middleClass == 0 || middleClass > numberClasses)
@@ -383,7 +383,7 @@ Image<unsigned>* Classifier::segmentedMap_classTreshold(unsigned middleClass, Re
 	
 	--middleClass;
 	
-	#if defined(DEBUG) && DEBUG >= 2
+	#if DEBUG >= 2
 	Image<Real>* map = fuzzyMap(middleClass);
 	map->writeFitsImage(outputFileName + "fuzzymap.fits");
 	delete map;
@@ -419,7 +419,7 @@ Image<unsigned>* Classifier::segmentedMap_limits(vector<RealFeature>& limits)
 
 	Image<unsigned>* segmentedMap = segmentedMap_maxUij();
 	
-	#if defined(DEBUG) && DEBUG >= 2
+	#if DEBUG >= 2
 	segmentedMap->writeFitsImage(outputFileName + "max.segmented.fits");
 	#endif
 
@@ -447,7 +447,7 @@ Image<unsigned>* Classifier::segmentedMap_fixed(vector<unsigned>& ch, vector<uns
 
 	Image<unsigned>* segmentedMap = segmentedMap_maxUij();
 
-	#if defined(DEBUG) && DEBUG >= 2
+	#if DEBUG >= 2
 	segmentedMap->writeFitsImage(outputFileName + "max.segmented.fits");
 	#endif
 
@@ -512,11 +512,11 @@ void Classifier::saveAllResults(SunImage* outImage)
 	Image<unsigned> * segmentedMap = segmentedMap_maxUij();
 	string filename;
 
-	#if defined(DEBUG) && DEBUG >= 2
+	#if DEBUG >= 2
 	filename = outputFileName + "segmented." + itos(numberClasses) + "classes.fits";
 	segmentedMap->writeFitsImage(filename);
 	#endif
-	#if defined(DEBUG) && DEBUG >= 4
+	#if DEBUG >= 4
 	if(!outImage)
 	{
 		delete segmentedMap;
@@ -532,7 +532,7 @@ void Classifier::saveAllResults(SunImage* outImage)
 		outImage->bitmap(segmentedMap, i);
 		string baseName = outputFileName + "class" + itos(i) + ".";
 
-		#if defined(DEBUG) && DEBUG >= 2
+		#if DEBUG >= 2
 		filename = baseName + "uncleaned.fits";
 		outImage->writeFitsImage(filename);
 		#endif
@@ -540,7 +540,7 @@ void Classifier::saveAllResults(SunImage* outImage)
 		//We smooth the edges
 		outImage->dilateCircular(2,outImage->nullvalue)->erodeCircular(2,outImage->nullvalue);
 
-		#if defined(DEBUG) && DEBUG >= 2
+		#if DEBUG >= 2
 		filename = baseName + "smoothed.uncleaned.fits";
 		outImage->writeFitsImage(filename);
 		#endif
@@ -548,14 +548,14 @@ void Classifier::saveAllResults(SunImage* outImage)
 		//Let's find the connected regions
 		numberRegions = outImage->colorizeConnectedComponents(0);
 
-		#if defined(DEBUG) && DEBUG >= 2
+		#if DEBUG >= 2
 		filename = baseName + "blobs.uncleaned.fits";
 		outImage->writeFitsImage(filename);
 		#endif
 
 		
 
-		#if defined(DEBUG) && DEBUG >= 2
+		#if DEBUG >= 2
 		//Let's get the connected regions info
 		regions = getRegions(outImage);
 		filename = baseName + "regions.uncleaned.txt";
@@ -572,7 +572,7 @@ void Classifier::saveAllResults(SunImage* outImage)
 		uncleanedResultsFile.close();
 		#endif
 
-		#if defined(DEBUG) && DEBUG >= 2
+		#if DEBUG >= 2
 		//Let's draw the contours
 		outImage->drawContours(3, outImage->nullvalue);
 		filename = baseName + "contours.uncleaned.fits";
@@ -589,7 +589,7 @@ void Classifier::saveAllResults(SunImage* outImage)
 		unsigned minSize = unsigned(MIN_AR_SIZE / outImage->PixelArea());
 		outImage->tresholdConnectedComponents(minSize, 0);
 
-		#if defined(DEBUG) && DEBUG >= 2
+		#if DEBUG >= 2
 		filename = baseName + "fits";
 		outImage->writeFitsImage(filename);
 		#endif
@@ -597,7 +597,7 @@ void Classifier::saveAllResults(SunImage* outImage)
 		//Let's find the connected regions
 		numberRegions = outImage->colorizeConnectedComponents(0);
 
-		#if defined(DEBUG) && DEBUG >= 2
+		#if DEBUG >= 2
 		filename = baseName + "blobs.fits";
 		outImage->writeFitsImage(filename);
 		#endif
@@ -617,14 +617,14 @@ void Classifier::saveAllResults(SunImage* outImage)
 		}
 		resultsFile.close();
 		
-		#if defined(DEBUG) && DEBUG >= 2
+		#if DEBUG >= 2
 		//Let's draw the contours
 		outImage->drawContours(3, outImage->nullvalue);
 		filename = baseName + "contours.fits";
 		outImage->writeFitsImage(filename);
 		#endif
 
-		#if defined(DEBUG) && DEBUG >= 2
+		#if DEBUG >= 2
 		//Let's draw the boxes
 		outImage->zero();
 		for (unsigned r = 1; r < regions.size(); ++r)
@@ -636,7 +636,7 @@ void Classifier::saveAllResults(SunImage* outImage)
 		outImage->writeFitsImage(filename);
 		#endif
 
-		#if defined(DEBUG) && DEBUG >= 2
+		#if DEBUG >= 2
 		//Let's draw the centers
 		outImage->zero();
 		for (unsigned r = 1; r < regions.size(); ++r)
@@ -652,14 +652,14 @@ void Classifier::saveAllResults(SunImage* outImage)
 		for(unsigned r = 0; r < regions.size(); ++r)
 			delete regions[r];
 
-		#if defined(DEBUG) && DEBUG >= 2
+		#if DEBUG >= 2
 		//Let's get the fuzzyMaps
 		Image<Real>* map = fuzzyMap(i-1);
 		filename = baseName + "fuzzy.fits";
 		map->writeFitsImage(filename);
 		delete map;
 		#endif
-		#if defined(DEBUG) && DEBUG >= 2
+		#if DEBUG >= 2
 		//Let's get the normalized fuzzyMaps
 		Image<Real>* normalizedMap = normalizedFuzzyMap(i-1);
 		filename = baseName + "fuzzy.normalized.fits";
@@ -781,7 +781,7 @@ vector<PixelFeature> Classifier::percentiles(vector<Real> percentileValues)
 	sort(sortedX.begin(), sortedX.end());
 	for (unsigned h = 0; h < percentileValues.size(); ++h)
 	{
-		#if defined(DEBUG) && DEBUG >= 1
+		#if DEBUG >= 1
 		if(percentileValues[h] < 0 || percentileValues[h] > 1)
 		{
 			cerr<<"Percentile values must be between 0 and 1"<<endl;
@@ -819,7 +819,7 @@ SunImage* Classifier::getImage(unsigned p)
 
 void Classifier::randomInitB(unsigned C)
 {
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	if(X.size() == 0)
 	{
 		cerr<<"Error : The vector of FeatureVector must be initialized before doing a random init."<<endl;

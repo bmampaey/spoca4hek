@@ -193,7 +193,7 @@ void ordonate(vector<SunImage*>& images)
 {
 	sort(images.begin(), images.end(), compare);
 
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	//We remove the ones that have duplicate time
 	vector<SunImage*>::iterator s1 = images.begin();
 	vector<SunImage*>::iterator s2 = images.begin() + 1;
@@ -227,7 +227,7 @@ void recolorFromRegions(SunImage* image, const vector<Region*>& regions)
 	{
 		if(image->pixel(j) != image->nullvalue)
 		{
-			#if defined(DEBUG) && DEBUG >= 1
+			#if DEBUG >= 1
 				if(unsigned(image->pixel(j)) > colorTransfo.size())
 				{
 					cerr<<"ERROR trying to colorize image, pixel has no corresponding region"<<endl;

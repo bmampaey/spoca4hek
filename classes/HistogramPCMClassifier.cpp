@@ -162,7 +162,7 @@ Real HistogramPCMClassifier::computeJ() const
 void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 {
 
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	if(HistoX.size() == 0 || B.size() == 0 || B.size() != eta.size())
 	{
 		cerr<<"Error : The Classifier must be initialized before doing classification."<<endl;
@@ -173,7 +173,7 @@ void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIt
 	cout<<setiosflags(ios::fixed);
 	#endif
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"--HistogramPCMClassifier::classification--START--"<<endl;
 	#endif
 
@@ -223,10 +223,10 @@ void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIt
 		#endif
 	}
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"--HistogramPCMClassifier::classification--END--"<<endl;
 	#endif
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	feenableexcept(excepts);
 	#endif
 }
@@ -294,7 +294,7 @@ Real HistogramPCMClassifier::assess(vector<Real>& V)
 void HistogramPCMClassifier::FCMinit(Real precision, unsigned maxNumberIteration, Real FCMfuzzifier)
 {
 
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	if(HistoX.size() == 0)
 	{
 		cerr<<"Error : The vector of FeatureVector must be initialized before doing a centers only init."<<endl;
@@ -323,7 +323,7 @@ void HistogramPCMClassifier::FCMinit(Real precision, unsigned maxNumberIteration
 	computeEta();
 	
 	// We output the FCM segementation for comparison with PCM 
-	#if defined(DEBUG) && DEBUG >= 2
+	#if DEBUG >= 2
 	string tempName = outputFileName;
 	outputFileName += "HFCM.";
 	saveAllResults(NULL);

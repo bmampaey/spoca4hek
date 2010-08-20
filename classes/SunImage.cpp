@@ -159,7 +159,7 @@ int SunImage::readFitsImageP(fitsfile* fptr)
 		}
 	} 
 	
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	for (unsigned j = 0; j < numberPixels; ++j)
 	{
 		if (pixels[j] < 0)
@@ -530,7 +530,7 @@ void SunImage::annulusLimbCorrection(Real maxLimbRadius, Real minLimbRadius)
 		}
 
 		median = quick_select(onDiscList, onDiscList.size());
-		#if defined(DEBUG) && DEBUG >= 3
+		#if DEBUG >= 3
 		cout<<"Image preprocessing found median: "<<median<<endl;
 		#endif
 	}
@@ -634,7 +634,7 @@ void SunImage::ALCDivMedian(Real maxLimbRadius, Real minLimbRadius)
 		}
 
 		median = quick_select(onDiscList, onDiscList.size());
-		#if defined(DEBUG) && DEBUG >= 3
+		#if DEBUG >= 3
 		cout<<"Image preprocessing found median: "<<median<<endl;
 		#endif
 	}
@@ -750,7 +750,7 @@ void SunImage::ALCDivMode(Real maxLimbRadius, Real minLimbRadius)
 		}
 
 		median = quick_select(onDiscList, onDiscList.size());
-		#if defined(DEBUG) && DEBUG >= 3
+		#if DEBUG >= 3
 		cout<<"Image preprocessing found median: "<<median<<endl;
 		#endif
 	}
@@ -796,7 +796,7 @@ void SunImage::ALCDivMode(Real maxLimbRadius, Real minLimbRadius)
 		}
 	}
 	mode = mode * binSize + (binSize / 2);
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"Image preprocessing found mode: "<<mode<<endl;
 	#endif
 

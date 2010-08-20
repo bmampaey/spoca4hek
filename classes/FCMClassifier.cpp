@@ -5,7 +5,7 @@ using namespace std;
 FCMClassifier::FCMClassifier(Real fuzzifier)
 :Classifier(),fuzzifier(fuzzifier)
 {
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	if (fuzzifier == 1)
 	{
 		cerr<<"Error : Fuzzifier must not equal 1.";
@@ -116,7 +116,7 @@ Real FCMClassifier::computeJ() const
 void FCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 {
 
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	if(X.size() == 0 || B.size() == 0)
 	{
 		cerr<<"Error : The Classifier must be initialized before doing classification."<<endl;
@@ -127,7 +127,7 @@ void FCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 	cout<<setiosflags(ios::fixed);
 	#endif
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"--FCMClassifier::classification--START--"<<endl;
 	#endif
 	
@@ -162,11 +162,11 @@ void FCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 
 	}
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"--FCMClassifier::classification--END--"<<endl;
 	#endif
 	
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	feenableexcept(excepts);
 	#endif
 
@@ -226,7 +226,7 @@ Real FCMClassifier::assess(vector<Real>& V)
 void FCMClassifier::merge(unsigned i1, unsigned i2)
 {
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"Merging centers :"<<B[i1]<<"\t"<<B[i2];
 	#endif
 
@@ -259,7 +259,7 @@ void FCMClassifier::merge(unsigned i1, unsigned i2)
 
 	B[i1] /= sum;
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<" into new center :"<<B[i1]<<endl;
 	#endif
 
@@ -276,7 +276,7 @@ void FCMClassifier::merge(unsigned i1, unsigned i2)
 void FCMClassifier::merge(unsigned i1, unsigned i2)
 {
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"Merging centers :"<<B[i1]<<"\t"<<B[i2];
 	#endif
 
@@ -299,7 +299,7 @@ void FCMClassifier::merge(unsigned i1, unsigned i2)
 
 	B[i1] /= sum;
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<" into new center :"<<B[i1]<<endl;
 	#endif
 

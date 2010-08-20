@@ -41,7 +41,7 @@ void PCM2Classifier::computeEta()
 {
 	PCMClassifier::computeEta();
 	
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 		cout<<"pre_eta:\t"<<eta<<"\t";
 	#endif
 	
@@ -106,7 +106,7 @@ void PCM2Classifier::classification(Real precision, unsigned maxNumberIteration)
 	const Real maxFactor = ETA_MAXFACTOR;
 
 
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	if(X.size() == 0 || B.size() == 0 || B.size() != eta.size())
 	{
 		cerr<<"Error : The Classifier must be initialized before doing classification."<<endl;
@@ -117,7 +117,7 @@ void PCM2Classifier::classification(Real precision, unsigned maxNumberIteration)
 	cout<<setiosflags(ios::fixed);
 	#endif
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"--PCM2Classifier::classification--START--"<<endl;
 	#endif
 	
@@ -176,10 +176,10 @@ void PCM2Classifier::classification(Real precision, unsigned maxNumberIteration)
 
 	}
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"--PCM2Classifier::classification--END--"<<endl;
 	#endif
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	feenableexcept(excepts);
 	#endif
 }
@@ -242,7 +242,7 @@ void PCM2Classifier::computeEta(ofstream* iterationsFile)
 		}
 	}
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"eta2:\t"<<eta<<endl;
 	#endif	
 }

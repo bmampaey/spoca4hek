@@ -84,7 +84,7 @@ void HistogramPCM2Classifier::computeU()
 void HistogramPCM2Classifier::classification(Real precision, unsigned maxNumberIteration)
 {
 
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	if(HistoX.size() == 0 || B.size() == 0 || B.size() != eta.size())
 	{
 		cerr<<"Error : The Classifier must be initialized before doing classification."<<endl;
@@ -95,7 +95,7 @@ void HistogramPCM2Classifier::classification(Real precision, unsigned maxNumberI
 	cout<<setiosflags(ios::fixed);
 	#endif
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"--HistogramPCM2Classifier::classification--START--"<<endl;
 	#endif
 	
@@ -157,10 +157,10 @@ void HistogramPCM2Classifier::classification(Real precision, unsigned maxNumberI
 	
 
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 	cout<<"--HistogramPCM2Classifier::classification--END--"<<endl;
 	#endif
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	feenableexcept(excepts);
 	#endif
 }
@@ -171,7 +171,7 @@ void HistogramPCM2Classifier::computeEta()
 {
 	HistogramPCMClassifier::computeEta();
 
-	#if defined(DEBUG) && DEBUG >= 3
+	#if DEBUG >= 3
 		cout<<"pre_eta:\t"<<eta<<"\t";
 	#endif
 

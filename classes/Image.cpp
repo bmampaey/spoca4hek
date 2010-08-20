@@ -120,7 +120,7 @@ Image<T>::Image(const string& filename)
 
 	readFitsImage(filename);
 	
-	#if defined(DEBUG) && DEBUG >= 1
+	#if DEBUG >= 1
 	// We check that there is no lost of precision
 
 	switch(bitpix)
