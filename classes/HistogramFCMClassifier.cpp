@@ -213,6 +213,11 @@ void HistogramFCMClassifier::classification(Real precision, unsigned maxNumberIt
 	#if defined(DEBUG) && DEBUG >= 3
 	cout<<"--HistogramFCMClassifier::classification--START--"<<endl;
 	#endif
+	
+	#if DEBUG >= 2
+		stepinit(outputFileName+"iterations.txt");
+		unsigned decimals = 1 - log10(precision);;
+	#endif
 
 	//Initialisation of precision
 
@@ -234,13 +239,8 @@ void HistogramFCMClassifier::classification(Real precision, unsigned maxNumberIt
 		}
 		oldB = B;
 
-		#if defined(DEBUG) && DEBUG >= 3
-		cout<<"iteration :"<<iteration;
-		cout<<"\tprecisionReached :"<<precisionReached;
-		#if DEBUG >= 4
-		cout<<"\tJFCMH :"<<computeJ();
-		#endif
-		cout<<"\tB :"<<B<<endl;
+		#if DEBUG >= 2
+			stepout(iteration, precisionReached, decimals);
 		#endif
 
 	}
@@ -454,4 +454,6 @@ void HistogramFCMClassifier::randomInitB(unsigned C)
 	//We like our centers to be sorted
 	sort(B.begin(), B.end());
 }
+
+
 

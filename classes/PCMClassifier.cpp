@@ -99,7 +99,12 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 	#if defined(DEBUG) && DEBUG >= 3
 	cout<<"--PCMClassifier::classification--START--"<<endl;
 	#endif
-
+	
+	#if DEBUG >= 2
+		stepinit(outputFileName+"iterations.txt");
+		unsigned decimals = 1 - log10(precision);;
+	#endif
+	
 	//Initialisation of precision & U
 	this->precision = precision;
 
@@ -134,41 +139,8 @@ void PCMClassifier::classification(Real precision, unsigned maxNumberIteration)
 
 		oldB = B;
 
-		#if defined(DEBUG) && DEBUG >= 3
-		cout<<"iteration :"<<iteration;
-		cout<<"\tprecisionReached :"<<precisionReached;
-		#if DEBUG >= 4
-			cout<<"\tJPCM :"<<computeJ();
-		#endif
-		cout<<"\tB :"<<B;
-		cout<<"\teta :"<<eta;
-		
-		// We compute the real average of each class
-		vector<RealFeature> class_average(numberClasses, 0.);
-		vector<Real> cardinal(numberClasses, 0.);
-		for (unsigned j = 0 ; j < numberValidPixels ; ++j)
-		{
-			Real max_uij = U[j];
-			unsigned belongsTo = 0;
-			for (unsigned i = 1 ; i < numberClasses ; ++i)
-			{
-				if (U[i*numberValidPixels+j] > max_uij)
-				{
-					max_uij = U[i*numberValidPixels+j];
-					belongsTo = i;
-				}
-			}
-			class_average[belongsTo] += X[j];
-			++cardinal[belongsTo];
-
-		}
-		cout<<"\tclass_average :";
-		for (unsigned i = 0 ; i < numberClasses ; ++i)
-		{
-			cout<<class_average[i]/cardinal[i]<<"\t";
-		}
-		cout<<endl;
-	
+		#if DEBUG >= 2
+			stepout(iteration, precisionReached, decimals);
 		#endif
 	}
 
@@ -367,5 +339,35 @@ void PCMClassifier::FCMinit(Real precision, unsigned maxNumberIteration, Real FC
 	#endif
 }
 
+void PCMClassifier::stepinit(const string filename)
+{
+		Classifier::stepinit(filename);
+		ostringstream out;
+		out<<"\t"<<"eta";
+		if(stepfile.good())
+			stepfile<<out.str();
+		
+		#if DEBUG >= 3
+			cout<<out.str();
+		#endif
+	
+}
 
+
+void PCMClassifier::stepout(const unsigned iteration, const Real precisionReached, const int decimals)
+{
+		Classifier::stepout(iteration, precisionReached, decimals);
+		ostringstream out;
+		out.setf(ios::fixed);
+		out.precision(decimals);
+		out<<"\t"<<eta;
+
+		if(stepfile.good())
+			stepfile<<out.str();
+		
+		#if DEBUG >= 3
+			cout<<out.str();
+		#endif
+		
+}
 

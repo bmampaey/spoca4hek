@@ -120,7 +120,12 @@ void PCM2Classifier::classification(Real precision, unsigned maxNumberIteration)
 	#if defined(DEBUG) && DEBUG >= 3
 	cout<<"--PCM2Classifier::classification--START--"<<endl;
 	#endif
-
+	
+	#if DEBUG >= 2
+		stepinit(outputFileName+"iterations.txt");
+		unsigned decimals = 1 - log10(precision);;
+	#endif
+	
 	//Initialisation of precision & U
 	this->precision = precision;
 
@@ -165,18 +170,10 @@ void PCM2Classifier::classification(Real precision, unsigned maxNumberIteration)
 
 		oldB = B;
 
-		#if defined(DEBUG) && DEBUG >= 3
-		cout<<"iteration :"<<iteration;
-		cout<<"\tprecisionReached :"<<precisionReached;
-		#if DEBUG >= 4
-			cout<<"\tJPCM :"<<computeJ();
+		#if DEBUG >= 2
+			stepout(iteration, precisionReached, decimals);
 		#endif
-		cout<<"\tB :"<<B;
-		cout<<"\teta :"<<eta;
-		cout<<"\tclass_average :"<<classAverage();
-		cout<<endl;
-	
-		#endif
+
 	}
 
 	#if defined(DEBUG) && DEBUG >= 3
@@ -192,6 +189,9 @@ void PCM2Classifier::initEta(const vector<Real>& eta)
 	this->eta = eta;
 	reduceEta();
 }
+
+
+
 
 /*
 // BAD RESULTS, BUT KEEP FOR NOW

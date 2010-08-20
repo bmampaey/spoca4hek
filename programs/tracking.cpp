@@ -222,6 +222,7 @@ int main(int argc, const char **argv)
 	
 	#if defined(DEBUG) && DEBUG >= 2
 	// We output the graph after recolorization
+	// Ideally I should remove first all regions before previous_overlap from the graph 
 	ouputGraph(tracking_graph, regions, "ar_graph_recolorization");
 	#endif
 	

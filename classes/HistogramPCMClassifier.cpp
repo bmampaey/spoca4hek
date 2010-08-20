@@ -177,6 +177,11 @@ void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIt
 	cout<<"--HistogramPCMClassifier::classification--START--"<<endl;
 	#endif
 
+	#if DEBUG >= 2
+		stepinit(outputFileName+"iterations.txt");
+		unsigned decimals = 1 - log10(precision);;
+	#endif
+
 	const Real maxFactor = ETA_MAXFACTOR;
 
 	//Initialisation of precision & U
@@ -213,41 +218,8 @@ void HistogramPCMClassifier::classification(Real precision, unsigned maxNumberIt
 
 		oldB = B;
 
-		#if defined(DEBUG) && DEBUG >= 3
-		cout<<"iteration :"<<iteration;
-		cout<<"\tprecisionReached :"<<precisionReached;
-		#if DEBUG >= 4
-			cout<<"\tJPCM :"<<computeJ();
-		#endif
-		cout<<"\tB :"<<B;
-		cout<<"\teta :"<<eta;
-		
-		// We compute the real average of each class
-		vector<RealFeature> class_average(numberClasses, 0.);
-		vector<Real> cardinal(numberClasses, 0.);
-		for (unsigned j = 0 ; j < numberBins ; ++j)
-		{
-			Real max_uij = U[j];
-			unsigned belongsTo = 0;
-			for (unsigned i = 1 ; i < numberClasses ; ++i)
-			{
-				if (U[i*numberBins+j] > max_uij)
-				{
-					max_uij = U[i*numberBins+j];
-					belongsTo = i;
-				}
-			}
-			class_average[belongsTo] += HistoX[j];
-			cardinal[belongsTo]+=HistoX[j].c;
-
-		}
-		cout<<"\tclass_average :";
-		for (unsigned i = 0 ; i < numberClasses ; ++i)
-		{
-			cout<<class_average[i]/cardinal[i]<<"\t";
-		}
-		cout<<endl;
-	
+		#if DEBUG >= 2
+			stepout(iteration, precisionReached, decimals);
 		#endif
 	}
 

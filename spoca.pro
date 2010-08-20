@@ -580,7 +580,7 @@ ENDIF
 
 
 ; We allocate space for the events
-events = strarr(N_ELEMENTS(getregionstats_output))
+events = STRARR(N_ELEMENTS(getregionstats_output))
 
 ; We declare the array of couples color, Ivorn
 present_events = REPLICATE({match, color:0, ivorn:'unknown'}, N_ELEMENTS(getregionstats_output)) 
@@ -780,6 +780,7 @@ IF (N_ELEMENTS(ARmaps) GT trackingNumberImages) THEN BEGIN
 	; we save the AR map corresponding to the events we write
 	IF (debug GT 0 AND STRLEN(save_folder) NE 0) THEN BEGIN
 		FILE_COPY,  ARmaps[ N_ELEMENTS(ARmaps) - 1], save_folder, /NOEXPAND_PATH, /OVERWRITE, /REQUIRE_DIRECTORY, /VERBOSE 
+		FILE_COPY,  spoca_args_centersfile, save_folder + "/centers." + STRING(spoca_lastrun_number, FORMAT='(I010)') + ".txt", /NOEXPAND_PATH, /OVERWRITE, /VERBOSE 
 	ENDIF
 		
 	number_of_files_to_delete = N_ELEMENTS(ARmaps) - trackingOverlap

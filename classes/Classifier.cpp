@@ -538,7 +538,7 @@ void Classifier::saveAllResults(SunImage* outImage)
 		#endif
 
 		//We smooth the edges
-		outImage->dilateDiamond(2,0)->erodeDiamond(2,0);
+		outImage->dilateCircular(2,outImage->nullvalue)->erodeCircular(2,outImage->nullvalue);
 
 		#if defined(DEBUG) && DEBUG >= 2
 		filename = baseName + "smoothed.uncleaned.fits";
@@ -574,30 +574,25 @@ void Classifier::saveAllResults(SunImage* outImage)
 
 		#if defined(DEBUG) && DEBUG >= 2
 		//Let's draw the contours
-		outImage->drawContours();
+		outImage->drawContours(3, outImage->nullvalue);
 		filename = baseName + "contours.uncleaned.fits";
 		outImage->writeFitsImage(filename);
 		#endif
 
-		//Let's remove the small regions (i.e. assimilated to bright points )
-		unsigned minSize = unsigned(MIN_AR_SIZE / outImage->PixelArea());
+		//Let's cleanup by removing the small regions (i.e. assimilated to bright points )
 		outImage->zero();
 		outImage->bitmap(segmentedMap, i);
+
+		//We smooth the edges
+		outImage->dilateCircular(2,outImage->nullvalue)->erodeCircular(2,outImage->nullvalue);
+
+		unsigned minSize = unsigned(MIN_AR_SIZE / outImage->PixelArea());
 		outImage->tresholdConnectedComponents(minSize, 0);
 
 		#if defined(DEBUG) && DEBUG >= 2
 		filename = baseName + "fits";
 		outImage->writeFitsImage(filename);
 		#endif
-
-		//We smooth the edges
-		outImage->dilateCircular(2,0)->erodeCircular(2,0);
-
-		#if defined(DEBUG) && DEBUG >= 2
-		filename = baseName + "smoothed.fits";
-		outImage->writeFitsImage(filename);
-		#endif
-
 
 		//Let's find the connected regions
 		numberRegions = outImage->colorizeConnectedComponents(0);
@@ -624,7 +619,7 @@ void Classifier::saveAllResults(SunImage* outImage)
 		
 		#if defined(DEBUG) && DEBUG >= 2
 		//Let's draw the contours
-		outImage->drawContours();
+		outImage->drawContours(3, outImage->nullvalue);
 		filename = baseName + "contours.fits";
 		outImage->writeFitsImage(filename);
 		#endif
@@ -705,6 +700,9 @@ void Classifier::saveARmap(SunImage* outImage)
 
 	delete segmentedMap;
 
+	//We smooth the edges
+	outImage->dilateCircular(2,outImage->nullvalue)->erodeCircular(2,outImage->nullvalue);
+
 	//We erase small regions
 	unsigned minSize = unsigned(MIN_AR_SIZE / outImage->PixelArea());
 	outImage->tresholdConnectedComponents(minSize, 0);
@@ -744,6 +742,9 @@ void Classifier::saveCHmap(SunImage* outImage)
 	outImage->bitmap(segmentedMap, CHclass);
 
 	delete segmentedMap;
+
+	//We smooth the edges
+	outImage->dilateCircular(2,outImage->nullvalue)->erodeCircular(2,outImage->nullvalue);
 
 	//We erase small regions
 	unsigned minSize = unsigned(MIN_CH_SIZE / outImage->PixelArea());
@@ -915,3 +916,52 @@ vector<RealFeature> Classifier::classAverage() const
 	}
 	return class_average;
 }
+
+Classifier::~Classifier()
+{
+	if(stepfile.is_open())
+		stepfile.close();
+}
+
+void Classifier::stepinit(const string filename)
+{
+	stepfile.open(filename.c_str());
+	if(!stepfile)
+	{
+		cerr<<"Error : could not open iterations file "<<outputFileName<<"iterations.txt !"<<endl;
+	}
+	ostringstream out;
+	out<<"iteration"<<"\t"<<"precisionReached";
+	for (unsigned i = 0; i < numberClasses; ++i)
+		out<<"\t"<<"B"<<i;
+	#if DEBUG >= 4
+		for (unsigned i = 0; i < numberClasses; ++i)
+			out<<"\t"<<"classAvg"<<i;
+	#endif
+	if(stepfile.good())
+		stepfile<<endl<<out.str();
+		
+	#if DEBUG >= 3
+		cout<<endl<<out.str();
+	#endif
+	
+}
+
+void Classifier::stepout(const unsigned iteration, const Real precisionReached, const int decimals)
+{
+		ostringstream out;
+		out.setf(ios::fixed);
+		out.precision(decimals);
+		out<<iteration<<"\t"<<precisionReached<<"\t"<<B;
+		#if DEBUG >= 4
+			out<<"\t"<<classAverage();
+		#endif
+		if(stepfile.good())
+			stepfile<<endl<<out.str();
+		
+		#if DEBUG >= 3
+			cout<<endl<<out.str();
+		#endif
+		
+}
+

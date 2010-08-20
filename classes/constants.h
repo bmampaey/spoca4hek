@@ -112,7 +112,8 @@
 
 // Path of solarsoft for CoordinateConvertor
 
-#define SSW_PATH "/usr/local/ssw/gen/"
+#define SSW_PATH "/usr/local/ssw/"
+#define WCS_ROUTINES_SAV "./idl/wcs_routines.sav"
 
 /*---------------- Do NOT modify below please ------------------*/
 
