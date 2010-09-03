@@ -773,6 +773,10 @@ IF (debug GT 0) THEN BEGIN
 	PRINT, endl, STRPAD('FINISHING', 100, fill='_')
 ENDIF
 
+IF (debug GT 0 AND STRLEN(save_folder) NE 0) THEN BEGIN
+		FILE_COPY,  spoca_args_centersfile, save_folder + "/centers." + STRING(spoca_lastrun_number, FORMAT='(I010)') + ".txt", /NOEXPAND_PATH, /OVERWRITE, /VERBOSE 
+ENDIF
+
 ; We cleanup old files
 
 IF (N_ELEMENTS(ARmaps) GT trackingNumberImages) THEN BEGIN
@@ -780,7 +784,6 @@ IF (N_ELEMENTS(ARmaps) GT trackingNumberImages) THEN BEGIN
 	; we save the AR map corresponding to the events we write
 	IF (debug GT 0 AND STRLEN(save_folder) NE 0) THEN BEGIN
 		FILE_COPY,  ARmaps[ N_ELEMENTS(ARmaps) - 1], save_folder, /NOEXPAND_PATH, /OVERWRITE, /REQUIRE_DIRECTORY, /VERBOSE 
-		FILE_COPY,  spoca_args_centersfile, save_folder + "/centers." + STRING(spoca_lastrun_number, FORMAT='(I010)') + ".txt", /NOEXPAND_PATH, /OVERWRITE, /VERBOSE 
 	ENDIF
 		
 	number_of_files_to_delete = N_ELEMENTS(ARmaps) - trackingOverlap
