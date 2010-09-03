@@ -115,6 +115,9 @@
 #define SSW_PATH "/usr/local/ssw/"
 #define WCS_ROUTINES_SAV "./idl/wcs_routines.sav"
 
+// The Delouille Factor
+#define DELOUILLE_FACTOR 3
+
 /*---------------- Do NOT modify below please ------------------*/
 
 
