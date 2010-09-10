@@ -101,7 +101,7 @@ void HistogramPCM2Classifier::classification(Real precision, unsigned maxNumberI
 	
 	#if DEBUG >= 2
 		stepinit(outputFileName+"iterations.txt");
-		unsigned decimals = 1 - log10(precision);;
+		unsigned decimals = unsigned(1 - log10(precision));;
 	#endif
 
 	const Real maxFactor = ETA_MAXFACTOR;
@@ -158,7 +158,7 @@ void HistogramPCM2Classifier::classification(Real precision, unsigned maxNumberI
 
 
 	#if DEBUG >= 3
-	cout<<"--HistogramPCM2Classifier::classification--END--"<<endl;
+	cout<<endl<<"--HistogramPCM2Classifier::classification--END--"<<endl;
 	#endif
 	#if DEBUG >= 1
 	feenableexcept(excepts);

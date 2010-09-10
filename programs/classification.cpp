@@ -128,7 +128,7 @@ int main(int argc, const char **argv)
 	outputFileName += ".";
 	
 	// We read the wavelengths and the initial centers from the centers file
-	if(readCentersFromFile(B, wavelengths, centersFileName))
+	if(fileExists(centersFileName) && readCentersFromFile(B, wavelengths, centersFileName))
 	{
 		if(B.size() != numberClasses)
 		{
@@ -283,12 +283,10 @@ int main(int argc, const char **argv)
 
 	#ifdef HEK
 	// Hack asked by Veronique
-		if(numberClasses >= 4)
+		if(B.size() >= 4)
 		{
 			vector<RealFeature> newB = F->getB();
 			sort(newB.begin(), newB.end());
-			vector<RealFeature> oldB = B;
-			sort(oldB.begin(), oldB.end());
 			//We compare if the 2 lastclass centers are different enough
 			if(d(newB[numberClasses-1]/newB[numberClasses-2], RealFeature(0)) < DELOUILLE_FACTOR)
 			{
@@ -303,7 +301,7 @@ int main(int argc, const char **argv)
 	
 				#if DEBUG >= 3
 				cout<<"Centers of AR classes are too close, doing an attribution with old centers"<<endl;
-				cout<<"oldB :"<<oldB<<" newB: "<<newB<<endl; 
+				cout<<"oldB :"<<B<<" newB: "<<newB<<endl; 
 				cout<<"The centers have been initialized to B :"<<F->getB()<<endl;
 				if(classifierIsPossibilistic)
 				{
@@ -331,6 +329,10 @@ int main(int argc, const char **argv)
 	if (!centersFileName.empty())
 	{
 		F->saveB(centersFileName);
+	}
+	else
+	{
+		F->saveB(outputFileName + "centers.txt");
 	}
 
 	//We save the histogram for the next run

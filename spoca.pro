@@ -488,14 +488,16 @@ ENDIF ELSE BEGIN
 	
 	; The following lines are triples  present_color reference_type past_color (with reference_type one of follows, merges_from, splits_from, new) 
 	; We declare the array of colour transformation
-	color_tracking = REPLICATE({past_color:0, reference_type:"Unknown", present_color:0}, numActiveEvents) 
-	FOR t = 0, numActiveEvents - 1 DO BEGIN 
-		output = strsplit( tracking_output[t+1] , ' 	(),', /EXTRACT) 
-		color_tracking[t].present_color = output[0]
-		color_tracking[t].reference_type = output[1]
-		color_tracking[t].past_color = output[2]
-		
-	ENDFOR
+	IF numActiveEvents GT 0 THEN BEGIN
+		color_tracking = REPLICATE({past_color:0, reference_type:"Unknown", present_color:0}, numActiveEvents) 
+	
+		FOR t = 0, numActiveEvents - 1 DO BEGIN 
+			output = strsplit( tracking_output[t+1] , ' 	(),', /EXTRACT) 
+			color_tracking[t].present_color = output[0]
+			color_tracking[t].reference_type = output[1]
+			color_tracking[t].past_color = output[2]
+		ENDFOR
+	ENDIF
 	
 	
 ENDELSE
@@ -796,6 +798,8 @@ IF (N_ELEMENTS(ARmaps) GT trackingNumberImages) THEN BEGIN
 		ENDIF
 		
 		FILE_DELETE, files_to_delete , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug
+		; In test to see if the size of the histogram file influence the runtime of spoca
+		FILE_DELETE,spoca_args_histogram  , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug
 
 	ENDIF
 ENDIF

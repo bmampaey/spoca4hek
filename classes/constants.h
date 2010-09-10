@@ -16,9 +16,9 @@
 // The type of the pixel values of the images. 
 // Acceptable values are TBYTE TSBYTE TUSHORT TSHORT TUINT TINT TULONG TLONG TFLOAT TLONGLONG TDOUBLE
 // Be carrefull that depending on the type of the image you may loose precision.
-
+#if ! defined(PIXELTYPE)
 #define PIXELTYPE TFLOAT
-
+#endif
 // The number of wavelength, or images to process in parralel
 #if ! defined(NUMBERWAVELENGTH)
 #define NUMBERWAVELENGTH 2
@@ -32,17 +32,20 @@
 #define DEBUG 0
 #endif
 
-//The minimal size for an AR in (arc/sec)square (otherwise it is a bright point)
+// The minimal size for an AR in (arc/sec)square (otherwise it is a bright point)
 #if ! defined(MIN_AR_SIZE)
 #define MIN_AR_SIZE 1500
 #endif
 
-//The minimal size for an CH in (arc/sec)square (otherwise it is a dark point)
+// The minimal size for an CH in (arc/sec)square (otherwise it is a dark point)
 #if ! defined(MIN_CH_SIZE)
 #define MIN_CH_SIZE 1500
 #endif
 
-
+// The aggregation factor for AR in (arc/sec)square (dilation)
+#if ! defined(AR_AGGREGATION)
+#define AR_AGGREGATION 31.44 // Equivalent to 12 EIT pixels
+#endif
 
 // If the computaion of eta is to be fixed or not
 // Acceptables values are TRUE or FALSE

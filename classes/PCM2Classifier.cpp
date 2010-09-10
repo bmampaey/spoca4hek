@@ -123,7 +123,7 @@ void PCM2Classifier::classification(Real precision, unsigned maxNumberIteration)
 	
 	#if DEBUG >= 2
 		stepinit(outputFileName+"iterations.txt");
-		unsigned decimals = 1 - log10(precision);;
+		unsigned decimals = unsigned(1 - log10(precision));;
 	#endif
 	
 	//Initialisation of precision & U
@@ -177,7 +177,7 @@ void PCM2Classifier::classification(Real precision, unsigned maxNumberIteration)
 	}
 
 	#if DEBUG >= 3
-	cout<<"--PCM2Classifier::classification--END--"<<endl;
+	cout<<endl<<"--PCM2Classifier::classification--END--"<<endl;
 	#endif
 	#if DEBUG >= 1
 	feenableexcept(excepts);
