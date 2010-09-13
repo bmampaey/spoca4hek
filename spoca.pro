@@ -219,7 +219,6 @@ IF N_ELEMENTS(spocaArgsNumberclasses) EQ 0 THEN spocaArgsNumberclasses = '4'
 IF N_ELEMENTS(spocaArgsPrecision) EQ 0 THEN spocaArgsPrecision = '0.000001'
 IF N_ELEMENTS(spocaArgsBinsize) EQ 0 THEN spocaArgsBinsize = '10,10'
 spoca_args_centersfile = outputDirectory + 'centers.txt'
-spoca_args_histogram = outputDirectory + 'histogram.txt'
 
 
 ; Tracking parameters
@@ -318,7 +317,6 @@ spoca_args = [	'-P', spocaArgsPreprocessing, $
 			'-C', spocaArgsNumberclasses, $
 			'-p', spocaArgsPrecision, $
 			'-z', spocaArgsBinsize, $
-			'-H', spoca_args_histogram, $
 			'-B', spoca_args_centersfile, $
 			'-O', outputDirectory + STRING(spoca_lastrun_number, FORMAT='(I010)'), $
 			'-I', instrument, $
@@ -798,8 +796,6 @@ IF (N_ELEMENTS(ARmaps) GT trackingNumberImages) THEN BEGIN
 		ENDIF
 		
 		FILE_DELETE, files_to_delete , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug
-		; In test to see if the size of the histogram file influence the runtime of spoca
-		FILE_DELETE,spoca_args_histogram  , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug
 
 	ENDIF
 ENDIF
