@@ -119,7 +119,7 @@
 #define WCS_ROUTINES_SAV "./idl/wcs_routines.sav"
 
 // The Delouille Factor
-#define DELOUILLE_FACTOR 3
+#define DELOUILLE_FACTOR 5
 
 /*---------------- Do NOT modify below please ------------------*/
 
