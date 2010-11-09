@@ -13,6 +13,7 @@
 #include "../classes/constants.h"
 #include "../classes/mainutilities.h"
 
+#include "../classes/ColorMap.h"
 #include "../classes/SunImage.h"
 
 #include "../classes/Classifier.h"
@@ -27,6 +28,7 @@
 
 #include "../classes/FeatureVector.h"
 #include "../classes/ArgumentHelper.h"
+#include "../classes/ActiveRegion.h"
 
 
 
@@ -42,8 +44,8 @@ int main(int argc, const char **argv)
 	cout<<setiosflags(ios::fixed);
 
 	// The list of names of the sun images to process
-	string imageType = "AIA";
-	vector<string> sunImagesFileNames;
+	string imageType = "UNKNOWN";
+	vector<string> imagesFilenames;
 
 	// Options for the preprocessing of images
 	string preprocessingSteps = "NAR";
@@ -68,6 +70,20 @@ int main(int argc, const char **argv)
 	string sbinSize;
 	string histogramFile;
 	
+	// Options for the segmentation
+	string segmentation = "max";
+	
+	// Options for the limit segmentation
+	string maxLimitsFileName;
+	
+	// Options for the fix segmentation
+	string coronalHole;
+	string quietSun;
+	string activeRegion;
+	
+	// Options for the treshold segmentation
+	string treshold;
+	
 
 	// We parse the arguments
 
@@ -91,8 +107,14 @@ int main(int argc, const char **argv)
 	arguments.new_named_unsigned_int('N', "neighboorhoodRadius", "positive integer", "\n\tOnly for spatial classifiers like SPoCA.\n\tThe neighboorhoodRadius is half the size of the square of neighboors, for example with a value of 1, the square has a size of 3x3.\n\t", neighboorhoodRadius);
 	arguments.new_named_string('H', "histogramFile","file name", "\n\tThe name of a file containing an histogram.\n\t", histogramFile);
 	arguments.new_named_string('z', "binSize","comma separated list of positive real (no spaces)", "\n\tThe size of the bins of the histogramm.\n\tNB : Be carreful that the histogram is built after the preprocessing.\n\t", sbinSize);
+	arguments.new_named_string('S', "segmentation", "string", "\n\tThe segmentation type.\n\tPossible values :\n\t\tmax (Maximum of Uij)\n\t\tclosest (Closest center)\n\t\ttreshold (Treshold on Uij)\n\t\tlimits (Merge on centers value limits)\n\t\tfix (Merge on fix CH QS AR)\n\t", segmentation);
+	arguments.new_named_string('L',"maxLimitsFile","file", "\n\tOnly for limit segmentation.\n\tThe name of the file containing the max limits.\n\t", maxLimitsFileName);
+	arguments.new_named_string('c',"ch","coma separated list of positive integer (no spaces)", "\n\tOnly for fix segmentation.\n\tThe classes of the Coronal Hole.\n\t", coronalHole);
+	arguments.new_named_string('q',"qs","coma separated list of positive integer (no spaces)", "\n\tOnly for fix segmentation.\n\tThe classes of the Quiet Sun.\n\t", quietSun);
+	arguments.new_named_string('a',"ar","coma separated list of positive integer (no spaces)", "\n\tOnly for fix segmentation.\n\tThe classes of the Active Region.\n\t", activeRegion);
+	arguments.new_named_string('t',"tr","coma separated list of positive integer (no spaces)", "\n\tOnly for treshold segmentation.\n\tThe parameter of the treshold segmentation.\n\tMust be of the form class_number,lowerIntensity_minMembership,higherIntensity_minMembership\n\t", treshold);	
 	arguments.new_named_string('O', "outputFile","file name", "\n\tThe name for the output file(s).\n\t", outputFileName);
-	arguments.set_string_vector("fitsFileName1 fitsFileName2 ...", "\n\tThe name of the fits files containing the images of the sun.\n\t", sunImagesFileNames);
+	arguments.set_string_vector("fitsFileName1 fitsFileName2 ...", "\n\tThe name of the fits files containing the images of the sun.\n\t", imagesFilenames);
 	arguments.set_description(programDescription.c_str());
 	arguments.set_author("Benjamin Mampaey, benjamin.mampaey@sidc.be");
 	arguments.set_build_date(__DATE__);
@@ -112,9 +134,9 @@ int main(int argc, const char **argv)
 	// We process the arguments
 
 	// We assert that the number of sun images provided is correct
-	if(sunImagesFileNames.size() != NUMBERWAVELENGTH)
+	if(imagesFilenames.size() != NUMBERWAVELENGTH)
 	{
-		cerr<<"Error : "<<sunImagesFileNames.size()<<" fits image file given as parameter, "<<NUMBERWAVELENGTH<<" must be given!"<<endl;
+		cerr<<"Error : "<<imagesFilenames.size()<<" fits image file given as parameter, "<<NUMBERWAVELENGTH<<" must be given!"<<endl;
 		return EXIT_FAILURE;
 	}
 
@@ -123,7 +145,7 @@ int main(int argc, const char **argv)
 	// If none as been provided as a program argument, we set it to the current directory + type of classifier
 	if(outputFileName.empty())
 	{
-		outputFileName = "./" + classifierType;
+		outputFileName = "./" + classifierType + "." + segmentation;
 	}
 	outputFileName += ".";
 	
@@ -234,12 +256,12 @@ int main(int argc, const char **argv)
 	
 		
 	// We read and preprocess the sun images
-	vector<SunImage*> images = getImagesFromFiles(imageType, sunImagesFileNames, true);
+	vector<SunImage*> images = getImagesFromFiles(imageType, imagesFilenames, true);
 	for (unsigned p = 0; p < images.size(); ++p)
 	{
 		images[p]->preprocessing(preprocessingSteps, radiusRatio);
 		#if DEBUG >= 2
-		images[p]->writeFitsImage(outputFileName + "preprocessed." + sunImagesFileNames[p].substr(sunImagesFileNames[p].rfind('/')!=string::npos?sunImagesFileNames[p].rfind('/')+1:0));
+		images[p]->writeFitsImage(outputFileName + "preprocessed." +  stripPath(imagesFilenames[p]) );
 		#endif
 	}
 
@@ -247,12 +269,16 @@ int main(int argc, const char **argv)
 	// We add the images to the classifier
 	F->addImages(images);
 		
-	// We delete all images but the first one to gain memory space
-	for (unsigned p = 1; p < images.size(); ++p)
+	// We declare the segmented map with the keywords of the first image
+	ColorMap* segmentedMap = new ColorMap();
+	segmentedMap->copyKeywords(images[0]);
+		
+	// We delete all images to gain memory space
+	for (unsigned p = 0; p < images.size(); ++p)
 	{
 		delete images[p];
 	}
-	images.resize(1);
+	images.clear();
 		
 		
 	// If we don't have centers we initialise randomly
@@ -282,13 +308,13 @@ int main(int argc, const char **argv)
 	F->classification(precision, maxNumberIteration);
 
 	#ifdef HEK
-	// Hack asked by Veronique
+	// Hack asked by Veronique, to stabilize the centers
 		if(B.size() >= 4)
 		{
 			vector<RealFeature> newB = F->getB();
 			sort(newB.begin(), newB.end());
 			//We compare if the 2 lastclass centers are different enough
-			if(d(newB[numberClasses-1]/newB[numberClasses-2], RealFeature(0)) < DELOUILLE_FACTOR)
+			if(d(newB[numberClasses-1]/newB[numberClasses-2], RealFeature(0)) < MIN_QUOTIENT_FACTOR)
 			{
 				// In that case we use the old centers to do an attribution
 				F->initB(B, wavelengths);
@@ -317,13 +343,91 @@ int main(int argc, const char **argv)
 		} 
 	#endif
 
+	//We need to use the value found for B to classify the normal images
+	if(classifierIsHistogram)
+	{
+		F->attribution();
+	}
+
+	#if DEBUG >= 4
+	// We save all the results, this should only be for advanced debugging
+	F->saveAllResults(segmentedMap);
+	#endif
+	
+	// We do the segmentation
+	if (segmentation == "max")
+	{
+		F->segmentedMap_maxUij(segmentedMap);
+	}
+	else if (segmentation == "closest")
+	{
+		F->segmentedMap_closestCenter(segmentedMap);
+	}
+	else if (segmentation == "treshold")
+	{
+		char delimitor;
+		unsigned class_number;
+		Real lowerIntensity_minMembership, higherIntensity_minMembership;
+		istringstream iss(treshold);
+		iss>>class_number>>delimitor>>lowerIntensity_minMembership>>delimitor>>higherIntensity_minMembership;
+		F->segmentedMap_classTreshold(class_number, lowerIntensity_minMembership, higherIntensity_minMembership, segmentedMap);
+	}
+	else if (segmentation == "limits")
+	{
+		vector<RealFeature> maxLimits;
+		if(maxLimitsFileName.empty())
+		{
+			cerr<<"Error : For limits segmentation the maxLimitsFile is mandatory."<<endl;
+			return EXIT_FAILURE;
+		}
+		else
+		{
+			readMaxLimitsFromFile(maxLimits, maxLimitsFileName);
+		}
+		F->segmentedMap_limits(maxLimits, segmentedMap);
+	}
+	else if (segmentation == "fix")
+	{
+		vector<unsigned> ch, qs, ar;
+		if(!coronalHole.empty())
+		{
+			istringstream iss(coronalHole);
+			iss>>ch;
+		}
+		if(!quietSun.empty())
+		{
+			istringstream iss(quietSun);
+			iss>>qs;
+		}
+		if(!activeRegion.empty())
+		{
+			istringstream iss(activeRegion);
+			iss>>ar;
+		}
+		F->segmentedMap_fixed(ch, qs, ar, segmentedMap);
+	}
+	else 
+	{
+		cerr<<"Error : "<<segmentation<<" is not a known segmentation!"<<endl;
+		return EXIT_FAILURE;
+	}
+	
 	#if DEBUG >= 2
-	// We save the results
-	F->saveAllResults(images[0]);
+	segmentedMap->writeFitsImage(outputFileName + "segmented.fits");
 	#endif
 	
 	// We save the map of AR
-	F->saveARmap(images[0]);
+	
+	if (segmentation == "max" || segmentation == "closest" || segmentation == "limits")
+	{
+		ActiveRegionMap(segmentedMap, ARclass(F->getB()));
+	}
+	else 
+	{
+		ActiveRegionMap(segmentedMap, 3);
+	}
+	
+	segmentedMap->writeFitsImage(outputFileName + "ARmap.fits");
 	
 	//We save the centers for the next run (for PCM and derivatives, must be done before classification)
 	if (!centersFileName.empty())
@@ -346,7 +450,7 @@ int main(int argc, const char **argv)
 	}
 	
 	delete F;
-	delete images[0];
+	delete segmentedMap;
 
 	return EXIT_SUCCESS;
 }

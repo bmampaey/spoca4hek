@@ -23,26 +23,10 @@ HistogramPCM2Classifier::HistogramPCM2Classifier(const std::string& histogramFil
 }
 
 
-//Because we need to use the value fund for B to classify the normal images
-void HistogramPCM2Classifier::saveAllResults(SunImage* outImage)
+void HistogramPCM2Classifier::attribution()
 {
 	PCM2Classifier::computeU();
-	PCM2Classifier::saveAllResults(outImage);
 }
-
-
-void HistogramPCM2Classifier::saveARmap(SunImage* outImage)
-{
-	PCM2Classifier::computeU();
-	PCM2Classifier::saveARmap(outImage);
-}
-
-void HistogramPCM2Classifier::saveCHmap(SunImage* outImage)
-{
-	PCM2Classifier::computeU();
-	PCM2Classifier::saveCHmap(outImage);
-}
-
 
 
 void HistogramPCM2Classifier::computeU()

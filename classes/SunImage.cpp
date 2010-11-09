@@ -1,20 +1,28 @@
 #include "SunImage.h"
 
+const double PI = 3.14159265358979323846;
+const double MIPI = 1.57079632679489661923;
+const double BIPI = 6.28318530717958647692;
+
 using namespace std;
 
 
 SunImage::~SunImage()
 {
-	for (unsigned k = 0; k < header.size(); ++k)
-		delete header[k];
+
 }
 
-SunImage::SunImage(const long xAxes, const long yAxes, const double radius, const double wavelength)
-:Image<PixelType>(xAxes,yAxes),radius(radius),wavelength(wavelength),observationTime(0),median(0),datap01(0), datap95(numeric_limits<PixelType>::max()), exposureTime(0)
+SunImage::SunImage(const long xAxes, const long yAxes)
+:Image<PixelType>(xAxes,yAxes),radius(0),wavelength(0),observationTime(0),cdelt1(0),cdelt2(0),median(0),datap01(0), datap95(numeric_limits<PixelType>::max()), exposureTime(0), b0(0)
 {
 	suncenter.x = xAxes/2;
 	suncenter.y = yAxes/2;
-	cdelt[0] = cdelt[1] = 1;
+}
+
+SunImage::SunImage(const long xAxes, const long yAxes,  const Coordinate suncenter, const double radius, const double cdelt1, const double cdelt2, const double wavelength)
+:Image<PixelType>(xAxes,yAxes),radius(radius),wavelength(wavelength),observationTime(0),suncenter(suncenter),cdelt1(cdelt1),cdelt2(cdelt2),median(0),datap01(0), datap95(numeric_limits<PixelType>::max()), exposureTime(0), b0(0)
+{
+
 }
 
 
@@ -26,145 +34,31 @@ SunImage::SunImage(const string& filename)
 
 
 SunImage::SunImage(const SunImage& i)
-:Image<PixelType>(i),radius(i.radius),wavelength(i.wavelength),observationTime(i.observationTime),suncenter(i.suncenter),median(i.median),datap01(i.datap01),datap95(i.datap95), exposureTime(i.exposureTime)
+:Image<PixelType>(i),radius(i.radius),wavelength(i.wavelength),observationTime(i.observationTime),suncenter(i.suncenter),cdelt1(i.cdelt1),cdelt2(i.cdelt2),median(i.median),datap01(i.datap01),datap95(i.datap95),date_obs(i.date_obs),exposureTime(i.exposureTime),b0(i.b0),header(i.header)
 {
-	strncpy (date_obs, i.date_obs, 80);
-	cdelt[0] = i.cdelt[0];
-	cdelt[1] = i.cdelt[1];
-	header.resize(i.header.size(), NULL);
-	for (unsigned k = 0; k < i.header.size(); ++k)
-	{
-		header[k] = new char[81];
-		strncpy (header[k], i.header[k], 80);
-	}
 }
 
 
 SunImage::SunImage(const SunImage* i)
-:Image<PixelType>(i),radius(i->radius),wavelength(i->wavelength),observationTime(i->observationTime),suncenter(i->suncenter),median(i->median),datap01(i->datap01),datap95(i->datap95), exposureTime(i->exposureTime)
+:Image<PixelType>(i),radius(i->radius),wavelength(i->wavelength),observationTime(i->observationTime),suncenter(i->suncenter),cdelt1(i->cdelt1),cdelt2(i->cdelt2),median(i->median),datap01(i->datap01),datap95(i->datap95), date_obs(i->date_obs), exposureTime(i->exposureTime),b0(i->b0),header(i->header)
 {
-	strncpy (date_obs, i->date_obs, 80);
-	cdelt[0] = i->cdelt[0];
-	cdelt[1] = i->cdelt[1];
-	header.resize(i->header.size(), NULL);
-	for (unsigned k = 0; k < i->header.size(); ++k)
-	{
-		header[k] = new char[81];
-		strncpy (header[k], i->header[k], 80);
-	}
+
 }
 
 
 int SunImage::readFitsImageP(fitsfile* fptr)
 {
-	int   status  = 0;
-	char* comment = NULL;					  /**<By specifying NULL we say that we don't want the comments	*/
-
-	status = Image<PixelType>::readFitsImageP(fptr);
+	int status = Image<PixelType>::readFitsImageP(fptr);
 	if(status)
 		return status;
 
-	if (fits_read_key(fptr, TDOUBLE, "WAVELNTH", &wavelength,comment, &status))
-	{
-		cerr<<"Error reading key WAVELNTH from file "<<fptr->Fptr->filename<<" :"<< status <<endl;
-		fits_report_error(stderr, status);
-		status = 0;
-	}
-	if (fits_read_key(fptr, TINT, "CRPIX1", &(suncenter.x),comment, &status))
-	{
-		cerr<<"Error reading key CRPIX1 from file "<<fptr->Fptr->filename<<" :"<< status <<endl;
-		fits_report_error(stderr, status);
-		status = 0;
-	}
-	if (fits_read_key(fptr, TINT, "CRPIX2", &(suncenter.y), comment, &status))
-	{
-		cerr<<"Error reading key CRPIX2 from file "<<fptr->Fptr->filename<<" :"<< status <<endl;
-		fits_report_error(stderr, status);
-		status = 0;
-	}
-	if (fits_read_key(fptr, TDOUBLE, "CDELT1", &(cdelt[0]), comment, &status))
-	{
-		cerr<<"Error reading key CDELT1 from file "<<fptr->Fptr->filename<<" :"<< status <<endl;
-		fits_report_error(stderr, status);
-		status = 0;
-	}
-	if (fits_read_key(fptr, TDOUBLE, "CDELT2", &(cdelt[1]), comment, &status))
-	{
-		cerr<<"Error reading key CDELT2 from file "<<fptr->Fptr->filename<<" :"<< status <<endl;
-		fits_report_error(stderr, status);
-		status = 0;
-	}
-	
-		
-	//The date of observation can be defined as DATE_OBS ou DATE-OBS
-	if (fits_read_key(fptr, TSTRING, "DATE-OBS", date_obs, comment, &status))
-	{
-		
-		status = 0;
-		if (fits_read_key(fptr, TSTRING, "DATE_OBS", date_obs, comment, &status))
-		{
-
-			cerr<<"Error reading key DATE-OBS from file "<<fptr->Fptr->filename<<" :"<< status <<endl;
-			fits_report_error(stderr, status);
-			status = 0;
-		}
-		else
-		{
-			//Sometimes the date is appended with a z
-			char * letter;
-			if((letter = strpbrk (date_obs, "zZ")))
-				*letter = '\0';
-		}
-	}
-	//We convert observationTime to time
-	tm time;
-	double seconds;
-	int month;
-	if (fits_str2time(date_obs, &(time.tm_year), &(month), &(time.tm_mday), &(time.tm_hour), &(time.tm_min), &seconds, &status))
-		cerr<<"Error converting date_obs to time : "<< status <<endl;
-	time.tm_sec = int(seconds);
-	time.tm_mon = month -1;	//Because stupid c++ standard lib has the month going from 0-11
-	time.tm_isdst = 0;
-	observationTime = timegm(&time);
-		
-
-
-	// We save all keywords for future usage
-	status = 0;
-	char record[81];
-	const char* inclist[] = {"*"};
-	const char* exclist[] = {"SIMPLE", "BITPIX", "NAXIS*", "EXTEND", "Z*", "XTENSION", "TTYPE1", "TFORM1", "PCOUNT", "GCOUNT", "TFIELDS"};
-	//We first need to reset the fptr to the beginning
-	if( fits_read_record (fptr, 0, record, &status))
-	{
-		cerr<<"Error reseting the fits pointer to the beginning of the header for file "<<fptr->Fptr->filename<<" :"<< status <<endl;			
-		fits_report_error(stderr, status);
-		status = KEY_NO_EXIST;
-	}
-	while(status != KEY_NO_EXIST)
-	{
-		status = 0;
-		if(fits_find_nextkey(fptr, const_cast<char**>(inclist), sizeof(inclist)/sizeof(char *), const_cast<char**>(exclist), sizeof(exclist)/sizeof(char *), record, &status))
-		{
-			if(status != KEY_NO_EXIST)
-			{
-				cerr<<"Error reading keyword from file "<<fptr->Fptr->filename<<" :"<< status <<endl;
-				fits_report_error(stderr, status);
-				status = KEY_NO_EXIST;
-			}
-		}
-		else
-		{
-			header.push_back(strdup(record));
-		}
-	} 
-	
+	readHeader(fptr);
 	#if DEBUG >= 1
 	for (unsigned j = 0; j < numberPixels; ++j)
 	{
 		if (pixels[j] < 0)
 		{
-			pixels[j] = nullvalue;
+			pixels[j] = nullvalue_;
 		}
 	}
 	#endif
@@ -174,21 +68,11 @@ int SunImage::readFitsImageP(fitsfile* fptr)
 
 int SunImage::writeFitsImageP(fitsfile* fptr)
 {
-
 	int status = Image<PixelType>::writeFitsImageP(fptr);
 	if(status)
 		return status;
-		
-	for (unsigned k = 0; k < header.size(); ++k)
-	{
-		if(fits_write_record(fptr, header[k], &status))
-		{
-			cerr<<"Error : writing keyword to file "<<fptr->Fptr->filename<<" :"<< status <<endl;			
-			fits_report_error(stderr, status);
-			status = 0;
-		} 
-	}
 	
+	writeHeader(fptr);
 	if (fits_write_date(fptr, &status) )
 	{
 		cerr<<"Error : writing date to file "<<fptr->Fptr->filename<<" :"<< status <<endl;			
@@ -199,6 +83,15 @@ int SunImage::writeFitsImageP(fitsfile* fptr)
 	return status;
 }
 
+void SunImage::readHeader(fitsfile* fptr)
+{
+	header.readKeywords(fptr);
+}
+
+void SunImage::writeHeader(fitsfile* fptr)
+{
+	header.writeKeywords(fptr);
+}
 
 
 double SunImage::Wavelength() const
@@ -209,14 +102,43 @@ Coordinate SunImage::SunCenter() const
 {return suncenter;}
 double SunImage::SunRadius() const
 {return radius;}
-time_t SunImage::ObservationTime() const
-{return observationTime;}
+double SunImage::B0() const
+{return b0;}
+
+time_t SunImage::ObservationTime()const
+{
+	if(observationTime != 0)
+		return observationTime;
+	else
+	{
+		//We convert observationTime to time
+		int status = 0;
+		tm time;
+		double seconds;
+		int month;
+		if (fits_str2time(const_cast<char *>(date_obs.c_str()), &(time.tm_year), &(month), &(time.tm_mday), &(time.tm_hour), &(time.tm_min), &seconds, &status))
+		{
+			cerr<<"Error converting date_obs to time : "<< status <<endl;
+			fits_report_error(stderr, status);
+		}
+		else
+		{
+			time.tm_sec = int(seconds);
+			time.tm_mon = month -1;	//Because stupid c++ standard lib has the month going from 0-11
+			time.tm_isdst = 0;
+		}
+		return timegm(&time);
+	}
+
+
+}
 string SunImage::ObservationDate() const
-{return string(date_obs);}
+{return date_obs;}
 double SunImage::PixelArea() const
-{return cdelt[0] * cdelt[1];}
+{return cdelt1 * cdelt2;}
 unsigned SunImage::numberValidPixelsEstimate() const
 {return unsigned(PI*radius*radius);}
+
 
 string nextStep(string& preprocessingList)
 {
@@ -273,7 +195,7 @@ void SunImage::preprocessing(string preprocessingList, const Real radiusRatio)
 			}
 			for (unsigned j=0; j < numberPixels; ++j)
 			{
-				if (pixels[j] != nullvalue)
+				if (pixels[j] != nullvalue_)
 					pixels[j] = pixels[j] / median;
 			}
 		}	
@@ -286,7 +208,7 @@ void SunImage::preprocessing(string preprocessingList, const Real radiusRatio)
 			}
 			for (unsigned j=0; j < numberPixels; ++j)
 			{
-				if (pixels[j] != nullvalue)
+				if (pixels[j] != nullvalue_)
 					pixels[j] = pixels[j] / mode;
 			}
 		}	
@@ -294,16 +216,16 @@ void SunImage::preprocessing(string preprocessingList, const Real radiusRatio)
 		{
 			for (unsigned j=0; j < numberPixels; ++j)
 			{
-				if (pixels[j] != nullvalue)
-					pixels[j] = pixels[j] >= 0 ? sqrt(pixels[j]) : nullvalue;
+				if (pixels[j] != nullvalue_)
+					pixels[j] = pixels[j] >= 0 ? sqrt(pixels[j]) : nullvalue_;
 			}
 		}	
 		else if( preprocessingStep == "TakeLog")
 		{
 			for (unsigned j=0; j < numberPixels; ++j)
 			{
-				if (pixels[j] != nullvalue)
-					pixels[j] = pixels[j] > 0 ? log(pixels[j]) : nullvalue;
+				if (pixels[j] != nullvalue_)
+					pixels[j] = pixels[j] > 0 ? log(pixels[j]) : nullvalue_;
 			}
 		}
 		else if( preprocessingStep == "DivExpTime")
@@ -315,7 +237,7 @@ void SunImage::preprocessing(string preprocessingList, const Real radiusRatio)
 			}
 			for (unsigned j=0; j < numberPixels; ++j)
 			{
-				if (pixels[j] != nullvalue)
+				if (pixels[j] != nullvalue_)
 					pixels[j] = pixels[j] / exposureTime;
 			}
 		}
@@ -339,7 +261,7 @@ void SunImage::nullifyAboveRadius(const Real radiusRatio)
 		for (unsigned x=0; x < Xaxes(); ++x)
 		{
 			if ((x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y)> radius2)
-				pixel(x,y) = nullvalue;
+				pixel(x,y) = nullvalue_;
 		}
 	}
 }
@@ -510,7 +432,7 @@ void SunImage::annulusLimbCorrection(Real maxLimbRadius, Real minLimbRadius)
 
 				pixelValue = &pixel(x,y);
 
-				if ((*pixelValue) != nullvalue)
+				if ((*pixelValue) != nullvalue_)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
 
@@ -541,7 +463,7 @@ void SunImage::annulusLimbCorrection(Real maxLimbRadius, Real minLimbRadius)
 			for (unsigned x=0; x < Xaxes(); ++x)
 			{
 				pixelValue = &pixel(x,y);
-				if ((*pixelValue) != nullvalue)
+				if ((*pixelValue) != nullvalue_)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
 
@@ -569,12 +491,12 @@ void SunImage::annulusLimbCorrection(Real maxLimbRadius, Real minLimbRadius)
 		for (unsigned x=0; x < Xaxes(); ++x)
 		{
 			pixelValue = &pixel(x,y);
-			if ((*pixelValue) != nullvalue)
+			if ((*pixelValue) != nullvalue_)
 			{
 				pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
 				if (maxLimbRadius2 < pixelRadius2)
 				{
-					(*pixelValue) = nullvalue;
+					(*pixelValue) = nullvalue_;
 				}
 				else if (pixelRadius2 > minLimbRadius2)	  //We correct the limb
 				{
@@ -614,7 +536,7 @@ void SunImage::ALCDivMedian(Real maxLimbRadius, Real minLimbRadius)
 			{
 
 				pixelValue = &pixel(x,y);
-				if ((*pixelValue) != nullvalue)
+				if ((*pixelValue) != nullvalue_)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
 
@@ -645,7 +567,7 @@ void SunImage::ALCDivMedian(Real maxLimbRadius, Real minLimbRadius)
 			for (unsigned x=0; x < Xaxes(); ++x)
 			{
 				pixelValue = &pixel(x,y);
-				if ((*pixelValue) != nullvalue)
+				if ((*pixelValue) != nullvalue_)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
 
@@ -673,12 +595,12 @@ void SunImage::ALCDivMedian(Real maxLimbRadius, Real minLimbRadius)
 		for (unsigned x=0; x < Xaxes(); ++x)
 		{
 			pixelValue = &pixel(x,y);
-			if ((*pixelValue) != nullvalue)
+			if ((*pixelValue) != nullvalue_)
 			{
 				pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
 				if (maxLimbRadius2 < pixelRadius2)
 				{
-					(*pixelValue) = nullvalue;
+					(*pixelValue) = nullvalue_;
 				}
 				else if (pixelRadius2 > minLimbRadius2)	  //We correct the limb
 				{
@@ -726,7 +648,7 @@ void SunImage::ALCDivMode(Real maxLimbRadius, Real minLimbRadius)
 			{
 
 				pixelValue = &pixel(x,y);
-				if ((*pixelValue) != nullvalue)
+				if ((*pixelValue) != nullvalue_)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
 
@@ -761,7 +683,7 @@ void SunImage::ALCDivMode(Real maxLimbRadius, Real minLimbRadius)
 			for (unsigned x=0; x < Xaxes(); ++x)
 			{
 				pixelValue = &pixel(x,y);
-				if ((*pixelValue) != nullvalue)
+				if ((*pixelValue) != nullvalue_)
 				{
 					pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
 
@@ -812,12 +734,12 @@ void SunImage::ALCDivMode(Real maxLimbRadius, Real minLimbRadius)
 		for (unsigned x=0; x < Xaxes(); ++x)
 		{
 			pixelValue = &pixel(x,y);
-			if ((*pixelValue) != nullvalue)
+			if ((*pixelValue) != nullvalue_)
 			{
 				pixelRadius2 = (x-suncenter.x)*(x-suncenter.x) + (y-suncenter.y)*(y-suncenter.y);
 				if (maxLimbRadius2 < pixelRadius2)
 				{
-					(*pixelValue) = nullvalue;
+					(*pixelValue) = nullvalue_;
 				}
 				else
 				{
@@ -845,12 +767,12 @@ void SunImage::recenter(const Coordinate& newCenter)
 	if(delta < 0)
 	{
 		memmove(pixels - delta, pixels, (numberPixels + delta + 1) * sizeof(PixelType));
-		fill(pixels, pixels-delta, nullvalue);
+		fill(pixels, pixels-delta, nullvalue_);
 	}
 	else if (delta > 0)
 	{
 		memmove(pixels, pixels + delta, (numberPixels - delta + 1) * sizeof(PixelType));
-		fill(pixels + numberPixels - delta, pixels + numberPixels, nullvalue);
+		fill(pixels + numberPixels - delta, pixels + numberPixels, nullvalue_);
 	}
 	suncenter = newCenter;
 }
@@ -863,68 +785,21 @@ void SunImage::copyKeywords(const SunImage* i)
 	suncenter = i->suncenter;
 	wavelength = i->wavelength;
 	median = i->median;
+	mode = i->mode;
 	observationTime = i->observationTime;
-	datap01=i->datap01;
-	datap95=i->datap95;
-	cdelt[0]=i->cdelt[0];
-	cdelt[1]=i->cdelt[1];
-	strncpy (date_obs, i->date_obs, 80);
+	datap01 = i->datap01;
+	datap95 = i->datap95;
+	cdelt1 = i->cdelt1;
+	cdelt2 = i->cdelt2;
+	date_obs =  i->date_obs;
 	exposureTime = i->exposureTime;
-	for (unsigned k = 0; k < header.size(); ++k)
-	{
-		delete header[k];
-	}
-	header.resize(i->header.size());
-	for (unsigned k = 0; k < i->header.size(); ++k)
-	{
-		header[k] = new char[81];
-		strncpy (header[k], i->header[k], 80);
-	}
+	b0 = i->b0;
+	
 }
 
-#if defined(AGGREGATE_DILATE)
-SunImage* SunImage::blobsIntoAR ()
-{
-
-	//We agregate the blobs together by dilation 
-	unsigned dilateFactor = unsigned(AR_AGGREGATION  / cdelt[0]);
-	this->dilateCircular(dilateFactor,nullvalue);
-	
-	this->colorizeConnectedComponents(0);
-	
-	return this;
-}
-
-#else
-
-SunImage* SunImage::blobsIntoAR ()
-{
-
-	//We create  a map by dilation 
-	unsigned dilateFactor = unsigned(AR_AGGREGATION  / cdelt[0]);
-	SunImage* dilated = new SunImage(this);
-	dilated->dilateCircular(dilateFactor,nullvalue);
-	dilated->colorizeConnectedComponents(0);
-	
-	//We color the blobs using the dilated map 
-	for (unsigned j=0; j < numberPixels; ++j)
-	{
-		if (pixels[j] != nullvalue)
-			pixels[j] = dilated->pixel(j);
-	}
-	delete dilated;
-	
-	return this;
-}
-
-#endif
-
-
-/*
-
-//calculates the differential solar rotation speed for a given pixel
-// Formula coming from Wikipedia, should be verified
-inline Real SunImage::angularSpeed(Real latitude)
+// Calculates the differential solar rotation speed for a given pixel
+// Formula coming from Rotation of Doppler features in the solar photosphere by	Snodgrass, Herschel B. and Ulrich, Roger K.
+inline Real SunImage::angularSpeed(Real latitude) const
 {
 	const Real A = 14.713;
 	const Real B = -2.396;
@@ -934,72 +809,193 @@ inline Real SunImage::angularSpeed(Real latitude)
 	return result * (PI / (24. * 3600. * 180.));
 }
 
-
-inline unsigned SunImage::newPos(Real x, Real y, const Real t)
+// Rotate an image by delta_t seconds
+void SunImage::rotate(const int delta_t)
 {
-	x = suncenter.x - x;
-	y = suncenter.y - y;
-	Real latitude = y / radius;
-	Real omega = angularSpeed(latitude);
-	Real alpha = omega * t;
-	Real r = 1;
-	Real teta = asin(x / sqrt(x * x + r * r));
-	Real delta = r * sin(teta - alpha);
-	return suncenter.x - delta;
+	PixelType* new_pixels = new PixelType[numberPixels];
+	fill(new_pixels, new_pixels + numberPixels, nullvalue_);
+	
+	Real cos_b0 = cos(b0);
+	Real sin_b0 = sin(b0);
+
+	//Compute for each point of the new image what is the equivalent in the current image
+	
+	unsigned j = 0;
+	for(Real y = 0; y < Yaxes(); ++y)
+	{
+		Real ry = (y - suncenter.y) / radius;
+		for(Real x = 0; x < Xaxes(); ++x)
+		{
+			Real rx = (x - suncenter.x) / radius;
+			Real z = 1. - rx * rx - ry * ry;
+			// If we are within the disk
+			if(z >= 0)
+			{ 
+				z = sqrt(z);
+				Real cur_latitude = asin(cos_b0 * ry + sin_b0 * z); // The new latitude equals the current latitude
+				Real new_longitude = atan(rx / (cos_b0 * z - sin_b0 * ry));
+				Real cur_longitude = new_longitude - delta_t * angularSpeed(cur_latitude);
+				// We need to be sure that the current longitude is visible on the disk
+				if(cur_longitude > -MIPI &&  cur_longitude < MIPI)
+				{
+					unsigned cur_x = suncenter.x + radius * (cos(cur_latitude) * sin(cur_longitude));
+					unsigned cur_y = suncenter.y + radius * (cos_b0 * sin(cur_latitude) - sin_b0 * cos(cur_latitude) * cos(cur_longitude));
+					new_pixels[j] = pixel(cur_x, cur_y);
+				}
+			}
+ 			++j;
+		}
+	}
+	delete pixels;
+	pixels = new_pixels;
+}
+
+// Return a new image = to teh image rotated to be comparable to img
+SunImage* SunImage::rotated_like(const SunImage* img) const
+{
+	SunImage * rotated = new SunImage(img->Xaxes(), img->Yaxes());
+	rotated->copyKeywords(img);
+	rotated->nullvalue_ = img->nullvalue_;
+	rotated->zero(nullvalue_);
+	
+	int delta_t = difftime(img->ObservationTime(),ObservationTime());
+	
+	Real cos_b0 = cos(b0);
+	Real sin_b0 = sin(b0);
+	Real cos_newb0 = cos(rotated->b0);
+	Real sin_newb0 = sin(rotated->b0);
+	
+	//Compute for each point of the new image what is the equivalent in the current image
+	for(Real new_y = 0; new_y < rotated->Yaxes(); ++new_y)
+	{
+		Real ry = (new_y - rotated->suncenter.y) / rotated->radius;
+		for(Real new_x = 0; new_x < rotated->Xaxes(); ++new_x)
+		{
+			Real rx = (new_x - rotated->suncenter.x) / rotated->radius;
+			Real z = 1. - rx * rx - ry * ry;
+			// If we are within the disk
+			if(z >= 0)
+			{ 
+				z = sqrt(z);
+				Real cur_latitude = asin(cos_newb0 * ry + sin_newb0 * z); // The new latitude equals the current latitude
+				Real new_longitude = atan(rx / (cos_newb0 * z - sin_newb0 * ry));
+				Real cur_longitude = new_longitude - delta_t * angularSpeed(cur_latitude);
+				// We need to be sure that the current longitude is visible on the disk
+				if(cur_longitude > -MIPI &&  cur_longitude < MIPI)
+				{
+					unsigned cur_x = suncenter.x + radius * (cos(cur_latitude) * sin(cur_longitude));
+					unsigned cur_y = suncenter.y + radius * (cos_b0 * sin(cur_latitude) - sin_b0 * cos(cur_latitude) * cos(cur_longitude));
+					rotated->pixel(new_x,new_y) = pixel(cur_x, cur_y);
+				}
+ 			}
+ 			
+		}
+	}
+
+	return rotated;
+
+}
+
+// Rotate the image to be comparable to img
+void SunImage::rotate_like(const SunImage* img)
+{
+	SunImage * rotated = this->rotated_like(img);
+	axes[0] = rotated->axes[0];
+	axes[1] = rotated->axes[1];
+	numberPixels = rotated->numberPixels;
+	nullvalue_ = rotated->nullvalue_;
+	delete pixels;
+	pixels = rotated->pixels;
+
+}
+
+// Shift a point in the image by delta_t seconds
+Coordinate SunImage::shift(const Coordinate c, const int delta_t) const
+{
+
+	Real latitude, longitude;
+	longlat(c, longitude, latitude);
+	longitude += delta_t * angularSpeed(latitude);
+	
+	Coordinate newc;
+	newc.x = suncenter.x + radius * (cos(latitude) * sin(longitude));
+	newc.y = suncenter.y + radius * (sin(latitude) * cos(b0) - cos(latitude) * cos(longitude) * sin(b0));
+	
+	return newc;
+
+}
+
+// Shift a point in the image to the equivalant point in img
+Coordinate SunImage::shift_like(const Coordinate c, const SunImage* img) const
+{
+
+	int delta_t = difftime(img->ObservationTime(),ObservationTime());
+	Real latitude, longitude;
+	longlat(c, longitude, latitude);
+	longitude += delta_t * angularSpeed(latitude);
+	
+	Coordinate newc;
+	newc.x = img->suncenter.x + img->radius * (cos(latitude) * sin(longitude));
+	newc.y = img->suncenter.y + img->radius * (sin(latitude) * cos(img->b0) - cos(latitude) * cos(longitude) * sin(img->b0));
+	
+	return newc;
+
 }
 
 
-SunImage* SunImage::rotate(const unsigned t)
+void SunImage::longlat(const Coordinate c, Real& longitude, Real& latitude) const
 {
-	SunImage * img = new SunImage(axes[0], axes[1], radius, wavelength);
-	vector<Real> radiusAtLatitude (radius + 1, 0);
-	vector<unsigned> left ( radius, Xaxes());
-	vector<unsigned> right ( radius, 0);
-
-	Image<Real> Phi (Xaxes(), radius + 1);
-	Phi.zero(MIPI);
-	for (unsigned latitude = 0; latitude < radius; ++latitude)
+	Real cos_b0 = cos(b0);
+	Real sin_b0 = sin(b0);
+	Real rx = c.x ; 
+	Real ry = c.y;
+	rx = (rx - suncenter.x) / radius; 
+	ry = (ry - suncenter.y) / radius;
+	Real z = 1. - rx * rx - ry * ry;
+	if(z >= 0)
+	{ 
+		z = sqrt(z);
+		latitude = asin(cos_b0 * ry + sin_b0 * z);
+		longitude = atan(rx / (cos_b0 * z - sin_b0 * ry));
+	}
+	else
 	{
-		radiusAtLatitude[latitude] = sqrt((radius * radius) - (latitude * latitude));
-		left[latitude] = suncenter.x - radiusAtLatitude[latitude] ;
-		right[latitude] = suncenter.x + radiusAtLatitude[latitude];
-		for (int longitude = floor(1. - radiusAtLatitude[latitude]); longitude <=  ceil(radiusAtLatitude[latitude] - 1.); ++longitude)
-		{
-			Real r1 = Real(latitude) / Real(radius);
-			Phi.pixel(suncenter.x + longitude,latitude)=asin(Real(longitude) /(sqrt(1 - r1 * r1) * Real(radius)));
-		}
+		latitude = numeric_limits<PixelType>::quiet_NaN();
+		longitude = numeric_limits<PixelType>::quiet_NaN();
 	}
-	Phi.writeFitsImage("phi.fits");
-
-	cout<<"left\tright:"<<endl;
-	for (unsigned i = 0; i < left.size(); ++i)
-		cout<<left[i]<<"\t"<<right[i]<<endl;
-
-	Image<Real> PhiRotated (Xaxes(), radius + 1);
-	for (unsigned latitude = 0; latitude < radius; ++latitude)
-	{
-		for (unsigned longitude = left[latitude]; longitude <=  right[latitude]; ++longitude)
-		{
-			PhiRotated.pixel(longitude,latitude)=Phi.pixel(longitude,latitude) + angularSpeed(Real(latitude)/radius) * t;
-		}
-	}
-	PhiRotated.writeFitsImage("PhiRotated.fits");
-
-
-	img->zero();
-	Real newx;
-	for(int y = 0; y <= radius ; ++y)
-	{
-		for(int x = -radiusAtLatitude(y); x <= radiusAtLatitude(r); ++x)
-		{
-			newx = newPos(x,y,t);
-			img->pixel(x,y) = pixel(newx,y);
-			img->pixel(x,-y) = pixel(newx,-y);
-	}
-	}
-
-	return img;
-
 }
 
-*/
+void SunImage::longlat_map(vector<Real>& longitude_map, vector<Real>& latitude_map) const
+{
+
+	longitude_map.resize(numberPixels, 0);
+	latitude_map.resize(numberPixels, 0);
+	
+	Real cos_b0 = cos(b0);
+	Real sin_b0 = sin(b0);
+	
+	unsigned j = 0;
+	for(Real y = 0; y < Yaxes(); ++y)
+	{
+		Real ry = (y - suncenter.y) / radius;
+		for(Real x = 0; x < Xaxes(); ++x)
+		{
+			Real rx = (x - suncenter.x) / radius;
+			Real z = 1. - rx * rx - ry * ry;
+			if(z >= 0)
+			{ 
+				z = sqrt(z);
+				latitude_map[j] = asin(cos_b0 * ry + sin_b0 * z);
+				longitude_map[j] = atan(rx / (cos_b0 * z - sin_b0 * ry));
+ 			}
+ 			else
+			{
+				latitude_map[j] = numeric_limits<PixelType>::quiet_NaN();
+				longitude_map[j] = numeric_limits<PixelType>::quiet_NaN();
+			}
+			++j;
+		}
+	}
+
+
+}

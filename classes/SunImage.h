@@ -14,6 +14,8 @@
 #include "longnam.h"
 #include "Image.h"
 #include "Coordinate.h"
+#include "FitsHeader.h"
+
 
 class SunImage : public Image<PixelType>
 {
@@ -24,22 +26,24 @@ class SunImage : public Image<PixelType>
 		double wavelength;
 		time_t observationTime;
 		Coordinate suncenter;
-		double cdelt[2];
+		double cdelt1, cdelt2;
 		PixelType median, mode, datap01, datap95;
-		char date_obs[80];
+		std::string date_obs;
 		double exposureTime;
+		double b0;
 	
 		virtual Real MINRADIUS()
 		{ return SINE_CORR_R1 / 100.; }
 		
 	public :
-		std::vector<char*> header;
+		FitsHeader header;
 
 	public :
 		
 		//Constructors and destructors
+		SunImage(const long xAxes = 0, const long yAxes = 0);
+		SunImage(const long xAxes, const long yAxes, const Coordinate suncenter, const double radius, const double cdelt1, const double cdelt2, const double wavelength = 0.);
 		SunImage(const std::string& filename);
-		SunImage(const long xAxes = 0, const long yAxes = 0, const double radius = 0., const double wavelength = 0.);
 		SunImage(const SunImage& i);
 		SunImage(const SunImage* i);
 		~SunImage();
@@ -47,14 +51,17 @@ class SunImage : public Image<PixelType>
 		//Routines to read and write a fits file
           int writeFitsImageP(fitsfile* fptr);
           int readFitsImageP(fitsfile* fptr);
-
-
+          
+          //Routines to read and write the keywords from/to the header
+		virtual void readHeader(fitsfile* fptr);
+		virtual void writeHeader(fitsfile* fptr);
 		
 		//Accessors
 		double Wavelength() const;
 		double Median() const;
 		Coordinate SunCenter() const;
 		double SunRadius() const;
+		double B0() const;
 		time_t ObservationTime() const;
 		std::string ObservationDate() const;
 		double PixelArea() const;
@@ -72,19 +79,18 @@ class SunImage : public Image<PixelType>
 		void recenter(const Coordinate& newCenter);
 		void copyKeywords(const SunImage* i);
 		
-		//Routine to aggregate blobs into AR
-		SunImage* blobsIntoAR ();
 		
-		//Future routines to derotate an image (in progress) 
-		/*
-		Real angularSpeed(Real latitude);
-		unsigned newPos(Real x, Real y, const Real t);
-		SunImage* rotate(const unsigned t);
-		*/
+		//Routines to derotate an image 
+		Real angularSpeed(Real latitude) const;
+		void rotate(const int delta_t);
+		SunImage* rotated_like(const SunImage* img) const;
+		void rotate_like(const SunImage* img);
+		Coordinate shift(const Coordinate c, const int delta_t) const;
+		Coordinate shift_like(const Coordinate c, const SunImage* img) const;
+		void longlat(const Coordinate c, Real& longitude, Real& latitude) const;
+		void longlat_map(std::vector<Real>& longitude_map, std::vector<Real>& latitude_map) const;
+		
 		
 };
 
-const Real PI = 3.14159265358979323846;
-const Real MIPI = 1.57079632679489661923;
-const Real BIPI = 6.28318530717958647692;
 #endif

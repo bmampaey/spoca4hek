@@ -11,7 +11,7 @@
 
 #include "constants.h"
 #include "Coordinate.h"
-#include "SunImage.h"
+#include "ColorMap.h"
 
 #ifdef COCO
 #include "CoordinateConvertor.h"
@@ -45,7 +45,7 @@ class Region
 		void setColor(const unsigned long& color);
 		Coordinate Boxmin() const;
 		Coordinate Boxmax() const;
-		Coordinate Center() const;
+		virtual Coordinate Center() const;
 		Coordinate FirstPixel() const;
 		unsigned NumberPixels() const;
 		time_t ObservationTime() const;

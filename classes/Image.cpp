@@ -11,7 +11,7 @@ Image<T>::~Image()
 
 template<class T>
 Image<T>::Image(const long xAxes, const long yAxes)
-:naxis(2),numberPixels(xAxes * yAxes),pixels(NULL),nullvalue(numeric_limits<T>::has_infinity?numeric_limits<T>::infinity():numeric_limits<T>::max())
+:naxis(2),numberPixels(xAxes * yAxes),pixels(NULL),nullvalue_(numeric_limits<T>::has_infinity?numeric_limits<T>::infinity():numeric_limits<T>::max())
 {
 
 	axes[0] = xAxes;
@@ -86,7 +86,7 @@ Image<T>::Image(const long xAxes, const long yAxes)
 
 template<class T>
 Image<T>::Image(const string& filename)
-:nullvalue(numeric_limits<T>::has_infinity?numeric_limits<T>::infinity():numeric_limits<T>::max())
+:nullvalue_(numeric_limits<T>::has_infinity?numeric_limits<T>::infinity():numeric_limits<T>::max())
 {
 
 	//We determine the datatype from the template
@@ -169,7 +169,7 @@ Image<T>::Image(const string& filename)
 
 template<class T>
 Image<T>::Image(const Image<T>& i)
-:naxis(i.naxis),numberPixels(i.numberPixels),datatype(i.datatype),anynull(i.anynull),bitpix(i.bitpix),nullvalue(i.nullvalue)
+:naxis(i.naxis),numberPixels(i.numberPixels),datatype(i.datatype),anynull(i.anynull),bitpix(i.bitpix),nullvalue_(i.nullvalue_)
 {
 	axes[0] = i.axes[0];
 	axes[1] = i.axes[1];
@@ -180,7 +180,7 @@ Image<T>::Image(const Image<T>& i)
 
 template<class T>
 Image<T>::Image(const Image<T>* i)
-:naxis(i->naxis),numberPixels(i->numberPixels),datatype(i->datatype),anynull(i->anynull),bitpix(i->bitpix),nullvalue(i->nullvalue)
+:naxis(i->naxis),numberPixels(i->numberPixels),datatype(i->datatype),anynull(i->anynull),bitpix(i->bitpix),nullvalue_(i->nullvalue_)
 {
 	axes[0] = i->axes[0];
 	axes[1] = i->axes[1];
@@ -254,7 +254,7 @@ int Image<T>::readFitsImageP(fitsfile* fptr)
 	numberPixels = Xaxes() * Yaxes();
 	pixels = new T[numberPixels];
 
-	if (fits_read_img(fptr, datatype, 1, numberPixels,const_cast<T*>(&nullvalue),pixels,&anynull, &status))
+	if (fits_read_img(fptr, datatype, 1, numberPixels,const_cast<T*>(&nullvalue_),pixels,&anynull, &status))
 	{
 		cerr<<"Error : reading image from file "<<fptr->Fptr->filename<<" :"<< status <<endl;			
 		fits_report_error(stderr, status);
@@ -361,6 +361,19 @@ int Image<T>::writeFitsImageP(fitsfile *fptr)
 
 }
 
+template<class T>
+Image<T>* Image<T>::resize(const long xAxes, const long yAxes)
+{
+	if(xAxes * yAxes != numberPixels)
+	{
+		numberPixels = xAxes * yAxes;
+		pixels = (T *) realloc(pixels, sizeof(T) * numberPixels);
+	}
+	axes[0] = xAxes;
+	axes[1] = yAxes;
+	
+	return this;
+}
 
 template<class T>
 Image<T>* Image<T>::zero(T value)
@@ -426,7 +439,7 @@ template<class T>
 Image<T>* Image<T>::erodeDiamond(unsigned size, T pixelValueToErode)
 {
 
-	T fillPixelValue = nullvalue;
+	T fillPixelValue = nullvalue_;
 	unsigned *manthanDistance = new unsigned[Xaxes() * Yaxes()];
 	unsigned maxDistance = Xaxes() + Yaxes();
 
@@ -630,7 +643,7 @@ Image<T>* Image<T>::drawInternContours(const unsigned width, const T unsetValue)
 	eroded->erodeCircular(width, unsetValue);
 	for (unsigned j = 0; j < numberPixels; ++j)
 	{
-		if(eroded->pixels[j] != eroded->nullvalue)
+		if(eroded->pixels[j] != eroded->nullvalue_)
 			pixels[j] = unsetValue;
 	}
 	delete eroded;
@@ -707,9 +720,9 @@ void Image<T>::diff(const Image<T> * img)
 {
 	for (unsigned j = 0; j < numberPixels; ++j)
 	{
-		if(img->pixels[j] == nullvalue)
-			pixels[j] = nullvalue;
-		else if (pixels[j] != nullvalue)
+		if(img->pixels[j] == nullvalue_)
+			pixels[j] = nullvalue_;
+		else if (pixels[j] != nullvalue_)
 			pixels[j] -= img->pixels[j];
 		
 	}
@@ -721,9 +734,9 @@ void Image<T>::div(const Image<T> * img)
 {
 	for (unsigned j = 0; j < numberPixels; ++j)
 	{
-		if(img->pixels[j] == nullvalue || img->pixels[j] == 0)
-			pixels[j] = nullvalue;
-		else if (pixels[j] != nullvalue)
+		if(img->pixels[j] == nullvalue_ || img->pixels[j] == 0)
+			pixels[j] = nullvalue_;
+		else if (pixels[j] != nullvalue_)
 			pixels[j] /= img->pixels[j];
 	}
 }
@@ -768,6 +781,8 @@ unsigned Image<T>::propagateColor(const T color, const unsigned firstPixel)
 	{
 		h = pixelList.back();
 		pixelList.pop_back();
+		if(pixels[h] != setValue)
+			continue;
 		pixels[h] = color;
 		++numberColoredPixels;
 		if(h+1 < numberPixels && pixels[h+1] == setValue)
@@ -794,7 +809,7 @@ unsigned Image<T>::tresholdConnectedComponents(const unsigned minSize, const T s
 		if(pixels[j] == setValue)
 		{
 			if (propagateColor(color, j) < minSize)
-				propagateColor(nullvalue, j);
+				propagateColor(nullvalue_, j);
 			else
 			{
 				++color;
@@ -803,7 +818,7 @@ unsigned Image<T>::tresholdConnectedComponents(const unsigned minSize, const T s
 		}
 	}
 	//We have to give back the original color
-	for (unsigned t = 0; t < treatedPixels.size(); ++ t)
+	for (unsigned t = 0; t < treatedPixels.size(); ++t)
 	{
 		propagateColor(setValue, treatedPixels[t]);
 	}
@@ -813,17 +828,35 @@ unsigned Image<T>::tresholdConnectedComponents(const unsigned minSize, const T s
 
 
 template<class T>
-Image<T>* Image<T>::bitmap(const Image<unsigned>* bitMap, unsigned setValue)
+Image<T>* Image<T>::bitmap(const Image<T>* bitMap, T setValue)
 {
 	for (unsigned j = 0; j < numberPixels; ++j)
 	{
-		if(bitMap->pixel(j) != setValue)
-			pixels[j] = nullvalue;
+			pixels[j] = bitMap->pixel(j) == setValue ? 1 : 0;
 	}
 	return this;
 
 }
 
+template<class T>
+Image<T>* Image<T>::removeHoles(T unusedColor)
+{
+	propagateColor(unusedColor, 0);
+	T lastColor = nullvalue_;
+	for (unsigned j = 0; j < numberPixels; ++j)
+	{
+		if(pixels[j] != nullvalue_)
+		{
+			lastColor = pixels[j];
+		}
+		else
+		{
+			pixels[j] = lastColor;
+		}
+	}
+	propagateColor(nullvalue_, 0);
+	return this;
+}
 
 template<class T>
 Real Image<T>::mean() const
@@ -831,10 +864,12 @@ Real Image<T>::mean() const
 	Real sum = 0;
 	Real card = 0;
 	for (unsigned j = 0; j < numberPixels; ++j)
-		if(pixels[j] != nullvalue)
 	{
-		sum += pixels[j];
-		++card;
+		if(pixels[j] != nullvalue_)
+		{
+			sum += pixels[j];
+			++card;
+		}
 	}
 	if(card == 0)
 		return 0;
@@ -851,7 +886,7 @@ Real Image<T>::variance() const
 	Real card = 0;
 	Real meanValue = mean();
 	for (unsigned j = 0; j < numberPixels; ++j)
-		if(pixels[j] != nullvalue)
+		if(pixels[j] != nullvalue_)
 	{
 		temp = (pixels[j] - meanValue);
 		m2 += temp * temp;
@@ -872,7 +907,7 @@ Real Image<T>::skewness() const
 	Real card = 0;
 	Real meanValue = mean(), temp;
 	for (unsigned j = 0; j < numberPixels; ++j)
-		if(pixels[j] != nullvalue)
+		if(pixels[j] != nullvalue_)
 	{
 		temp = (pixels[j] - meanValue);
 		temp *= temp;
@@ -900,7 +935,7 @@ Real Image<T>::kurtosis() const
 	Real card = 0;
 	Real meanValue = mean(), temp;
 	for (unsigned j = 0; j < numberPixels; ++j)
-		if(pixels[j] != nullvalue)
+		if(pixels[j] != nullvalue_)
 	{
 		temp = (pixels[j] - meanValue);
 		temp *= temp;
@@ -953,7 +988,7 @@ void Image<T>::neighboorhoodMean(const Image<T>* image, int Nradius)
 		for (unsigned n = 0; n < neigboorhood.size(); ++n)
 		{
 			unsigned neighboor = j + neigboorhood[n];
-			if(neighboor >= 0 && neighboor < numberPixels && image->pixels[neighboor] != nullvalue )
+			if(neighboor >= 0 && neighboor < numberPixels && image->pixels[neighboor] != nullvalue_ )
 			{
 				m1 += image->pixels[neighboor];
 				++card;
@@ -962,7 +997,7 @@ void Image<T>::neighboorhoodMean(const Image<T>* image, int Nradius)
 		}
 		if(card == 0)
 		{
-			pixels[j] = nullvalue;
+			pixels[j] = nullvalue_;
 		}
 		else
 		{
@@ -1010,7 +1045,7 @@ void Image<T>::neighboorhoodVariance(const Image<T>* image, int Nradius)
 		for (unsigned n = 0; n < neigboorhood.size(); ++n)
 		{
 			unsigned neighboor = j + neigboorhood[n];
-			if( neighboor >= 0 && neighboor < numberPixels && image->pixels[neighboor] != nullvalue )
+			if( neighboor >= 0 && neighboor < numberPixels && image->pixels[neighboor] != nullvalue_ )
 			{
 				temp = (image->pixels[neighboor] - meanImage->pixels[j]);
 				m2 += temp * temp;
@@ -1020,7 +1055,7 @@ void Image<T>::neighboorhoodVariance(const Image<T>* image, int Nradius)
 		}
 		if(card == 0)
 		{
-			pixels[j] = nullvalue;
+			pixels[j] = nullvalue_;
 		}
 		else
 		{
@@ -1070,7 +1105,7 @@ void Image<T>::neighboorhoodSkewness(const Image<T>* image, int Nradius)
 		for (unsigned n = 0; n < neigboorhood.size(); ++n)
 		{
 			unsigned neighboor = j + neigboorhood[n];
-			if( neighboor >= 0 && neighboor < numberPixels && image->pixels[neighboor] != nullvalue )
+			if( neighboor >= 0 && neighboor < numberPixels && image->pixels[neighboor] != nullvalue_ )
 			{
 				temp = (image->pixels[neighboor] - meanImage->pixels[j]);
 				m2 += temp * temp;
@@ -1081,7 +1116,7 @@ void Image<T>::neighboorhoodSkewness(const Image<T>* image, int Nradius)
 		}
 		if(card == 0 || m2 == 0)
 		{
-			pixels[j] = nullvalue;
+			pixels[j] = nullvalue_;
 		}
 		else
 		{
@@ -1091,7 +1126,7 @@ void Image<T>::neighboorhoodSkewness(const Image<T>* image, int Nradius)
 			if(m2 != 0)
 				pixels[j] = T(m3 / sqrt(m2));
 			else
-				pixels[j] = nullvalue;
+				pixels[j] = nullvalue_;
 
 		}
 
@@ -1138,7 +1173,7 @@ void Image<T>::neighboorhoodKurtosis(const Image<T>* image, int Nradius)
 		for (unsigned n = 0; n < neigboorhood.size(); ++n)
 		{
 			unsigned neighboor = j + neigboorhood[n];
-			if( neighboor >= 0 && neighboor < numberPixels && image->pixels[neighboor] != nullvalue )
+			if( neighboor >= 0 && neighboor < numberPixels && image->pixels[neighboor] != nullvalue_ )
 			{
 				temp = (image->pixels[neighboor] - meanImage->pixels[j]);
 				temp *= temp;
@@ -1151,7 +1186,7 @@ void Image<T>::neighboorhoodKurtosis(const Image<T>* image, int Nradius)
 		}
 		if(card == 0)
 		{
-			pixels[j] = nullvalue;
+			pixels[j] = nullvalue_;
 		}
 		else
 		{
@@ -1160,7 +1195,7 @@ void Image<T>::neighboorhoodKurtosis(const Image<T>* image, int Nradius)
 			if(m2 != 0)
 				pixels[j] = T(( m4 / (m2 * m2) ) - 3);
 			else
-				pixels[j] = nullvalue;
+				pixels[j] = nullvalue_;
 		}
 
 	}
@@ -1205,12 +1240,86 @@ void fillRandomDots(Image<PixelType>* image, unsigned numberClasses, const vecto
 
 }
 
+template<class T>
+Image<T>* Image<T>::convolution(const Image<T> * img, const float kernel[3][3])
+{
+	resize(img->Xaxes(), img->Xaxes());
+	unsigned j = Xaxes() + 1;
+
+	T* p0 = img->pixels;
+	T* p1 = p0+Xaxes();
+	T* p2 = p1+Xaxes();
+
+	for(unsigned y = 1; y < Yaxes()-1; ++y)
+	{
+		for(unsigned x = 1; x < Xaxes()-1; ++x)
+		{
+			pixels[j++] =	kernel[0][0] * p0[0] + kernel[0][1] * p0[1] + kernel[0][2] * p0[2] +
+						kernel[1][0] * p1[0] + kernel[1][1] * p1[1] + kernel[1][2] * p1[2] +
+						kernel[2][0] * p2[0] + kernel[2][1] * p2[1] + kernel[2][2] * p2[2] ;
+			++p0;
+			++p1;
+			++p2;
+		}
+
+	}
+	return this;
+}
+
+template<class T>
+Image<T>* Image<T>::convolution(const Image<T> * img, const float kernel[5][5])
+{
+	resize(img->Xaxes(), img->Xaxes());
+	return this;
+}
+
+template<class T>
+Image<T>* Image<T>::sobel_approx(const Image<T> * img)
+{
+	resize(img->Xaxes(), img->Xaxes());
+	unsigned j = 0;
+
+	T* p0 = img->pixels;
+	T* p1 = p0+Xaxes();
+	T* p2 = p1+Xaxes();
+
+	for(unsigned y = 0; y < Yaxes()-2; ++y)
+	{
+		for(unsigned x = 0; x < Xaxes()-2; ++x)
+		{
+			pixels[j++] = ( abs((p0[0] + 2*p0[1] + p0[2]) - (p2[0] + 2*p2[1]+ p2[2])) + abs((p0[2] + 2*p1[2] + p2[2]) - (p0[0] + 2*p1[0] + p2[0])) ) / 6;
+			++p0;
+			++p1;
+			++p2;
+		}
+
+	}
+	return this;
+}
+
+template<class T>
+Image<T>* Image<T>::sobel(const Image<T> * img)
+{
+	resize(img->Xaxes(), img->Xaxes());
+	const float sobel_kernelx[3][3] = {{1, 0, -1}, {2, 0, -2}, {1, 0, -1}};
+	const float sobel_kernely[3][3] = {{1, 2, 1}, {0, 0, 0}, {-1, -2, -1}};
+
+	Image<T> Cx (img->Xaxes(), img->Xaxes());
+	Image<T> Cy (img->Xaxes(), img->Xaxes());
+	Cx.convolution(img, sobel_kernelx);
+	Cy.convolution(img, sobel_kernely);
+	for (unsigned j= 0; j < numberPixels; ++j) 
+	{
+		pixels[j] = sqrt(Cx.pixels[j] * Cx.pixels[j] + Cy.pixels[j] * Cy.pixels[j]);
+	}
+	return this;
+}
 
 /* We create the code for the template class we need
    See constants.h */
 
 template class Image<Real>;
-template class Image<unsigned>;
+//template class Image<unsigned>;
 
 #if PIXELTYPE!=REALTYPE && PIXELTYPE!=TUINT
 template class Image<PixelType>;

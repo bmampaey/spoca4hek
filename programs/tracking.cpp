@@ -1,4 +1,4 @@
-// This programm will do tracking of regions from color maps
+// This program will do tracking of regions from color maps
 // Written by Benjamin Mampaey on 15 July 2010
 
 #include <vector>
@@ -15,9 +15,10 @@
 #include "../classes/mainutilities.h"
 #include "../classes/ArgumentHelper.h"
 
-#include "../classes/SunImage.h"
+#include "../classes/ColorMap.h"
 #include "../classes/Region.h"
 #include "../classes/trackable.h"
+#include "../classes/TrackingRelation.h"
 #include "../cgt/graph.h"
 
 
@@ -27,20 +28,19 @@ using namespace cgt;
 
 string outputFileName;
 
-
 int main(int argc, const char **argv)
 {
 	cout<<setiosflags(ios::fixed);
 
 	// Options for the tracking
 	newColor = 0;
-	unsigned delta_time = 3600;
+	unsigned max_delta_t = 3600;
 	unsigned overlap = 1;
 	bool writeAllImages = false;
+	bool derotate = false;
 	
 	// The list of names of the sun images to process
-	string imageType = "AIA";
-	vector<string> sunImagesFileNames;
+	vector<string> imagesFilenames;
 
 	string programDescription = "This Programm will track regions from color maps.\n";
 	programDescription+="Compiled with options :";
@@ -49,12 +49,12 @@ int main(int argc, const char **argv)
 	programDescription+="\nReal: " + string(typeid(Real).name());
 
 	ArgumentHelper arguments;
-	arguments.set_string_vector("fitsFileName1 fitsFileName2 ...", "\n\tThe name of the fits files containing the maps of the regions to track.\n\t", sunImagesFileNames);
+	arguments.set_string_vector("fitsFileName1 fitsFileName2 ...", "\n\tThe name of the fits files containing the maps of the regions to track.\n\t", imagesFilenames);
 	arguments.new_named_unsigned_long('n',"newColor","positive integer","\n\tThe last color given to active regions\n\t",newColor);
-	arguments.new_named_unsigned_int('d',"delta_time","positive integer","\n\tThe maximal delta time between 2 tracked regions\n\t",delta_time);
-	arguments.new_named_unsigned_int('D',"overlap","positive integer","\n\tThe number of images that overlap between 2 tracking run\n\t",overlap);
+	arguments.new_named_unsigned_int('d',"max_delta_t","positive integer","\n\tThe maximal delta time between 2 tracked regions\n\t",max_delta_t);
+	arguments.new_named_unsigned_int('o',"overlap","positive integer","\n\tThe number of images that overlap between 2 tracking run\n\t",overlap);
 	arguments.new_flag('A', "writeAllImages", "\n\tSet this flag if you want all images to be colored and written to disk.\n\tOtherwise only the image for the next tracking will be colored and written.\n\t", writeAllImages);
-	arguments.new_named_string('I', "imageType","string", "\n\tThe type of the images.\n\tPossible values are : EIT, EUVI, AIA, SWAP\n\t", imageType);
+	arguments.new_flag('D', "derotate", "\n\tSet this flag if you want images to be derotated before comparison.\n\t", derotate);
 	arguments.set_description(programDescription.c_str());
 	arguments.set_author("Benjamin Mampaey, benjamin.mampaey@sidc.be");
 	arguments.set_build_date(__DATE__);
@@ -62,7 +62,7 @@ int main(int argc, const char **argv)
 	arguments.process(argc, argv);
 
 	// We read the color maps
-	vector<SunImage*> images = getImagesFromFiles(imageType, sunImagesFileNames, true);
+	vector<SunImage*> images = getImagesFromFiles("ColorMap", imagesFilenames, true);
 
 	//We ordonate the images according to time
 	ordonate(images);
@@ -81,15 +81,18 @@ int main(int argc, const char **argv)
 		regions.push_back(getRegions(images[s]));
 	}
 
-	//We use the colors of the first image as a reference
-	for (unsigned r = 0; r < regions[0].size(); ++r)
-	{
-		regions[0][r]->setColor((long unsigned)images[0]->pixel(regions[0][r]->FirstPixel()));
-		// If the color is bigger than the newColor we increase newColor
-		if(newColor < regions[0][r]->Color())
-			newColor = regions[0][r]->Color();
+	//We use the colors of the overlap images as a reference
+	for (unsigned s = 0; s < overlap && s < images.size(); ++s)
+    	{
+	    for (unsigned r = 0; r < regions[s].size(); ++r)
+	    {
+		   regions[s][r]->setColor((long unsigned)images[s]->pixel(regions[s][r]->FirstPixel()));
+		   // If the color is bigger than the newColor we increase newColor
+		   if(newColor < regions[s][r]->Color())
+		       newColor = regions[s][r]->Color();
+	    }
 	}
-	
+
 	#if DEBUG >= 2
 	// We output the regions found
 	ouputRegions(regions, "regions_premodification.txt");
@@ -112,31 +115,53 @@ int main(int argc, const char **argv)
 	// if they overlay and
 	// if there is not already a path between them
 
-	
 	for (unsigned d = 1; d < images.size(); ++d)
 	{	
 		for (unsigned s1 = 0; d + s1 < images.size(); ++s1)
 		{
 			unsigned s2 = s1 + d;
 			//If the time difference between the 2 images is too big, we don't need to continue
-			if (unsigned(difftime(images[s2]->ObservationTime(),images[s1]->ObservationTime())) > delta_time)
+			unsigned delta_t = unsigned(difftime(images[s2]->ObservationTime(),images[s1]->ObservationTime()));
+			if (delta_t > max_delta_t)
 			{
 				break;						  
 			}	
+			
+			#if DEBUG >= 2
+			if(derotate)
+			{
+				SunImage * rotated = images[s1]->rotated_like(images[s2]);
+				rotated->writeFitsImage("rotated_"+ stripSuffix(stripPath(imagesFilenames[s1])) + "_to_" + stripSuffix(stripPath(imagesFilenames[s2]))+".fits");
+				delete rotated;
+			}
+			#endif
 			for (unsigned r1 = 0; r1 < regions[s1].size(); ++r1)
 			{
 				for (unsigned r2 = 0; r2 < regions[s2].size(); ++r2)
-				{
-					unsigned intersectPixels = overlay(images[s1], regions[s1][r1], images[s2], regions[s2][r2]);
-					if(intersectPixels > 0 && !path(tracking_graph.get_node(regions[s1][r1]), regions[s2][r2]))
-					{
-						tracking_graph.insert_edge(intersectPixels, regions[s1][r1], regions[s2][r2]);
+				{			
+					if(!path(tracking_graph.get_node(regions[s1][r1]), regions[s2][r2]))
+					{		
+						unsigned intersectPixels = 0;
+						if(derotate)
+						{
+							intersectPixels = overlay_derotate(images[s1], regions[s1][r1], images[s2], regions[s2][r2]);
+						}
+						else
+						{
+							intersectPixels = overlay(images[s1], regions[s1][r1], images[s2], regions[s2][r2]);
+						}
+						if(intersectPixels > 0)
+						{
+							tracking_graph.insert_edge(intersectPixels, regions[s1][r1], regions[s2][r2]);
+						}
 					}
 				}
 
 			}
 		}
 	}
+
+	
 
 	// To gain some memory space we can delete all images but the one used for the next tracking
 	unsigned firstImageNextTracking = images.size() - overlap > 0 ? images.size() - overlap : 0;
@@ -176,21 +201,26 @@ int main(int argc, const char **argv)
 		for (unsigned s = 0; s < images.size(); ++s)
 		{
 			recolorFromRegions(images[s], regions[s]);
-			images[s]->writeFitsImage(outputFileName + sunImagesFileNames[s]);
+			images[s]->writeFitsImage(outputFileName + imagesFilenames[s]);
 			delete images[s];
 		}
 	}
 	else //We color the image used for the next tracking
 	{
-		recolorFromRegions(images[firstImageNextTracking], regions[firstImageNextTracking]);
-		images[firstImageNextTracking]->writeFitsImage(outputFileName + sunImagesFileNames[firstImageNextTracking]);
-		delete images[firstImageNextTracking];
+		for (unsigned s = firstImageNextTracking; s < images.size(); ++s)
+		{
+			recolorFromRegions(images[firstImageNextTracking], regions[firstImageNextTracking]);
+			images[firstImageNextTracking]->writeFitsImage(outputFileName + imagesFilenames[firstImageNextTracking]);
+			delete images[firstImageNextTracking];
+		}
 	}
-	
+
 
 	#ifndef HEK
 	cout<<"Last color assigned: "<<newColor<<endl;	
 	#else
+	
+	// This is for outputting the regions relations for the HEK
 	
 	//We output the number of Active Events and the last color assigned
 	cout<<regions[regions.size() - 1].size()<<" "<<newColor<<endl;
@@ -228,7 +258,7 @@ int main(int argc, const char **argv)
 	
 	
 	// Now we create for each region of map[last] the list of parents that have a color existing in map[previous_last]
-
+	vector<TrackingRelation> relations;
 	for (unsigned r = 0; r < regions[last].size(); ++r)
 	{
 		const RegionGraph::node* n = tracking_graph.get_node(regions[last][r]);
@@ -248,16 +278,16 @@ int main(int argc, const char **argv)
 					
 
 		}
-		// Now that I know the list of my ancestors_color, I can output the relations
+		// Now that I know the list of my ancestors_color, I can create the relations
 		if(ancestors_color.size() == 0)
 		{
 			// I have no ancestors, so I am a new color 
-			cout<< regions[last][r]->Color() << " new " << 0 <<endl;
+			relations.push_back(TrackingRelation(regions[last][r]->Color(),"new",0));
 		}
 		else if(ancestors_color.size() == 1 && ancestors_color[0] != regions[last][r]->Color())
 		{
 			// I have one ancestor of a different color, I am a split from him
-			cout<< regions[last][r]->Color() << " splits_from " <<  ancestors_color[0]<<endl;
+			relations.push_back(TrackingRelation(regions[last][r]->Color(),"splits_from",ancestors_color[0]));
 		}
 		else
 		{
@@ -266,18 +296,30 @@ int main(int argc, const char **argv)
 			{
 				if(ancestors_color[a] == regions[last][r]->Color())
 				{
-					cout<<  regions[last][r]->Color() << " follows " <<  ancestors_color[a] <<endl;
+					relations.push_back(TrackingRelation(regions[last][r]->Color(),"follows",ancestors_color[a]));
 				}
 				else
 				{
-					cout<<  regions[last][r]->Color() << " merges_from " << ancestors_color[a] <<endl;
+					relations.push_back(TrackingRelation(regions[last][r]->Color(),"merges_from",ancestors_color[a]));
 				}
 			}
 		}
 				
 	}
 	
+	// We need to remove the duplicates
+	sort(relations.begin(), relations.end());
+	relations.erase(unique(relations.begin(), relations.end()), relations.end());
+	
+	// We output the relations
+	for (unsigned r = 0; r < relations.size(); ++r)
+	{
+		cout<<relations[r].past_color<<" "<<relations[r].type<<" "<<relations[r].present_color<<endl;
+	}
+						
 	#endif
 	
 	return EXIT_SUCCESS;
 }
+
+

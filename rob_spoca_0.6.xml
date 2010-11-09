@@ -2,11 +2,11 @@
 <ParameterizedAlgorithmFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:noNamespaceSchemaLocation="file:hek.xsd">
     <AlgorithmDescriptionFile>rob_spoca.xml</AlgorithmDescriptionFile>
-    <CodeVersion>0.5</CodeVersion>
+    <CodeVersion>0.6</CodeVersion>
     <Parameter>
         <ParameterName>outputDirectory</ParameterName>
         <Type>string</Type>
-        <Value>/home/rtimmons/spoca/spoca_hek/results/</Value>
+        <Value>/home/rtimmons/spoca/v0.6/spoca_hek/results/</Value>
         <ExcludeFromCoverageID>true</ExcludeFromCoverageID>
     </Parameter>
     <Parameter>
@@ -62,7 +62,7 @@
     <Parameter>
          <ParameterName>cCodeLocation</ParameterName>
 	 <Type>string</Type>
-	 <Value>/home/rtimmons/spoca/spoca_hek/bin/</Value>
+	 <Value>/home/rtimmons/spoca/v0.6/spoca_hek/bin/</Value>
 	 <ExcludeFromCoverageID>true</ExcludeFromCoverageID>
     </Parameter>
     <Parameter>
@@ -84,9 +84,10 @@
 	 <ExcludeFromCoverageID>false</ExcludeFromCoverageID>
     </Parameter>
     <DataSpecificationFile>
-        <Filename>EUVI_for_SPOCA.txt</Filename>
-        <LiveData>false</LiveData>
-        <SeriesName>EUVI</SeriesName>
+        
+	<Filename>TestAIA1p5.xml</Filename>
+	<SeriesName>TestAIA1p5</SeriesName>
+	<LiveData>true</LiveData>
     </DataSpecificationFile>
 
 </ParameterizedAlgorithmFile>

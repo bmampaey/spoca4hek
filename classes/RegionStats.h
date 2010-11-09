@@ -9,6 +9,7 @@
 #include "Region.h"
 #include "Coordinate.h"
 #include "SunImage.h"
+#include "ColorMap.h"
 
 class RegionStats : public Region
 {
@@ -28,7 +29,7 @@ class RegionStats : public Region
 		RegionStats(const time_t& observationTime);
 		RegionStats(const time_t& observationTime, const unsigned id, const unsigned long color = 0);
 
-
+		Coordinate Center() const;
 		Real Mean() const;
 		Real Variance() const;
 		Real Skewness() const;

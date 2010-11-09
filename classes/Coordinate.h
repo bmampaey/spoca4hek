@@ -5,6 +5,7 @@
 #include <stdio.h> 
 #include <limits>
 #include <iostream>
+#include <cmath>
 
 class Coordinate
 {
@@ -56,9 +57,18 @@ class Coordinate
 			Coordinate result(*this);
 			return result-=(c);
 		}
+		
+		Coordinate operator*(const unsigned& value) const
+		{
+			return Coordinate(x * value, y * value);
+		}
 		double d2(const Coordinate& c) const
 		{
 			return (x - c.x) * (x - c.x) + (y - c.y) * (y - c.y);
+		}
+		double d(const Coordinate& c) const
+		{
+			return sqrt(d2(c));
 		}
 
 	public :

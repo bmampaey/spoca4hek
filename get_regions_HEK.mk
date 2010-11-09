@@ -4,17 +4,17 @@ TRACKINGLFLAGS=-lpthread
 IDLLFLAGS=-L /usr/local/idl/idl706/bin/bin.linux.x86_64 -lpthread -lidl -lXp -lXpm -lXmu -lXext -lXt -lSM -lICE  -lXinerama -lX11 -ldl -ltermcap -lrt -lm /usr/lib/libXm.a
 MAGICKLFLAGS=`Magick++-config --cppflags --cxxflags --ldflags --libs`
 MAGICKCFLAGS=-I /usr/include/ImageMagick/
-DFLAGS=-DHEK
-LFLAGS=-lcfitsio 
+DFLAGS=
+LFLAGS=-lcfitsio
 
 all:bin/get_regions_HEK.x
-clean: rm bin/get_regions_HEK.x objects/get_regions_HEK.o objects/FeatureVector.o objects/Coordinate.o objects/RegionStats.o objects/Region.o objects/SunImage.o objects/Image.o objects/ArgumentHelper.o objects/mainutilities.o objects/SWAPImage.o objects/AIAImage.o objects/EUVIImage.o objects/EITImage.o objects/tools.o
+clean: rm bin/get_regions_HEK.x objects/get_regions_HEK.o objects/FeatureVector.o objects/Coordinate.o objects/RegionStats.o objects/Region.o objects/SunImage.o objects/FitsHeader.o objects/Image.o objects/ColorMap.o objects/ArgumentHelper.o objects/mainutilities.o objects/SWAPImage.o objects/AIAImage.o objects/EUVIImage.o objects/EITImage.o objects/tools.o
 
 
-bin/get_regions_HEK.x : get_regions_HEK.mk objects/get_regions_HEK.o objects/FeatureVector.o objects/Coordinate.o objects/RegionStats.o objects/Region.o objects/SunImage.o objects/Image.o objects/ArgumentHelper.o objects/mainutilities.o objects/SWAPImage.o objects/AIAImage.o objects/EUVIImage.o objects/EITImage.o objects/tools.o
-	$(CC) $(CFLAGS) $(DFLAGS) objects/get_regions_HEK.o objects/FeatureVector.o objects/Coordinate.o objects/RegionStats.o objects/Region.o objects/SunImage.o objects/Image.o objects/ArgumentHelper.o objects/mainutilities.o objects/SWAPImage.o objects/AIAImage.o objects/EUVIImage.o objects/EITImage.o objects/tools.o $(LFLAGS) -o bin/get_regions_HEK.x
+bin/get_regions_HEK.x : get_regions_HEK.mk objects/get_regions_HEK.o objects/FeatureVector.o objects/Coordinate.o objects/RegionStats.o objects/Region.o objects/SunImage.o objects/FitsHeader.o objects/Image.o objects/ColorMap.o objects/ArgumentHelper.o objects/mainutilities.o objects/SWAPImage.o objects/AIAImage.o objects/EUVIImage.o objects/EITImage.o objects/tools.o
+	$(CC) $(CFLAGS) $(DFLAGS) objects/get_regions_HEK.o objects/FeatureVector.o objects/Coordinate.o objects/RegionStats.o objects/Region.o objects/SunImage.o objects/FitsHeader.o objects/Image.o objects/ColorMap.o objects/ArgumentHelper.o objects/mainutilities.o objects/SWAPImage.o objects/AIAImage.o objects/EUVIImage.o objects/EITImage.o objects/tools.o $(LFLAGS) -o bin/get_regions_HEK.x
 
-objects/get_regions_HEK.o : get_regions_HEK.mk programs/get_regions_HEK.cpp classes/tools.h classes/constants.h classes/mainutilities.h classes/ArgumentHelper.h classes/SunImage.h classes/RegionStats.h classes/Coordinate.h classes/FeatureVector.h
+objects/get_regions_HEK.o : get_regions_HEK.mk programs/get_regions_HEK.cpp classes/tools.h classes/constants.h classes/mainutilities.h classes/ArgumentHelper.h classes/ColorMap.h classes/SunImage.h classes/RegionStats.h classes/Coordinate.h classes/FeatureVector.h
 	$(CC) -c $(CFLAGS) $(DFLAGS) programs/get_regions_HEK.cpp -o objects/get_regions_HEK.o
 
 objects/FeatureVector.o : get_regions_HEK.mk classes/FeatureVector.cpp classes/constants.h
@@ -23,22 +23,28 @@ objects/FeatureVector.o : get_regions_HEK.mk classes/FeatureVector.cpp classes/c
 objects/Coordinate.o : get_regions_HEK.mk classes/Coordinate.cpp 
 	$(CC) -c $(CFLAGS) $(DFLAGS) classes/Coordinate.cpp -o objects/Coordinate.o
 
-objects/RegionStats.o : get_regions_HEK.mk classes/RegionStats.cpp classes/constants.h classes/Region.h classes/Coordinate.h classes/SunImage.h
+objects/RegionStats.o : get_regions_HEK.mk classes/RegionStats.cpp classes/constants.h classes/Region.h classes/Coordinate.h classes/SunImage.h classes/ColorMap.h
 	$(CC) -c $(CFLAGS) $(DFLAGS) classes/RegionStats.cpp -o objects/RegionStats.o
 
-objects/Region.o : get_regions_HEK.mk classes/Region.cpp classes/constants.h classes/Coordinate.h classes/SunImage.h classes/CoordinateConvertor.h
+objects/Region.o : get_regions_HEK.mk classes/Region.cpp classes/constants.h classes/Coordinate.h classes/ColorMap.h
 	$(CC) -c $(CFLAGS) $(DFLAGS) classes/Region.cpp -o objects/Region.o
 
-objects/SunImage.o : get_regions_HEK.mk classes/SunImage.cpp classes/fitsio.h classes/longnam.h classes/Image.h classes/Coordinate.h
+objects/SunImage.o : get_regions_HEK.mk classes/SunImage.cpp classes/fitsio.h classes/longnam.h classes/Image.h classes/Coordinate.h classes/FitsHeader.h
 	$(CC) -c $(CFLAGS) $(DFLAGS) classes/SunImage.cpp -o objects/SunImage.o
+
+objects/FitsHeader.o : get_regions_HEK.mk classes/FitsHeader.cpp classes/fitsio.h classes/longnam.h
+	$(CC) -c $(CFLAGS) $(DFLAGS) classes/FitsHeader.cpp -o objects/FitsHeader.o
 
 objects/Image.o : get_regions_HEK.mk classes/Image.cpp classes/fitsio.h classes/longnam.h classes/tools.h classes/constants.h classes/Coordinate.h
 	$(CC) -c $(CFLAGS) $(DFLAGS) classes/Image.cpp -o objects/Image.o
 
+objects/ColorMap.o : get_regions_HEK.mk classes/ColorMap.cpp classes/fitsio.h classes/longnam.h classes/SunImage.h
+	$(CC) -c $(CFLAGS) $(DFLAGS) classes/ColorMap.cpp -o objects/ColorMap.o
+
 objects/ArgumentHelper.o : get_regions_HEK.mk classes/ArgumentHelper.cpp 
 	$(CC) -c $(CFLAGS) $(DFLAGS) classes/ArgumentHelper.cpp -o objects/ArgumentHelper.o
 
-objects/mainutilities.o : get_regions_HEK.mk classes/mainutilities.cpp classes/FeatureVector.h classes/SunImage.h classes/EITImage.h classes/EUVIImage.h classes/AIAImage.h classes/SWAPImage.h
+objects/mainutilities.o : get_regions_HEK.mk classes/mainutilities.cpp classes/FeatureVector.h classes/SunImage.h classes/EITImage.h classes/EUVIImage.h classes/AIAImage.h classes/SWAPImage.h classes/ColorMap.h
 	$(CC) -c $(CFLAGS) $(DFLAGS) classes/mainutilities.cpp -o objects/mainutilities.o
 
 objects/SWAPImage.o : get_regions_HEK.mk classes/SWAPImage.cpp classes/fitsio.h classes/longnam.h classes/SunImage.h

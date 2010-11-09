@@ -1,13 +1,13 @@
 #include "SWAPImage.h"
 
+const double PI = 3.14159265358979323846;
+const double MIPI = 1.57079632679489661923;
+const double BIPI = 6.28318530717958647692;
+
 using namespace std;
 
 
 SWAPImage::~SWAPImage()
-{}
-
-SWAPImage::SWAPImage(const long xAxes, const long yAxes, const double radius, const double wavelength)
-:SunImage(xAxes, yAxes, radius, wavelength)
 {}
 
 
@@ -15,6 +15,8 @@ SWAPImage::SWAPImage(const string& filename)
 :SunImage()
 {
 	readFitsImage(filename);
+	if(!isSWAP(header))
+		cerr<<"Error : "<<filename<<" is not SWAP!"<<endl;
 }
 
 
@@ -29,27 +31,45 @@ SWAPImage::SWAPImage(const SunImage* i)
 {}
 
 
-int SWAPImage::readFitsImageP(fitsfile* fptr)
-{
-	int   status  = 0;
-	char * comment = NULL  ;					  /**<By specifying NULL we say that we don't want the comments	*/
+void SWAPImage::readHeader(fitsfile* fptr)
+{	
 
-	status = SunImage::readFitsImageP(fptr);
-	if(status)
-		return status;
+	header.readKeywords(fptr);
+	wavelength = header.get<double>("WAVELNTH");
+	suncenter.x = header.get<int>("CRPIX1");
+	suncenter.y = header.get<int>("CRPIX2");
+	cdelt1 = header.get<double>("CDELT1");
+	cdelt2 = header.get<double>("CDELT2");
 	
-	if (fits_read_key(fptr, TDOUBLE, "RSUN_ARC", &radius, comment, &status))
-	{
-		
-		cerr<<"Error reading key RSUN_ARC from file "<<fptr->Fptr->filename<<" :"<< status <<endl;
-		fits_report_error(stderr, status);
-		status = 0;
-	}
+	exposureTime = header.get<double>("EXPTIME");
+	b0 = (header.get<double>("HGLT_OBS")/180.)*PI; //Need to be verified
+	
+	//We read the radius
+	radius = header.get<double>("RSUN_ARC");
 	// PROBA2 express the radius in arc/sec
-	radius/=cdelt[0];
+	radius/=cdelt1;
+	
+	//We read the date
+	date_obs = header.get<string>("DATE-OBS");
+	//Sometimes the date is appended with a z
+	if(date_obs.find_first_of("Zz") != string::npos)
+		date_obs.erase(date_obs.find_first_of("Zz"));
+	observationTime = ObservationTime();
 
-	return status;
+}
 
+void SWAPImage::writeHeader(fitsfile* fptr)
+{
+	header.set<double>("WAVELNTH", wavelength);
+	header.set<int>("CRPIX1", suncenter.x);
+	header.set<int>("CRPIX2", suncenter.y);
+	header.set<double>("CDELT1", cdelt1);
+	header.set<double>("CDELT2",cdelt2);
+	header.set<string>("DATE-OBS", date_obs);
+	header.set<double>("RSUN_ARC", radius*cdelt1);
+	header.set<double>("EXPTIME", exposureTime);
+	header.set<double>("HGLT_OBS", (b0 * 180)/PI);
+	header.writeKeywords(fptr);
 }
 
 inline Real SWAPImage::percentCorrection(const Real r)const
@@ -76,5 +96,10 @@ inline Real SWAPImage::percentCorrection(const Real r)const
 		return (sin((BIPI/T)*r + phi) + 1)/2;
 	}
 
+}
+
+bool isSWAP(const FitsHeader& header)
+{
+	return header.get<bool>("INSTRUME") && header.get<string>("INSTRUME").find("SWAP") != string::npos;	
 }
 

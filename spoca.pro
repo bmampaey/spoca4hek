@@ -68,11 +68,10 @@ PRO SPoCA, image171=image171, image195=image195, $
 debug = 1
 
 ; folder to use to save images corresponding to events for debugging
-
-save_folder = 'save/'
+save_folder = ''
 
 ; when fits files are compressed we read the HDU 1, otherwise the 0
-compressed = 1
+compressed = 0
 
 ; newline shortcut for the c++ programmer
 endl=STRING(10B)
@@ -249,54 +248,46 @@ ENDIF
 IF N_ELEMENTS(getregionArgsPreprocessing) EQ 0 THEN getregionArgsPreprocessing = 'NAR'
 IF N_ELEMENTS(getregionArgsRadiusRatio) EQ 0 THEN getregionArgsRadiusRatio = '0.95'
 
-
 ; We verify the quality of the images
-header171 = fitshead2struct(headfits(image171, EXTEN=compressed))
 
-IF tag_exist(header171, 'QUALITY') THEN BEGIN
-	quality = header171.QUALITY
+IF instrument EQ 'AIA' THEN BEGIN
+	read_sdo, image171, header171, /nodata
 ENDIF ELSE BEGIN
-	error = [ error, 'Cannot find keyword QUALITY in image ' + image171 ]
-	IF (debug GT 0) THEN BEGIN
-		PRINT , 'Cannot find keyword QUALITY in image ' + image171
-	ENDIF
-	RETURN		; To be commented out if there is no quality keyword in the files
+	header171 = fitshead2struct(headfits(image171, EXTEN=compressed))
 ENDELSE
 
-IF quality NE 0 THEN BEGIN
-	IF (debug GT 0) THEN BEGIN
-		PRINT , 'Bad QUALITY of file ' + image171
-	ENDIF
-	imageRejected = 1 
-	;RETURN		; To be removed when the QUALITY keyword in the files is correct
-ENDIF
+checkQuality, header171, imageRejected, rejectionString
 
-header195 = fitshead2struct(headfits(image195, EXTEN=compressed))
-
-IF tag_exist(header195, 'QUALITY') THEN BEGIN
-	quality = header195.QUALITY
-ENDIF ELSE BEGIN
-	error = [ error, 'Cannot find keyword QUALITY in image ' + image195 ]
+IF imageRejected THEN BEGIN
+	error = [ error, 'Image ' + image171 + 'rejected for :' + rejectionString ]
 	IF (debug GT 0) THEN BEGIN
-		PRINT , 'Cannot find keyword QUALITY in image ' + image195
+		PRINT ,  'Image ' + image171 + 'rejected for :' + rejectionString
 	ENDIF
-	RETURN		; To be commented out if there is no quality keyword in the files
+	RETURN
 ENDELSE
 
-IF quality NE 0 THEN BEGIN
+IF instrument EQ 'AIA' THEN BEGIN
+	read_sdo, image195, header195, /nodata
+ENDIF ELSE BEGIN
+	header195 = fitshead2struct(headfits(image195, EXTEN=compressed))
+ENDELSE
+
+checkQuality, header195, imageRejected, rejectionString
+
+IF imageRejected THEN BEGIN
+	error = [ error, 'Image ' + image195 + 'rejected for :' + rejectionString ]
 	IF (debug GT 0) THEN BEGIN
-		PRINT , 'Bad QUALITY of file ' + image195
+		PRINT ,  'Image ' + image195 + 'rejected for :' + rejectionString
 	ENDIF
-	imageRejected = 1 
-	;RETURN		; To be removed when the QUALITY keyword in the files is correct
-ENDIF
+	RETURN
+ENDELSE
+
 
 ; The images are good
 imageRejected = 0
 
 				
 IF (debug GT 0) THEN BEGIN
-
 	PRINT, endl, STRPAD('END OF PARAMETERS CHECK', 100, fill='_')
 ENDIF
 
@@ -359,14 +350,20 @@ IF (debug GT 0) THEN BEGIN
 	PRINT, endl, STRPAD('END OF SPOCA', 100, fill='_')
 ENDIF
 
-; --------- We check if it is time to write some events to the hek -----------------
+; --------- We check IF it is time to write some events to the hek -----------------
 
 ; We get the observation date of the image171
 
-IF tag_exist(header171, 'DATE_OBS') THEN BEGIN
+IF instrument EQ 'AIA' && tag_exist(header171, 'T_OBS') THEN BEGIN
+	current_observation_date = header171.T_OBS
+ENDIF ELSE IF tag_exist(header171, 'DATE_OBS') THEN BEGIN
 	current_observation_date = header171.DATE_OBS
 ENDIF ELSE BEGIN
-	error = [ error, 'ERROR : could not find DATE_OBS nor DATE-OBS keyword in file ' + image171 ]
+	error = [ error, 'ERROR : could not find T_OBS nor DATE_OBS keyword in file ' + image171 ]
+	IF (debug GT 0) THEN BEGIN
+		PRINT, 'ERROR : could not find T_OBS nor DATE_OBS keyword in file ' + image171
+	ENDIF
+	imageRejected = 1
 	RETURN	
 ENDELSE
 
@@ -429,8 +426,7 @@ ENDIF
 
 tracking_args =	[	'-n', STRING(last_color_assigned, FORMAT = '(I)'), $
 					'-d', trackingArgsDeltat, $
-					'-D', STRING(trackingOverlap, FORMAT = '(I)'), $
-					'-I', instrument, $
+					'-o', STRING(trackingOverlap, FORMAT = '(I)'), $
 					ARmaps ]
 
 IF (debug GT 0) THEN BEGIN 
@@ -521,7 +517,7 @@ IF numActiveEvents EQ 0 THEN BEGIN
 		PRINT, 'No active event, going to Finish'
 	ENDIF
 
-	last_event_written_date = current_observation_date	; Even if there is no event to write, it was time to write them
+	last_event_written_date = current_observation_date	; Even IF there is no event to write, it was time to write them
 	GOTO, Finish
 ENDIF
 
@@ -588,9 +584,7 @@ present_events = REPLICATE({match, color:0, ivorn:'unknown'}, N_ELEMENTS(getregi
 
 
 ; We need the wcs info in the header of one of the image to transform the coordinates
-
-wcs = fitshead2wcs(headfits(image171, EXTEN=compressed))
-
+wcs = fitshead2wcs(header171)
 
 FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN 
 
@@ -650,7 +644,7 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	event.required.OBS_WavelUnit = 'Angstroms'
 
 	event.required.FRM_Name = 'SPoCA'
-	event.optional.FRM_VersionNumber = 1
+	event.optional.FRM_VersionNumber = 0.6   
 	event.required.FRM_Identifier = 'vdelouille'
 	event.required.FRM_Institute ='ROB'
 	event.required.FRM_HumanFlag = 'F'
@@ -686,34 +680,43 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	event.required.BoundBox_C1UR = hpc_x[2]
 	event.required.BoundBox_C2UR = hpc_y[2]
 	
-	event.optional.Event_Npixels = numberpixels
+	; We only specify optional keywords if they are finite 
+	IF FINITE(numberpixels) THEN event.optional.Event_Npixels = numberpixels
 	event.optional.Event_PixelUnit = 'DN/s' ; ??? TBC for AIA
 	event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA' 
 	event.optional.FRM_SpecificID = color
-	event.optional.Area_AtDiskCenter = area_atdiskcenter
-	event.optional.Area_AtDiskCenterUncert = area_atdiskcenteruncert
-	event.optional.Area_Raw = area_raw
-	event.optional.Area_Uncert = area_rawuncert
+	IF FINITE(area_atdiskcenter) THEN event.optional.Area_AtDiskCenter = area_atdiskcenter
+	IF FINITE(area_atdiskcenteruncert) THEN event.optional.Area_AtDiskCenterUncert = area_atdiskcenteruncert
+	IF FINITE(area_raw) THEN event.optional.Area_Raw = area_raw
+	IF FINITE(area_rawuncert) THEN event.optional.Area_Uncert = area_rawuncert
 	event.optional.Area_Unit = 'Mm2'
-	event.optional.AR_IntensMin = minintensity
-	event.optional.AR_IntensMax = maxintensity
-	event.optional.AR_IntensMean = mean
-	event.optional.AR_IntensVar = variance
-	event.optional.AR_IntensSkew = skewness
-	event.optional.AR_IntensKurt = kurtosis
-	event.optional.AR_IntensTotal = totalintensity
+	IF FINITE(minintensity) THEN event.optional.AR_IntensMin = minintensity
+	IF FINITE(maxintensity) THEN event.optional.AR_IntensMax = maxintensity
+	IF FINITE(mean) THEN event.optional.AR_IntensMean = mean
+	IF FINITE(variance) THEN event.optional.AR_IntensVar = variance
+	IF FINITE(skewness) THEN event.optional.AR_IntensSkew = skewness
+	IF FINITE(kurtosis) THEN event.optional.AR_IntensKurt = kurtosis
+	IF FINITE(totalintensity) THEN event.optional.AR_IntensTotal = totalintensity
 	event.optional.AR_IntensUnit = 'DN/s' ; ??? TBC for AIA  
 
 
 	; Required keywords from document SDO EDS API
+	; This has changed, the now obsolete ones are therefore commented out
 	
-	IF tag_exist(header171, "QUALITY") THEN event.optional.OBS_Quality = header171.QUALITY 
-	IF tag_exist(header171, "FLAT") THEN event.optional.OBS_Flat = header171.QUALITY ; ???
-	IF tag_exist(header171, "FLAT_VER") THEN event.optional.OBS_Flat_ver = header171.QUALITY 
+	;IF tag_exist(header171, "QUALITY") THEN event.optional.OBS_Quality = header171.QUALITY 
+	;IF tag_exist(header171, "FLAT") THEN event.optional.OBS_Flat = header171.FLAT 
+	;IF tag_exist(header171, "FLAT_VER") THEN event.optional.OBS_Flat_ver = header171.FLAT_VER 
 	IF tag_exist(header171, "LVL_NUM") THEN event.optional.OBS_Lvl_num = header171.LVL_NUM
-	IF tag_exist(header171, "REL_VER") THEN event.optional.OBS_Rel_ver = header171.REL_VER
-	IF tag_exist(header171, "PIPELNVR") THEN event.optional.OBS_Pipelnvf = header171.PIPELNVR
-	IF tag_exist(header171, "SCIRFBSV") THEN event.optional.OBS_Scirfbsv = header171.SCIRFBSV
+	;IF tag_exist(header171, "REL_VER") THEN event.optional.OBS_Rel_ver = header171.REL_VER
+	;IF tag_exist(header171, "PIPELNVR") THEN event.optional.OBS_Pipelnvf = header171.PIPELNVR
+	;IF tag_exist(header171, "SCIRFBSV") THEN event.optional.OBS_Scirfbsv = header171.SCIRFBSV
+	
+	; Those are the new ones
+	IF tag_exist(header171, "DATE") THEN event.optional.OBS_LASTPROCESSINGDATE = header171.DATE
+	IF tag_exist(header171, "QUALITY") THEN BEGIN
+		NRT_bit = 2UL^30
+		IF (header171.QUALITY AND NRT_bit) EQ NRT_bit THEN event.optional.OBS_INCLUDESNRT = 'NRT image'
+	ENDIF
 	
 	; We chain the event with past ones
 	; i.e. we search if the past_color of my event is among the color of the past_events
@@ -764,7 +767,7 @@ ENDIF
 
 
 
-Finish :	; Label for the case not enough images were present for the tracking, or if we do not write 
+Finish :	; Label for the case not enough images were present for the tracking, or IF we do not write 
 
 ; --------- We finish up -----------------
 
@@ -819,5 +822,122 @@ IF (debug GT 0) THEN BEGIN
 	PRINT, endl, STRPAD('END OF FINISH', 100, fill='_')
 ENDIF
  
-END 
+END ; of spoca
+
+; +
+; Description:
+;	IDL code to test the quality of a file
+; Authors:
+; 	Paolo Grigis, Ryan Timmons, Benjamin Mampaey
+; Date:
+; 	9 November 2010
+; Params:
+; 	header: in, required, struct containing the keywords of a fits file
+;	imageRejected: out, required, flag to tell if the image is to be rejected
+;	rejectionString: out, optional, type string, reason for the rejection
+
+
+PRO checkQuality, header, imageRejected, rejectionString
+
+;Actual checking of headers, standardized with code borrowed from Ryan/Paolo's work on the flares
+;Note that this version of the code opts for a matched 171/193 both
+;good, instead of allowing a 171/193 pair say 40 sec apart.
+
+imageRejected = 0
+
+;reject open filters
+IF tag_exist(header, 'WAVE_STR') && strmatch(header.wave_str, 'open', /FOLD_CASE) EQ 1 THEN BEGIN
+	rejectionString = 'Open filter (WAVE_STR =~ open)'
+	imageRejected = 1
+	RETURN
+ENDIF
+
+;check for darks or non -light images
+IF tag_exist(header, 'IMG_TYPE') && header.img_type NE 'LIGHT' THEN BEGIN 
+	rejectionString = 'Dark image (IMG_TYPE != LIGHT)'
+	imageRejected = 1
+	RETURN
+ENDIF
+
+;New eclipse flag
+IF tag_exist (header, 'aiagp6') && header.aiagp6 NE 0 THEN BEGIN
+	rejectionString = 'Eclipse (AIAGP6 != 0)'
+	imageRejected = 1
+	RETURN
+ENDIF
+
+
+IF tag_exist(header, "exptime") && header.exptime LT 1.5 THEN BEGIN
+	rejectionString = 'Exposure time too short (exptime <= 1.5)'
+	imageRejected = 1
+	RETURN
+ENDIF
+
+
+IF tag_exist(header, "aiftsid") && header.aiftsid GE 49152 THEN BEGIN
+	rejectionString = 'Calibration image (aiftsid >= 49152)'
+	imageRejected = 1
+	RETURN
+ENDIF
+
+
+IF tag_exist (header, "percentd") && header.percentd LT 99.9999 THEN BEGIN
+	rejectionString = 'Missing pixels (percentd < 99.9999)'
+	imageRejected = 1
+	RETURN
+ENDIF
+
+
+; Quality keyword in AIA - details TBD
+; Need to understand in more details what "quality" means as a flag
+; Now is e.g. set to 131072=2^17 just means ISS loops is open
+; Seems to be OK for now
+; Eventually we want to reject everything but 0 - but for now just reject based on a list of forbidden bits
+
+IF tag_exist(header,'QUALITY') THEN BEGIN 
+
+	;create an array of number such that the j-th elementh as bit j set to 1 and all others set to 0
+	;i.e. 1,2,4,8,...,2^J,...
+	BitArray=2UL^ulindgen(32)
+	BitSet=(header.quality AND BitArray) NE 0
+	
+	; If any of these bits is set - reject the image
+	ForbiddenBits=[0,1,2,3,4,12,13,14,15,16,17,18,20,21,31] 
+	;RPT - added bits for ISS loop (17), ACS_MODE not SCIENCE (12)
+	;RPT - 9/25/10 - bits 20, 21, below from Rock's new def file
+	;	20	(AIFCPS <= -20 or AIFCPS >= 100)	;	AIA focus out of range 
+	;	21	AIAGP6 != 0					;	AIA register flag
+
+
+	IF total(BitSet[ForbiddenBits]) GT 0 THEN BEGIN 
+		rejectionString = 'Bad quality1 ('+header.quality+')'
+		imageRejected = 1
+		RETURN
+	ENDIF 
+
+ENDIF 
+
+IF tag_exist(header,'QUALLEV0') THEN BEGIN 
+
+	;create an array of number such that the j-th elementh as bit j set to 1 and all others set to 0
+	;i.e. 1,2,4,8,...,2^J,...
+	BitArray=2UL^ulindgen(32)
+	BitSet=(header.quallev0 AND BitArray) NE 0
+	
+	; If any of these bits is set - reject the image
+	ForbiddenBits=[0,1,2,3,4,5,6,7,16,17,18,19,20,21,22,23,24,25,26,27,28] 
+	;RPT - added bits for ISS loop (17), ACS_MODE not SCIENCE (12)
+
+
+	IF total(BitSet[ForbiddenBits]) GT 0 THEN BEGIN 
+		rejectionString = 'Bad quality0 ('+header.quallev0+')'
+		imageRejected = 1
+		RETURN
+	ENDIF 
+
+ENDIF 
+
+END; of checkQuality
+
+
 
