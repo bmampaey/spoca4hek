@@ -16,7 +16,7 @@ class RegionStats : public Region
 
 	private :
 		Real m1, m2, m3, m4, minIntensity, maxIntensity, totalIntensity, centerxError, centeryError, area_Raw, area_RawUncert, area_AtDiskCenter, area_AtDiskCenterUncert, numberContourPixels;
-		
+		Real barycenter_x, barycenter_y;
 	private :
 		//Update routines
 		void add(const Coordinate& pixelCoordinate, const PixelType& pixelIntensity, const Coordinate sunCenter, const bool atBorder, const double R);
@@ -29,7 +29,7 @@ class RegionStats : public Region
 		RegionStats(const time_t& observationTime);
 		RegionStats(const time_t& observationTime, const unsigned id, const unsigned long color = 0);
 
-		Coordinate Center() const;
+
 		Real Mean() const;
 		Real Variance() const;
 		Real Skewness() const;
@@ -43,7 +43,8 @@ class RegionStats : public Region
 		Real Area_RawUncert() const;
 		Real Area_AtDiskCenter() const;
 		Real Area_AtDiskCenterUncert() const;
-		
+		Coordinate Barycenter() const;
+				
 		// Output a region as a string
 		std::string toString() const;
 		#ifdef CoordinateConvertor_H

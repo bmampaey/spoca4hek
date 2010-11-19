@@ -24,13 +24,13 @@ class TrackingRelation
 		}
 		bool operator==(const TrackingRelation& r) const
 		{
-			if(past_color == r.past_color)
-				return true;
-			if(present_color == r.present_color)
-				return true;
-			if(type == r.type)
-				return true;
-			return false;
+			if(past_color != r.past_color)
+				return false;
+			if(present_color != r.present_color)
+				return false;
+			if(type != r.type)
+				return false;
+			return true;
 		}
 };
 

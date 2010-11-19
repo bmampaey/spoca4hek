@@ -222,10 +222,10 @@ int main(int argc, const char **argv)
 	
 	// This is for outputting the regions relations for the HEK
 	
-	//We output the number of Active Events and the last color assigned
+	// We output the number of Active Events and the last color assigned
 	cout<<regions[regions.size() - 1].size()<<" "<<newColor<<endl;
 
-	// We output the relations between the AR of the last region map and the ones from the previous last (i.e. the last from the previous call to tracking) 
+	// We need to output the relations between the AR of the last region map and the ones from the previous last (i.e. the last from the previous call to tracking) 
 	
 	/* First we recolor the graph top to bottom by giving to any child the color of its biggest parent
 	map[previous_last] 	(== overlap - 1)
@@ -307,19 +307,20 @@ int main(int argc, const char **argv)
 				
 	}
 	
-	// We need to remove the duplicates
+	// We remove the duplicate relations
 	sort(relations.begin(), relations.end());
 	relations.erase(unique(relations.begin(), relations.end()), relations.end());
 	
 	// We output the relations
-	for (unsigned r = 0; r < relations.size(); ++r)
+	for (vector<TrackingRelation>::iterator it = relations.begin(); it!=relations.end(); ++it)
 	{
-		cout<<relations[r].past_color<<" "<<relations[r].type<<" "<<relations[r].present_color<<endl;
+		cout<<it->past_color<<" "<<it->type<<" "<<it->present_color<<endl;
 	}
 						
 	#endif
 	
 	return EXIT_SUCCESS;
 }
+
 
 

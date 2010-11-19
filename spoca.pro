@@ -1,5 +1,121 @@
 ; +
 ; Description:
+;	IDL code to test the quality of a file
+; Authors:
+; 	Paolo Grigis, Ryan Timmons, Benjamin Mampaey
+; Date:
+; 	9 November 2010
+; Params:
+; 	header: in, required, struct containing the keywords of a fits file
+;	imageRejected: out, required, flag to tell if the image is to be rejected
+;	rejectionString: out, optional, type string, reason for the rejection
+
+
+PRO checkQuality, header, imageRejected, rejectionString
+
+;Actual code for checking the headers, standardized with code borrowed from Ryan/Paolo's work on the flares
+
+imageRejected = 0
+
+;reject open filters
+IF tag_exist(header, 'WAVE_STR') && strmatch(header.wave_str, 'open', /FOLD_CASE) EQ 1 THEN BEGIN
+	rejectionString = 'Open filter (WAVE_STR =~ open)'
+	imageRejected = 1
+	RETURN
+ENDIF
+
+;check for darks or non -light images
+IF tag_exist(header, 'IMG_TYPE') && header.img_type NE 'LIGHT' THEN BEGIN 
+	rejectionString = 'Dark image (IMG_TYPE != LIGHT)'
+	imageRejected = 1
+	RETURN
+ENDIF
+
+;New eclipse flag
+IF tag_exist (header, 'aiagp6') && header.aiagp6 NE 0 THEN BEGIN
+	rejectionString = 'Eclipse (AIAGP6 != 0)'
+	imageRejected = 1
+	RETURN
+ENDIF
+
+
+IF tag_exist(header, "exptime") && header.exptime LT 1.5 THEN BEGIN
+	rejectionString = 'Exposure time too short (exptime <= 1.5)'
+	imageRejected = 1
+	RETURN
+ENDIF
+
+
+IF tag_exist(header, "aiftsid") && header.aiftsid GE 49152 THEN BEGIN
+	rejectionString = 'Calibration image (aiftsid >= 49152)'
+	imageRejected = 1
+	RETURN
+ENDIF
+
+
+IF tag_exist (header, "percentd") && header.percentd LT 99.9999 THEN BEGIN
+	rejectionString = 'Missing pixels (percentd < 99.9999)'
+	imageRejected = 1
+	RETURN
+ENDIF
+
+
+; Quality keyword in AIA - details TBD
+; Need to understand in more details what "quality" means as a flag
+; Now is e.g. set to 131072=2^17 just means ISS loops is open
+; Seems to be OK for now
+; Eventually we want to reject everything but 0 - but for now just reject based on a list of forbidden bits
+
+IF tag_exist(header,'QUALITY') THEN BEGIN 
+
+	;create an array of number such that the j-th elementh as bit j set to 1 and all others set to 0
+	;i.e. 1,2,4,8,...,2^J,...
+	BitArray=2UL^ulindgen(32)
+	BitSet=(header.quality AND BitArray) NE 0
+	
+	; If any of these bits is set - reject the image
+	ForbiddenBits=[0,1,2,3,4,12,13,14,15,16,17,18,20,21,31] 
+	;RPT - added bits for ISS loop (17), ACS_MODE not SCIENCE (12)
+	;RPT - 9/25/10 - bits 20, 21, below from Rock's new def file
+	;	20	(AIFCPS <= -20 or AIFCPS >= 100)	;	AIA focus out of range 
+	;	21	AIAGP6 != 0					;	AIA register flag
+
+
+	IF total(BitSet[ForbiddenBits]) GT 0 THEN BEGIN 
+		rejectionString = 'Bad quality1 ('+header.quality+')'
+		imageRejected = 1
+		RETURN
+	ENDIF 
+
+ENDIF 
+
+IF tag_exist(header,'QUALLEV0') THEN BEGIN 
+
+	;create an array of number such that the j-th elementh as bit j set to 1 and all others set to 0
+	;i.e. 1,2,4,8,...,2^J,...
+	BitArray=2UL^ulindgen(32)
+	BitSet=(header.quallev0 AND BitArray) NE 0
+	
+	; If any of these bits is set - reject the image
+	ForbiddenBits=[0,1,2,3,4,5,6,7,16,17,18,19,20,21,22,23,24,25,26,27,28] 
+	;RPT - added bits for ISS loop (17), ACS_MODE not SCIENCE (12)
+
+
+	IF total(BitSet[ForbiddenBits]) GT 0 THEN BEGIN 
+		rejectionString = 'Bad quality0 ('+header.quallev0+')'
+		imageRejected = 1
+		RETURN
+	ENDIF 
+
+ENDIF 
+
+END; of checkQuality
+
+
+
+
+; +
+; Description:
 ;	IDL code to call spoca and the tracking
 ; Author:
 ; 	Benjamin Mampaey
@@ -63,9 +179,11 @@ PRO SPoCA, image171=image171, image195=image195, $
 	getregionArgsRadiusRatio = getregionArgsRadiusRatio
 
 	
-	
+; Version number
+VersionNumber = 0.6
+
 ; set debugging
-debug = 1
+debug = 0
 
 ; folder to use to save images corresponding to events for debugging
 save_folder = ''
@@ -155,6 +273,7 @@ SWITCH runMode OF
 					ENDIF
 					FILE_DELETE, AllFiles , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug 
 				ENDIF
+				BREAK
 			END
 			
 	ELSE:		BEGIN
@@ -264,7 +383,7 @@ IF imageRejected THEN BEGIN
 		PRINT ,  'Image ' + image171 + 'rejected for :' + rejectionString
 	ENDIF
 	RETURN
-ENDELSE
+ENDIF
 
 IF instrument EQ 'AIA' THEN BEGIN
 	read_sdo, image195, header195, /nodata
@@ -280,7 +399,7 @@ IF imageRejected THEN BEGIN
 		PRINT ,  'Image ' + image195 + 'rejected for :' + rejectionString
 	ENDIF
 	RETURN
-ENDELSE
+ENDIF
 
 
 ; The images are good
@@ -409,7 +528,7 @@ IF (debug GT 0) THEN BEGIN
 ENDIF
 
 
-ARmaps = FILE_SEARCH(outputDirectory, '*ARmap.tracking.fits', /TEST_READ, /TEST_REGULAR , /TEST_WRITE  ) ; FILE_SEARCH sort the filenames
+ARmaps = FILE_SEARCH(outputDirectory, '*ARmap.fits', /TEST_READ, /TEST_REGULAR , /TEST_WRITE  ) ; FILE_SEARCH sort the filenames
 
 IF (debug GT 0) THEN BEGIN
 	PRINT , "Found files : ", endl + ARmaps
@@ -457,7 +576,7 @@ IF (tracking_exit NE 0) THEN BEGIN
 		PRINT , "Tracking exited with error : ", tracking_exit, endl, tracking_errors
 	ENDIF
 	; We will not run GetRegionStats
-	GOTO, Finish
+	GOTO, Cleanup
 	
 ENDIF
 
@@ -480,18 +599,18 @@ ENDIF ELSE BEGIN
 	numActiveEvents = LONG(output[0])
 	last_color_assigned = LONG(output[1])
 	
-	; The following lines are triples  present_color reference_type past_color (with reference_type one of follows, merges_from, splits_from, new) 
+	; The following lines are tuples  present_color reference_type past_color (with reference_type one of follows, merges_from, splits_from, new) 
 	; We declare the array of colour transformation
-	IF numActiveEvents GT 0 THEN BEGIN
-		color_tracking = REPLICATE({past_color:0, reference_type:"Unknown", present_color:0}, numActiveEvents) 
-	
-		FOR t = 0, numActiveEvents - 1 DO BEGIN 
-			output = strsplit( tracking_output[t+1] , ' 	(),', /EXTRACT) 
-			color_tracking[t].present_color = output[0]
-			color_tracking[t].reference_type = output[1]
-			color_tracking[t].past_color = output[2]
-		ENDFOR
-	ENDIF
+
+	color_tracking = REPLICATE({past_color:0, reference_type:"Unknown", present_color:0}, N_ELEMENTS(tracking_output)) 
+
+	FOR t = 1, N_ELEMENTS(tracking_output) - 1 DO BEGIN 
+		output = strsplit( tracking_output[t] , ' 	(),', /EXTRACT) 
+		color_tracking[t].present_color = output[0]
+		color_tracking[t].reference_type = output[1]
+		color_tracking[t].past_color = output[2]
+	ENDFOR
+
 	
 	
 ENDELSE
@@ -513,12 +632,11 @@ ENDIF
 
 IF numActiveEvents EQ 0 THEN BEGIN
 
-	IF (debug GT 0) THEN BEGIN
-		PRINT, 'No active event, going to Finish'
-	ENDIF
-
 	last_event_written_date = current_observation_date	; Even IF there is no event to write, it was time to write them
-	GOTO, Finish
+	IF (debug GT 0) THEN BEGIN
+		PRINT, 'No active event, going to Cleanup'
+	ENDIF
+	GOTO, Cleanup
 ENDIF
 
 
@@ -556,7 +674,7 @@ IF (getregionstats_exit NE 0) THEN BEGIN
 		PRINT , "RegionsStats exited with error : ", getregionstats_exit, endl, getregionstats_errors
 	ENDIF
 	; We will not write any event
-	GOTO, Finish
+	GOTO, Cleanup
 	
 ENDIF
 
@@ -569,9 +687,9 @@ ENDIF
 ; We check that output is not null, This should not be the case because we know that the numActiveEvents > 0
 IF (N_ELEMENTS(getregionstats_output) LT 1 || STRLEN(getregionstats_output[0]) LE 1 ) THEN BEGIN
 	IF (debug GT 0) THEN BEGIN
-		PRINT, 'ERROR GetRegionStats Output is void, going to Finish'
+		PRINT, 'ERROR GetRegionStats Output is void, going to Cleanup'
 	ENDIF
-	GOTO, Finish
+	GOTO, Cleanup
 ENDIF
 
 
@@ -600,7 +718,7 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	cartesian = FLTARR(2,N_ELEMENTS(cartesian_x))
 	cartesian[0,*]=cartesian_x
 	cartesian[1,*]=cartesian_y
-	numberpixels = LONG(output[7])
+	numberpixels = LONG(output[10])
 
 	minintensity = FLOAT(output[11])
 	maxintensity = FLOAT(output[12])
@@ -644,7 +762,7 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	event.required.OBS_WavelUnit = 'Angstroms'
 
 	event.required.FRM_Name = 'SPoCA'
-	event.optional.FRM_VersionNumber = 0.6   
+	event.optional.FRM_VersionNumber = VersionNumber   
 	event.required.FRM_Identifier = 'vdelouille'
 	event.required.FRM_Institute ='ROB'
 	event.required.FRM_HumanFlag = 'F'
@@ -664,7 +782,8 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 
 	event.required.FRM_DateRun = anytim(sys2ut(), /ccsds)
 	event.required.FRM_Contact = 'veronique.delouille@sidc.be'
-	event.required.FRM_URL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA'
+	event.required.FRM_URL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SpocA'
+
 
 	event.required.Event_StartTime = anytim(last_event_written_date, /ccsds) ; The start time is the previous time we ran GetRegionStats
 	event.required.Event_EndTime = anytim(observationdate, /ccsds)  
@@ -684,7 +803,7 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	IF FINITE(numberpixels) THEN event.optional.Event_Npixels = numberpixels
 	event.optional.Event_PixelUnit = 'DN/s' ; ??? TBC for AIA
 	event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sidcsdosoftware/SPoCA' 
-	event.optional.FRM_SpecificID = color
+	event.optional.FRM_SpecificID =  'SPoCAv' + STRING(VersionNumber, FORMAT='(F0.1)') + '_' +STRING(color, FORMAT='(I010)')
 	IF FINITE(area_atdiskcenter) THEN event.optional.Area_AtDiskCenter = area_atdiskcenter
 	IF FINITE(area_atdiskcenteruncert) THEN event.optional.Area_AtDiskCenterUncert = area_atdiskcenteruncert
 	IF FINITE(area_raw) THEN event.optional.Area_Raw = area_raw
@@ -706,16 +825,17 @@ FOR k = 0, N_ELEMENTS(getregionstats_output) - 1 DO BEGIN
 	;IF tag_exist(header171, "QUALITY") THEN event.optional.OBS_Quality = header171.QUALITY 
 	;IF tag_exist(header171, "FLAT") THEN event.optional.OBS_Flat = header171.FLAT 
 	;IF tag_exist(header171, "FLAT_VER") THEN event.optional.OBS_Flat_ver = header171.FLAT_VER 
-	IF tag_exist(header171, "LVL_NUM") THEN event.optional.OBS_Lvl_num = header171.LVL_NUM
+	;IF tag_exist(header171, "LVL_NUM") THEN event.optional.OBS_Lvl_num = header171.LVL_NUM
 	;IF tag_exist(header171, "REL_VER") THEN event.optional.OBS_Rel_ver = header171.REL_VER
 	;IF tag_exist(header171, "PIPELNVR") THEN event.optional.OBS_Pipelnvf = header171.PIPELNVR
 	;IF tag_exist(header171, "SCIRFBSV") THEN event.optional.OBS_Scirfbsv = header171.SCIRFBSV
 	
 	; Those are the new ones
-	IF tag_exist(header171, "DATE") THEN event.optional.OBS_LASTPROCESSINGDATE = header171.DATE
+	IF tag_exist(header171, "LVL_NUM") THEN event.optional.OBS_LevelNum = header171.LVL_NUM
+	IF tag_exist(header171, "DATE") THEN event.optional.OBS_LastProcessingDate = header171.DATE
 	IF tag_exist(header171, "QUALITY") THEN BEGIN
 		NRT_bit = 2UL^30
-		IF (header171.QUALITY AND NRT_bit) EQ NRT_bit THEN event.optional.OBS_INCLUDESNRT = 'NRT image'
+		IF (header171.QUALITY AND NRT_bit) EQ NRT_bit THEN event.optional.OBS_IncludesNRT = 'NRT image'
 	ENDIF
 	
 	; We chain the event with past ones
@@ -765,9 +885,32 @@ IF (debug GT 0) THEN BEGIN
 	PRINT, endl, STRPAD('END OF GETREGIONSTATS', 100, fill='_')
 ENDIF
 
+Cleanup :	; Label in case of a problem, or if there is no AR
+
+;  --------- We cleanup old files -----------------
+
+; we save the AR map corresponding to the events we write
+IF (debug GT 0 AND STRLEN(save_folder) NE 0) THEN BEGIN
+	FILE_COPY,  ARmaps[ N_ELEMENTS(ARmaps) - 1], save_folder, /NOEXPAND_PATH, /OVERWRITE, /REQUIRE_DIRECTORY, /VERBOSE 
+ENDIF
+	
+number_of_files_to_delete = N_ELEMENTS(ARmaps) - trackingOverlap
+IF (number_of_files_to_delete GT 0) THEN BEGIN
+
+	files_to_delete = ARmaps[0:number_of_files_to_delete-1]
+	
+	IF (debug GT 0) THEN BEGIN
+		PRINT , "Deleting files : ", endl + files_to_delete
+	ENDIF
+	
+	FILE_DELETE, files_to_delete , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug
+
+ENDIF
 
 
-Finish :	; Label for the case not enough images were present for the tracking, or IF we do not write 
+
+
+Finish :	; Label for the case not enough images were present for the tracking
 
 ; --------- We finish up -----------------
 
@@ -779,30 +922,6 @@ ENDIF
 IF (debug GT 0 AND STRLEN(save_folder) NE 0) THEN BEGIN
 		FILE_COPY,  spoca_args_centersfile, save_folder + "/centers." + STRING(spoca_lastrun_number, FORMAT='(I010)') + ".txt", /NOEXPAND_PATH, /OVERWRITE, /VERBOSE 
 ENDIF
-
-; We cleanup old files
-
-IF (N_ELEMENTS(ARmaps) GT trackingNumberImages) THEN BEGIN
-	
-	; we save the AR map corresponding to the events we write
-	IF (debug GT 0 AND STRLEN(save_folder) NE 0) THEN BEGIN
-		FILE_COPY,  ARmaps[ N_ELEMENTS(ARmaps) - 1], save_folder, /NOEXPAND_PATH, /OVERWRITE, /REQUIRE_DIRECTORY, /VERBOSE 
-	ENDIF
-		
-	number_of_files_to_delete = N_ELEMENTS(ARmaps) - trackingOverlap
-	IF (number_of_files_to_delete GT 0) THEN BEGIN
-
-		files_to_delete = ARmaps[0:number_of_files_to_delete-1]
-		
-		IF (debug GT 0) THEN BEGIN
-			PRINT , "Deleting files : ", endl + files_to_delete
-		ENDIF
-		
-		FILE_DELETE, files_to_delete , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = debug
-
-	ENDIF
-ENDIF
-
 
 ; We save the variables for next run
 ; Because the size of past_events can change, we need to overwrite the status structure
@@ -823,121 +942,5 @@ IF (debug GT 0) THEN BEGIN
 ENDIF
  
 END ; of spoca
-
-; +
-; Description:
-;	IDL code to test the quality of a file
-; Authors:
-; 	Paolo Grigis, Ryan Timmons, Benjamin Mampaey
-; Date:
-; 	9 November 2010
-; Params:
-; 	header: in, required, struct containing the keywords of a fits file
-;	imageRejected: out, required, flag to tell if the image is to be rejected
-;	rejectionString: out, optional, type string, reason for the rejection
-
-
-PRO checkQuality, header, imageRejected, rejectionString
-
-;Actual checking of headers, standardized with code borrowed from Ryan/Paolo's work on the flares
-;Note that this version of the code opts for a matched 171/193 both
-;good, instead of allowing a 171/193 pair say 40 sec apart.
-
-imageRejected = 0
-
-;reject open filters
-IF tag_exist(header, 'WAVE_STR') && strmatch(header.wave_str, 'open', /FOLD_CASE) EQ 1 THEN BEGIN
-	rejectionString = 'Open filter (WAVE_STR =~ open)'
-	imageRejected = 1
-	RETURN
-ENDIF
-
-;check for darks or non -light images
-IF tag_exist(header, 'IMG_TYPE') && header.img_type NE 'LIGHT' THEN BEGIN 
-	rejectionString = 'Dark image (IMG_TYPE != LIGHT)'
-	imageRejected = 1
-	RETURN
-ENDIF
-
-;New eclipse flag
-IF tag_exist (header, 'aiagp6') && header.aiagp6 NE 0 THEN BEGIN
-	rejectionString = 'Eclipse (AIAGP6 != 0)'
-	imageRejected = 1
-	RETURN
-ENDIF
-
-
-IF tag_exist(header, "exptime") && header.exptime LT 1.5 THEN BEGIN
-	rejectionString = 'Exposure time too short (exptime <= 1.5)'
-	imageRejected = 1
-	RETURN
-ENDIF
-
-
-IF tag_exist(header, "aiftsid") && header.aiftsid GE 49152 THEN BEGIN
-	rejectionString = 'Calibration image (aiftsid >= 49152)'
-	imageRejected = 1
-	RETURN
-ENDIF
-
-
-IF tag_exist (header, "percentd") && header.percentd LT 99.9999 THEN BEGIN
-	rejectionString = 'Missing pixels (percentd < 99.9999)'
-	imageRejected = 1
-	RETURN
-ENDIF
-
-
-; Quality keyword in AIA - details TBD
-; Need to understand in more details what "quality" means as a flag
-; Now is e.g. set to 131072=2^17 just means ISS loops is open
-; Seems to be OK for now
-; Eventually we want to reject everything but 0 - but for now just reject based on a list of forbidden bits
-
-IF tag_exist(header,'QUALITY') THEN BEGIN 
-
-	;create an array of number such that the j-th elementh as bit j set to 1 and all others set to 0
-	;i.e. 1,2,4,8,...,2^J,...
-	BitArray=2UL^ulindgen(32)
-	BitSet=(header.quality AND BitArray) NE 0
-	
-	; If any of these bits is set - reject the image
-	ForbiddenBits=[0,1,2,3,4,12,13,14,15,16,17,18,20,21,31] 
-	;RPT - added bits for ISS loop (17), ACS_MODE not SCIENCE (12)
-	;RPT - 9/25/10 - bits 20, 21, below from Rock's new def file
-	;	20	(AIFCPS <= -20 or AIFCPS >= 100)	;	AIA focus out of range 
-	;	21	AIAGP6 != 0					;	AIA register flag
-
-
-	IF total(BitSet[ForbiddenBits]) GT 0 THEN BEGIN 
-		rejectionString = 'Bad quality1 ('+header.quality+')'
-		imageRejected = 1
-		RETURN
-	ENDIF 
-
-ENDIF 
-
-IF tag_exist(header,'QUALLEV0') THEN BEGIN 
-
-	;create an array of number such that the j-th elementh as bit j set to 1 and all others set to 0
-	;i.e. 1,2,4,8,...,2^J,...
-	BitArray=2UL^ulindgen(32)
-	BitSet=(header.quallev0 AND BitArray) NE 0
-	
-	; If any of these bits is set - reject the image
-	ForbiddenBits=[0,1,2,3,4,5,6,7,16,17,18,19,20,21,22,23,24,25,26,27,28] 
-	;RPT - added bits for ISS loop (17), ACS_MODE not SCIENCE (12)
-
-
-	IF total(BitSet[ForbiddenBits]) GT 0 THEN BEGIN 
-		rejectionString = 'Bad quality0 ('+header.quallev0+')'
-		imageRejected = 1
-		RETURN
-	ENDIF 
-
-ENDIF 
-
-END; of checkQuality
-
 
 

@@ -5,17 +5,14 @@
 #include <vector>
 
 #include "FeatureVector.h"
-#include "SunImage.h"
+#include "ColorMap.h"
 #include "Coordinate.h"
 
 extern std::string outputFileName;
 
-SunImage* ActiveRegionMap(SunImage* segmentedMap, unsigned ARclass);
-SunImage* CoronalHoleMap(SunImage* segmentedMap, unsigned CHclass);
-
+ColorMap* ActiveRegionMap(ColorMap* segmentedMap, unsigned ARclass);
 unsigned ARclass(const std::vector<RealFeature>& B);
-unsigned CHclass(const std::vector<RealFeature>& B);
-void blobsIntoAR (SunImage* ARmap);
+void blobsIntoAR (ColorMap* ARmap);
 
 #endif
 

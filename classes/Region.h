@@ -45,7 +45,7 @@ class Region
 		void setColor(const unsigned long& color);
 		Coordinate Boxmin() const;
 		Coordinate Boxmax() const;
-		virtual Coordinate Center() const;
+		Coordinate Center() const;
 		Coordinate FirstPixel() const;
 		unsigned NumberPixels() const;
 		time_t ObservationTime() const;

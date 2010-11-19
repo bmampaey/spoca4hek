@@ -3,15 +3,15 @@
 using namespace std;
 
 RegionStats::RegionStats()
-:Region(), m1(0), m2(0), m3(0), m4(0), minIntensity(numeric_limits<PixelType>::max()), maxIntensity(0), totalIntensity(0), centerxError(0), centeryError(0), area_Raw(0), area_RawUncert(0), area_AtDiskCenter(0), area_AtDiskCenterUncert(0), numberContourPixels(0)
+:Region(), m1(0), m2(0), m3(0), m4(0), minIntensity(numeric_limits<PixelType>::max()), maxIntensity(0), totalIntensity(0), centerxError(0), centeryError(0), area_Raw(0), area_RawUncert(0), area_AtDiskCenter(0), area_AtDiskCenterUncert(0), numberContourPixels(0), barycenter_x(0), barycenter_y(0)
 {}
 
 RegionStats::RegionStats(const time_t& observationTime)
-:Region(observationTime), m1(0), m2(0), m3(0), m4(0), minIntensity(numeric_limits<PixelType>::max()), maxIntensity(0), totalIntensity(0), centerxError(0), centeryError(0), area_Raw(0), area_RawUncert(0), area_AtDiskCenter(0), area_AtDiskCenterUncert(0), numberContourPixels(0)
+:Region(observationTime), m1(0), m2(0), m3(0), m4(0), minIntensity(numeric_limits<PixelType>::max()), maxIntensity(0), totalIntensity(0), centerxError(0), centeryError(0), area_Raw(0), area_RawUncert(0), area_AtDiskCenter(0), area_AtDiskCenterUncert(0), numberContourPixels(0), barycenter_x(0), barycenter_y(0)
 {}
 
 RegionStats::RegionStats(const time_t& observationTime, const unsigned id, const unsigned long color)
-:Region(observationTime, id, color), m1(0), m2(0), m3(0), m4(0), minIntensity(numeric_limits<PixelType>::max()), maxIntensity(0), totalIntensity(0), centerxError(0), centeryError(0), area_Raw(0), area_RawUncert(0), area_AtDiskCenter(0), area_AtDiskCenterUncert(0), numberContourPixels(0)
+:Region(observationTime, id, color), m1(0), m2(0), m3(0), m4(0), minIntensity(numeric_limits<PixelType>::max()), maxIntensity(0), totalIntensity(0), centerxError(0), centeryError(0), area_Raw(0), area_RawUncert(0), area_AtDiskCenter(0), area_AtDiskCenterUncert(0), numberContourPixels(0), barycenter_x(0), barycenter_y(0)
 {}
 
 //The radius of the sun in Mmeters (R0)
@@ -27,8 +27,7 @@ const double HIGGINS_FACTOR = 16;
 
 void RegionStats::add(const Coordinate& pixelCoordinate, const PixelType& pixelIntensity, const Coordinate sunCenter, const bool atBorder, const double R)
 {
-	//Test to see if including the pixel intensity in the center is better
-	Region::add(pixelCoordinate * pixelIntensity);
+	Region::add(pixelCoordinate);
 	m1 += pixelIntensity;
 	if( maxIntensity < pixelIntensity )
 		maxIntensity = pixelIntensity;
@@ -68,6 +67,9 @@ void RegionStats::add(const Coordinate& pixelCoordinate, const PixelType& pixelI
 	centerxError += relativePixelCoordinatex;
 	centeryError += relativePixelCoordinatey;
 	
+	barycenter_x += pixelCoordinate.x * pixelIntensity;
+	barycenter_y += pixelCoordinate.y * pixelIntensity;
+	
 }
 
 
@@ -86,12 +88,12 @@ const double earth_orbit_eccentricity = 0.0167;
 const double yearly_maximal_error = distance_observer_sun * earth_orbit_eccentricity;
 const double rad2arcsec = 206264.806247096;
 
-Coordinate RegionStats::Center() const
+Coordinate RegionStats::Barycenter() const
 {
-	if (numberPixels > 0)
-		return Coordinate(center.x/totalIntensity, center.y/totalIntensity);
+	if (! isnan(totalIntensity) && ! isinf(totalIntensity) & totalIntensity > 0)
+		return Coordinate(barycenter_x/totalIntensity, barycenter_y/totalIntensity);
 	else
-		return Coordinate::Max;
+		return Center();
 }
 
 Real RegionStats::CenterxError() const
@@ -207,7 +209,9 @@ inline string prettyReal(const Real value)
 } 
 string RegionStats::toString() const
 {
-	string result = static_cast<const Region*>(this)->toString();
+	ostringstream out;
+	out<<setiosflags(ios::fixed)<<Id()<<"\t"<<Color()<<"\t"<<ObservationDate()<<"\t"<<Barycenter()<<"\t"<<Boxmin()<<"\t"<<Boxmax()<<"\t"<<NumberPixels();
+	string result = out.str();
 	result+="\t"+prettyReal(MinIntensity())+"\t"+prettyReal(MaxIntensity())+"\t"+prettyReal(Mean())+"\t"+prettyReal(Variance())+"\t"+prettyReal(Skewness())+"\t"+prettyReal(Kurtosis())+"\t"+prettyReal(TotalIntensity())+"\t"+prettyReal(CenterxError())+"\t"+prettyReal(CenteryError())+"\t"+prettyReal(Area_Raw())+"\t"+prettyReal(Area_RawUncert())+"\t"+prettyReal(Area_AtDiskCenter())+"\t"+prettyReal(Area_AtDiskCenterUncert());
 	return result;
 }

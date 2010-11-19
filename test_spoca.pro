@@ -11,7 +11,7 @@ spocaArgsPreprocessing = 'ALC,DivMedian,DivExpTime'
 spocaArgsNumberclasses ='4'
 spocaArgsPrecision = '0.000000001'
 spocaArgsBinsize = '0.01,0.01'
-trackingArgsDeltat = '3600'; == 1h
+trackingArgsDeltat = '43200'; == 12h
 trackingNumberImages = 9
 trackingOverlap = 3
 getregionArgsPreprocessing = 'NAR'
@@ -30,7 +30,7 @@ IF KEYWORD_SET(dir) THEN BEGIN
 	files171=['']
 	files195=['']
 	files = FILE_SEARCH(dir, '*.fits', /TEST_READ, /TEST_REGULAR)
-	FOR i=0, N_ELEMENTS(files) - 1) DO BEGIN
+	FOR i=0, N_ELEMENTS(files) - 1 DO BEGIN
 		IF instrument EQ 'AIA' THEN read_sdo, files[i], header, /nodata ELSE header = fitshead2struct(headfits(files[i]))
 		IF header.WAVELNTH EQ w171 THEN files171 = [files171, files[i]]
 		IF header.WAVELNTH EQ w195 THEN files195 = [files195, files[i]]
@@ -87,7 +87,7 @@ IF KEYWORD_SET(resume) THEN BEGIN
 	
 	spoca_lastrun_number = spoca_lastrun_number + 1
 	
-ENDIF ELSE
+ENDIF ELSE BEGIN
 
 	
 	spoca, image171 = files171[0], image195 = files195[0], $
@@ -175,3 +175,4 @@ spoca, image171 = '', image195 = '', $
 
 
 END
+
