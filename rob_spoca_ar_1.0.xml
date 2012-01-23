@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ParameterizedAlgorithmFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="file:hek.xsd">
+	<AlgorithmDescriptionFile>rob_spoca_ar.xml</AlgorithmDescriptionFile>
+	<CodeVersion>1.0</CodeVersion>
+	
+	<Parameter>
+		<ParameterName>outputDirectory</ParameterName>
+		<Type>string</Type>
+		<Value>/home/rtimmons/spoca/v1.0/spoca_hek/results/</Value>
+		<ExcludeFromCoverageID>true</ExcludeFromCoverageID>
+	</Parameter>
+	
+	<Parameter>
+		<ParameterName>saveDirectory</ParameterName>
+		<Type>string</Type>
+		<Value>/home/rtimmons/spoca/v1.0/spoca_hek/save/</Value>
+		<ExcludeFromCoverageID>true</ExcludeFromCoverageID>
+	</Parameter>
+	
+	<Parameter>
+		<ParameterName>cCodeLocation</ParameterName>
+		<Type>string</Type>
+		<Value>/home/rtimmons/spoca/v1.0/spoca_hek/bin/</Value>
+		<ExcludeFromCoverageID>true</ExcludeFromCoverageID>
+	</Parameter>
+	
+	<Parameter><!-- Frequency we write events to the HEK 4h-->
+		<ParameterName>writeEventsFrequency</ParameterName>
+		<Type>numeric</Type>
+		<Value>14400</Value>
+		<ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+	</Parameter>
+	
+	<Parameter>
+		<ParameterName>instrument</ParameterName>
+		<Type>string</Type>
+		<Value>AIA</Value>
+		<ExcludeFromCoverageID>true</ExcludeFromCoverageID>
+	</Parameter>
+	
+	<Parameter>
+		<ParameterName>spocaArgs</ParameterName>
+		<Type>string</Type>
+		<Value>--preprocessingSteps</Value> <Value>DivExpTime,ALC,DivMedian</Value>
+		<Value>--classifierType</Value> <Value>HPCM2</Value>
+		<Value>--numberClasses</Value> <Value>4</Value>
+		<Value>--precision</Value> <Value>0.0015</Value>
+		<Value>--radiusratio</Value> <Value>1.2</Value>
+		<Value>--binSize</Value> <Value>0.01,0.01</Value>
+		<Value>--segmentation</Value> <Value>threshold</Value>
+		<Value>-t</Value> <Value>2,0,0.0001</Value>
+		<Value>--numberPreviousCenters</Value> <Value>10</Value>
+		<Value>--intensitiesStatsPreprocessing</Value> <Value>NAR,DivExpTime</Value>
+		<Value>--intensitiesStatsRadiusRatio</Value> <Value>0.95</Value>
+		<Value>--maps</Value> <Value>A</Value>
+		<ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+	</Parameter>
+
+	<Parameter>
+		<ParameterName>chaincodeArgs</ParameterName>
+		<Type>string</Type>
+		<Value>--chaincodeMaxPoints</Value> <Value>100</Value>
+		<Value>--chaincodeMaxDeviation</Value> <Value>10</Value>
+		<ExcludeFromCoverageID>true</ExcludeFromCoverageID>
+	</Parameter>
+
+	<Parameter>
+		<ParameterName>trackingArgs</ParameterName>
+		<Type>string</Type>
+		<Value>--max_delta_t</Value> <Value>14400</Value>
+		<Value>--derotate</Value>
+		<ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+	</Parameter>
+	
+	<Parameter>
+		<ParameterName>trackingOverlap</ParameterName>
+		<Type>numeric</Type>
+		<Value>2</Value>
+		<ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+	</Parameter>
+	
+	<DataSpecificationFile>
+		<Filename>TestAIA1p5.xml</Filename>
+		<SeriesName>TestAIA1p5</SeriesName>
+		<LiveData>true</LiveData>
+	</DataSpecificationFile>
+
+</ParameterizedAlgorithmFile>
