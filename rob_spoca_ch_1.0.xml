@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ParameterizedAlgorithmFile xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="file:hek.xsd">
+	<AlgorithmDescriptionFile>rob_spoca_ch.xml</AlgorithmDescriptionFile>
+	<CodeVersion>1.0</CodeVersion>
+	
+	<Parameter>
+		<ParameterName>outputDirectory</ParameterName>
+		<Type>string</Type>
+		<Value>/data1/home/rtimmons/workspace/spoca_ch/spoca_ch_hek/results/</Value>
+		<ExcludeFromCoverageID>true</ExcludeFromCoverageID>
+	</Parameter>
+	
+	<Parameter>
+		<ParameterName>saveDirectory</ParameterName>
+		<Type>string</Type>
+		<Value>/data1/home/rtimmons/workspace/spoca_ch/spoca_ch_hek/save/</Value>
+		<ExcludeFromCoverageID>true</ExcludeFromCoverageID>
+	</Parameter>
+	
+	<Parameter>
+		<ParameterName>cCodeLocation</ParameterName>
+		<Type>string</Type>
+		<Value>/data1/home/rtimmons/workspace/spoca_ch/spoca_ch_hek/bin/</Value>
+		<ExcludeFromCoverageID>true</ExcludeFromCoverageID>
+	</Parameter>
+	
+	<Parameter><!-- Frequency we write events to the HEK 4h-->
+		<ParameterName>writeEventsFrequency</ParameterName>
+		<Type>numeric</Type>
+		<Value>14400</Value>
+		<ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+	</Parameter>
+	
+	<Parameter>
+		<ParameterName>instrument</ParameterName>
+		<Type>string</Type>
+		<Value>AIA</Value>
+		<ExcludeFromCoverageID>true</ExcludeFromCoverageID>
+	</Parameter>
+	
+	<Parameter>
+		<ParameterName>spocaArgs</ParameterName>
+		<Type>string</Type>
+		<Value>--preprocessingSteps</Value> <Value>DivExpTime,ALC,ThrMax80,TakeSqrt</Value>
+		<Value>--classifierType</Value> <Value>HFCM</Value>
+		<Value>--numberClasses</Value> <Value>4</Value>
+		<Value>--precision</Value> <Value>0.0015</Value>
+		<Value>--radiusratio</Value> <Value>1.2</Value>
+		<Value>--binSize</Value> <Value>0.01</Value>
+		<Value>--segmentation</Value> <Value>max</Value>
+		<Value>--numberPreviousCenters</Value> <Value>10</Value>
+		<Value>--intensitiesStatsPreprocessing</Value> <Value>NAR,DivExpTime</Value>
+		<Value>--intensitiesStatsRadiusRatio</Value> <Value>0.95</Value>
+		<Value>--maps</Value> <Value>C</Value>
+		<ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+	</Parameter>
+
+	<Parameter>
+		<ParameterName>chaincodeArgs</ParameterName>
+		<Type>string</Type>
+		<Value>--chaincodeMaxPoints</Value> <Value>100</Value>
+		<Value>--chaincodeMaxDeviation</Value> <Value>10</Value>
+		<ExcludeFromCoverageID>true</ExcludeFromCoverageID>
+	</Parameter>
+
+	<Parameter>
+		<ParameterName>trackingArgs</ParameterName>
+		<Type>string</Type>
+		<Value>--max_delta_t</Value> <Value>14400</Value>
+		<Value>--derotate</Value>
+		<ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+	</Parameter>
+	
+	<Parameter>
+		<ParameterName>trackingOverlap</ParameterName>
+		<Type>numeric</Type>
+		<Value>2</Value>
+		<ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+	</Parameter>
+	
+	<Parameter><!-- Minimum time a CH must have been alive to be reported (in seconds) -->
+		<ParameterName>minLifeTime</ParameterName>
+		<Type>numeric</Type>
+		<Value>259200</Value>
+		<ExcludeFromCoverageID>false</ExcludeFromCoverageID>
+	</Parameter>
+	
+	<Parameter><!-- Minimum time a CH has disappeared to be considered dead(in seconds) -->
+		<ParameterName>minDeathTime</ParameterName>
+		<Type>numeric</Type>
+		<Value>28800</Value>
+		<ExcludeFromCoverageID>true</ExcludeFromCoverageID>
+	</Parameter>
+	
+	<DataSpecificationFile>
+		<Filename>TestAIA1p5.xml</Filename>
+		<SeriesName>TestAIA1p5</SeriesName>
+		<LiveData>true</LiveData>
+	</DataSpecificationFile>
+</ParameterizedAlgorithmFile>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AlgorithmDescription xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:noNamespaceSchemaLocation="file:hek.xsd">
+	<AlgorithmName>SPoCA_CH</AlgorithmName>
+	<!-- We run SPoCA_CH every 1 hour-->
+	<Cadence>300</Cadence>
+	<CodeFilename>spoca_ch.sav</CodeFilename>
+	<Description>Run the SPoCA Algorithm for detecting CH on EIT/EUVI/AIA images</Description>
+	<ImageInput>
+		<ImageRequirement>
+			<ParamName>image195</ParamName>
+			<Optional>false</Optional>
+			<ImageChoice>
+				<Instrument>AIA</Instrument>
+				<Wavelength>193</Wavelength>
+				<Resolution>4096</Resolution>
+			</ImageChoice>
+		</ImageRequirement>
+	</ImageInput>
+	<StateStorage>true</StateStorage>
+	<TriggerMode>Continuous</TriggerMode>
+	<ImplementationType>IDL</ImplementationType>
+	<OutputVOEventType>
+		<VOEventType>CH</VOEventType>
+		<WavelengthAngstroms>193</WavelengthAngstroms>
+	</OutputVOEventType>
+</AlgorithmDescription>
