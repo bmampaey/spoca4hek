@@ -25,11 +25,11 @@ IF tag_exist(header, 'WAVE_STR') && strmatch(header.wave_str, 'open', /FOLD_CASE
 ENDIF
 
 ;check for darks or non -light images
-IF tag_exist(header, 'IMG_TYPE') && header.img_type NE 'LIGHT' THEN BEGIN 
+IF tag_exist(header, 'IMG_TYPE') && header.img_type NE 'LIGHT' THEN BEGIN
 	rejectionString = 'Dark image (IMG_TYPE != LIGHT)'
 	imageRejected = 1
 	RETURN
-ENDIF  
+ENDIF
 
 ;New eclipse flag
 IF tag_exist (header, 'aiagp6') && header.aiagp6 NE 0 THEN BEGIN
@@ -87,7 +87,7 @@ ENDIF
 ; Seems to be OK for now
 ; Eventually we want to reject everything but 0 - but for now just reject based on a list of forbidden bits
 
-IF tag_exist(header,'QUALITY') THEN BEGIN 
+IF tag_exist(header,'QUALITY') THEN BEGIN
 
 	;create an array of number such that the j-th elementh as bit j set to 1 and all others set to 0
 	;i.e. 1,2,4,8,...,2^J,...
@@ -95,24 +95,24 @@ IF tag_exist(header,'QUALITY') THEN BEGIN
 	BitSet=(header.quality AND BitArray) NE 0
 	
 	; If any of these bits is set - reject the image
-	ForbiddenBits=[0,1,3,4,7,12,13,14,15,16,17,18,20,21,31] 
+	ForbiddenBits=[0,1,3,4,7,12,13,14,15,16,17,18,20,21,31]
 	;RPT - added bits for ISS loop (17), ACS_MODE not SCIENCE (12)
 	;RPT - 9/25/10 - bits 20, 21, below from Rock's new def file
-	;	20	(AIFCPS <= -20 or AIFCPS >= 100)	;	AIA focus out of range 
+	;	20	(AIFCPS <= -20 or AIFCPS >= 100)	;	AIA focus out of range
 	;	21	AIAGP6 != 0					;	AIA register flag
       if (header.fsn ge 57279348 AND header.fsn le 57342656) then begin
           ForbiddenBits=[0,1,3,4,7,12,13,14,15,16,17,18,20,31]; don't check for bit 21, AIAGP6, as human error had it erroneously set during this FSN range
       endif
 
-	IF total(BitSet[ForbiddenBits]) GT 0 THEN BEGIN 
+	IF total(BitSet[ForbiddenBits]) GT 0 THEN BEGIN
 		rejectionString = 'Bad quality1 ('+STRTRIM(STRING(header.quality), 2)+')'
 		imageRejected = 1
 		RETURN
-	ENDIF 
+	ENDIF
 
-ENDIF 
+ENDIF
 
-IF tag_exist(header,'QUALLEV0') THEN BEGIN 
+IF tag_exist(header,'QUALLEV0') THEN BEGIN
 
 	;create an array of number such that the j-th elementh as bit j set to 1 and all others set to 0
 	;i.e. 1,2,4,8,...,2^J,...
@@ -120,17 +120,17 @@ IF tag_exist(header,'QUALLEV0') THEN BEGIN
 	BitSet=(header.quallev0 AND BitArray) NE 0
 	
 	; If any of these bits is set - reject the image
-	ForbiddenBits=[0,1,2,3,4,5,6,7,15,16,17,18,19,20,21,22,23,24,25,26,27,28] 
+	ForbiddenBits=[0,1,2,3,4,5,6,7,15,16,17,18,19,20,21,22,23,24,25,26,27,28]
 	;RPT - added bits for ISS loop (17), ACS_MODE not SCIENCE (12)
 
 
-	IF total(BitSet[ForbiddenBits]) GT 0 THEN BEGIN 
+	IF total(BitSet[ForbiddenBits]) GT 0 THEN BEGIN
 		rejectionString = 'Bad quality0 ('+STRTRIM(STRING(header.quallev0), 2)+')'
 		imageRejected = 1
 		RETURN
-	ENDIF 
+	ENDIF
 
-ENDIF 
+ENDIF
 
 END; of checkQuality
 
@@ -223,7 +223,7 @@ ENDIF
 
 ; We look at what is the runMode and take care of the status
 
-SWITCH runMode OF 
+SWITCH runMode OF
 	'Construct':	BEGIN
 				IF (verbose GT 0) THEN BEGIN
 					PRINT, "runMode Construct called"
@@ -232,7 +232,7 @@ SWITCH runMode OF
 				last_event_written_date = 0.0D
 				
 				numActiveEvents = 0
-				past_events = REPLICATE({match, color:0L, ivorn:'DUMMY VALUE SHOULD NEVER APPEAR IN EVENTS RELATIONS'}, 1) 
+				past_events = REPLICATE({match, color:0L, ivorn:'DUMMY VALUE SHOULD NEVER APPEAR IN EVENTS RELATIONS'}, 1)
 				status = {last_event_written_date : last_event_written_date, numActiveEvents : numActiveEvents, past_events : past_events}
 				
 				; For safety we cleanup the outputDirectory first
@@ -241,7 +241,7 @@ SWITCH runMode OF
 					IF (verbose GT 0) THEN BEGIN
 						PRINT , "Deleting all files from outputDirectory : ", endl + AllFiles
 					ENDIF
-					FILE_DELETE, AllFiles , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = verbose 
+					FILE_DELETE, AllFiles , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = verbose
 				ENDIF
 				BREAK
 
@@ -250,25 +250,25 @@ SWITCH runMode OF
 				IF (verbose GT 0) THEN BEGIN
 					PRINT, "runMode Recovery called"
 				ENDIF
-				IF FILE_TEST( inputStatusFilename , /REGULAR ) THEN BEGIN 
+				IF FILE_TEST( inputStatusFilename , /REGULAR ) THEN BEGIN
 
-					RESTORE ,inputStatusFilename , VERBOSE = verbose 
+					RESTORE ,inputStatusFilename , VERBOSE = verbose
 				
-				ENDIF ELSE BEGIN 
+				ENDIF ELSE BEGIN
 				
 					error = [ error,  "I am in recovery mode but i didn't receive my inputStatusFilename" ]
 					RETURN
 				
 				ENDELSE
 				; I don't break because now I am in normal mode
-   			END 
+   			END
    	'Normal':	BEGIN ; We read the status
 
 				last_event_written_date = status.last_event_written_date
 				numActiveEvents = status.numActiveEvents
 				past_events = status.past_events
 				BREAK
-   			END 
+   			END
 
 	'Clear Events':	BEGIN
 				; TODO close out events (altought I don't think we have that)
@@ -281,7 +281,7 @@ SWITCH runMode OF
 					IF (verbose GT 0) THEN BEGIN
 						PRINT , "Deleting all files from outputDirectory : ", endl + AllFiles
 					ENDIF
-					FILE_DELETE, AllFiles , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = verbose 
+					FILE_DELETE, AllFiles , /ALLOW_NONEXISTENT , /NOEXPAND_PATH , VERBOSE = verbose
 				ENDIF
 				RETURN
 			END
@@ -293,7 +293,7 @@ SWITCH runMode OF
 
 				error = [ error, "I just don't know what to do with myself. runMode is " + runMode ]
 				RETURN
-			END   	
+			END
 ENDSWITCH
 
 IF (verbose GT 0) THEN BEGIN
@@ -310,15 +310,15 @@ ENDIF
 
 ; We test the filenames
 
-IF N_ELEMENTS(image171) EQ 0 THEN BEGIN 
+IF N_ELEMENTS(image171) EQ 0 THEN BEGIN
 	error = [ error, 'No image171 provided as argument']
-	RETURN	
-ENDIF 
+	RETURN
+ENDIF
 
-IF N_ELEMENTS(image195) EQ 0 THEN BEGIN 
+IF N_ELEMENTS(image195) EQ 0 THEN BEGIN
 	error = [ error, 'No image195 provided as argument']
-	RETURN	
-ENDIF 
+	RETURN
+ENDIF
 
 IF (~ FILE_TEST( image171, /READ, /REGULAR)) || (~ FILE_TEST( image195, /READ, /REGULAR) )  THEN BEGIN
 	error = [ error, 'Cannot find images ' + image171 + ' or ' + image195 ]
@@ -466,14 +466,14 @@ spoca_args = [spocaArgs, $
 
 IF (verbose GT 0) THEN BEGIN
 
-	PRINT, 'About to run : ' , STRJOIN([spoca_bin , spoca_args] , ' ', /SINGLE ) 
-	time_before_run = SYSTIME(/SECONDS) 
+	PRINT, 'About to run : ' , STRJOIN([spoca_bin , spoca_args] , ' ', /SINGLE )
+	time_before_run = SYSTIME(/SECONDS)
 	
 ENDIF
 
 ; We call SPoCA with the correct arguments
 
-SPAWN, [spoca_bin , spoca_args], spoca_output, spoca_errors, /NOSHELL, EXIT_STATUS=spoca_exit 
+SPAWN, [spoca_bin , spoca_args], spoca_output, spoca_errors, /NOSHELL, EXIT_STATUS=spoca_exit
 
 IF (verbose GT 0) THEN BEGIN
 	PRINT, 'run time (seconds): ' , SYSTIME(/SECONDS) - time_before_run
@@ -515,7 +515,7 @@ ENDIF ELSE BEGIN
 		PRINT, 'ERROR : could not find T_OBS nor DATE_OBS keyword in file ' + image171
 	ENDIF
 	imageRejected = 1
-	RETURN	
+	RETURN
 ENDELSE
 
 
@@ -588,17 +588,17 @@ tracking_args =	[trackingArgs, $
 				'-o', STRING(trackingOverlap, FORMAT = '(I)'), $
 				ARmaps ]
 
-IF (verbose GT 0) THEN BEGIN 
+IF (verbose GT 0) THEN BEGIN
 	tracking_args = [tracking_args, '-A']	; This tells that all maps must be recolored
 ENDIF
 	
 
 IF (verbose GT 0) THEN BEGIN
 	PRINT, 'About to run : ', STRJOIN( [tracking_bin , tracking_args] , ' ', /SINGLE )
-	time_before_run = SYSTIME(/SECONDS) 
+	time_before_run = SYSTIME(/SECONDS)
 ENDIF
 
-SPAWN, [tracking_bin , tracking_args] , tracking_output, tracking_errors, /NOSHELL, EXIT_STATUS=tracking_exit 
+SPAWN, [tracking_bin , tracking_args] , tracking_output, tracking_errors, /NOSHELL, EXIT_STATUS=tracking_exit
 
 IF (verbose GT 0) THEN BEGIN
 	PRINT, 'run time (seconds): ' , SYSTIME(/SECONDS) - time_before_run
@@ -636,9 +636,9 @@ ENDIF
 last_map = ARmaps[N_ELEMENTS(ARmaps) - 1]
 
 ; We read the table of Regions
-region_table = MRDFITS(last_map, "Regions", region_table_header, extnum=extnum, status=status) 
+region_table = MRDFITS(last_map, "Regions", region_table_header, extnum=extnum, status=status)
 
-; If the table of region is empty, MRDFITS return 0 
+; If the table of region is empty, MRDFITS return 0
 IF size(region_table, /tn) NE "STRUCT" THEN BEGIN
 	numActiveEvents = 0
 	; Even IF there is no event to write, it was time to write them
@@ -647,14 +647,14 @@ IF size(region_table, /tn) NE "STRUCT" THEN BEGIN
 		PRINT, 'No event, going to Cleanup'
 	ENDIF
 	GOTO, Cleanup
-ENDIF 
+ENDIF
 
 region_table_header = fitshead2struct(region_table_header)
 number_events = N_ELEMENTS(region_table)
 numActiveEvents = number_events
 
 ; We read the table of Active Region stats
-region_stats_table = MRDFITS(last_map, regionStatsTableHdu, region_stats_table_header, extnum=extnum, status=status) 
+region_stats_table = MRDFITS(last_map, regionStatsTableHdu, region_stats_table_header, extnum=extnum, status=status)
 region_stats_table_header = fitshead2struct(region_stats_table_header)
 
 ; We read the table of Tracking Relations
@@ -674,7 +674,7 @@ ENDIF ELSE BEGIN
 ENDELSE
 
 ; We read the table of ChainCodes
-chaincode_table = MRDFITS(last_map , 'ChainCodes', chaincode_table_header, extnum=extnum, status=status) 
+chaincode_table = MRDFITS(last_map , 'ChainCodes', chaincode_table_header, extnum=extnum, status=status)
 
 IF size(chaincode_table, /tn) NE "STRUCT" THEN BEGIN
 
@@ -697,21 +697,21 @@ last_map_header = fitshead2struct(HEADFITS(last_map, EXTEN=1))
 wcs = fitshead2wcs(last_map_header)
 
 ; We predefine some common values for the event
-FRM_ParamSet = 'image171 : calibrated image 171 A ; image195 : calibrated image 195/193 A' 
-FRM_ParamSet += '; spocaPreprocessing='       + STRTRIM(STRING(last_map_header.CPREPROC), 2) 
-FRM_ParamSet += '; spocaClassifierType='      + STRTRIM(STRING(last_map_header.CLASTYPE), 2) 
-FRM_ParamSet += '; spocaNumberclasses='       + STRING(last_map_header.CNBRCLAS,FORMAT='(I0)') 
-FRM_ParamSet += '; spocaChannels='            + STRTRIM(STRING(last_map_header.CHANNELS), 2) 
-FRM_ParamSet += '; spocaPrecision='           + STRTRIM(STRING(last_map_header.CPRECIS), 2) 
-FRM_ParamSet += '; spocaRadiusRatio='         + STRING(last_map_header.CRADRATI , FORMAT='(F0.2)') 
-FRM_ParamSet += '; spocaBinsize='             + STRTRIM(STRING(last_map_header.CBINSIZE), 2) 
-FRM_ParamSet += '; spocaSegmentationType='    + STRTRIM(STRING(last_map_header.SEGMTYPE), 2) 
-FRM_ParamSet += '; spocaVersion='             + STRING(last_map_header.CVERSION, FORMAT='(F0.2)') 
-FRM_ParamSet += '; intensitiesStatsPreprocessing=' + STRTRIM(STRING(last_map_header.RPREPROC), 2) 
-FRM_ParamSet += '; intensitiesStatsRadiusRatio='   + STRING(last_map_header.RRADRATI, FORMAT='(F0.2)') 
-FRM_ParamSet += '; trackingDeltat='           + STRING(region_table_header.TMAXDELT, FORMAT='(I0)') 
-FRM_ParamSet += '; trackingOverlap='          + STRING(region_table_header.TOVERLAP, FORMAT='(I0)') 
-FRM_ParamSet += '; trackingNumberImages='     + STRING(region_table_header.TNBRIMG, FORMAT='(I0)') 
+FRM_ParamSet = 'image171 : calibrated image 171 A ; image195 : calibrated image 195/193 A'
+FRM_ParamSet += '; spocaPreprocessing='       + STRTRIM(STRING(last_map_header.CPREPROC), 2)
+FRM_ParamSet += '; spocaClassifierType='      + STRTRIM(STRING(last_map_header.CLASTYPE), 2)
+FRM_ParamSet += '; spocaNumberclasses='       + STRING(last_map_header.CNBRCLAS,FORMAT='(I0)')
+FRM_ParamSet += '; spocaChannels='            + STRTRIM(STRING(last_map_header.CHANNELS), 2)
+FRM_ParamSet += '; spocaPrecision='           + STRTRIM(STRING(last_map_header.CPRECIS), 2)
+FRM_ParamSet += '; spocaRadiusRatio='         + STRING(last_map_header.CRADRATI , FORMAT='(F0.2)')
+FRM_ParamSet += '; spocaBinsize='             + STRTRIM(STRING(last_map_header.CBINSIZE), 2)
+FRM_ParamSet += '; spocaSegmentationType='    + STRTRIM(STRING(last_map_header.SEGMTYPE), 2)
+FRM_ParamSet += '; spocaVersion='             + STRING(last_map_header.CVERSION, FORMAT='(F0.2)')
+FRM_ParamSet += '; intensitiesStatsPreprocessing=' + STRTRIM(STRING(last_map_header.RPREPROC), 2)
+FRM_ParamSet += '; intensitiesStatsRadiusRatio='   + STRING(last_map_header.RRADRATI, FORMAT='(F0.2)')
+FRM_ParamSet += '; trackingDeltat='           + STRING(region_table_header.TMAXDELT, FORMAT='(I0)')
+FRM_ParamSet += '; trackingOverlap='          + STRING(region_table_header.TOVERLAP, FORMAT='(I0)')
+FRM_ParamSet += '; trackingNumberImages='     + STRING(region_table_header.TNBRIMG, FORMAT='(I0)')
 
 
 center_keywords = WHERE(STRPOS(tag_names(last_map_header), 'CLSCTR') EQ 0)
@@ -723,15 +723,15 @@ FOR c = 1, N_ELEMENTS(center_keywords) - 1 DO BEGIN
 ENDFOR
 
 FRM_DateRun = anytim(sys2ut(), /ccsds)
-FRM_SpecificID_Prefix =  'SPoCA_v' + STRING(ModuleVersionNumber, FORMAT='(F0.1)') + '_AR_' 
+FRM_SpecificID_Prefix =  'SPoCA_v' + STRING(ModuleVersionNumber, FORMAT='(F0.1)') + '_AR_'
 
 ; We allocate space for the events
-events = STRARR(number_events) 
+events = STRARR(number_events)
 
 ; We declare the array of couples color, Ivorn
-present_events = REPLICATE({match, color:0L, ivorn:'unknown'}, number_events) 
+present_events = REPLICATE({match, color:0L, ivorn:'unknown'}, number_events)
 
-FOR k = 0, number_events - 1 DO BEGIN 
+FOR k = 0, number_events - 1 DO BEGIN
 
 	; We get the indice of the region stats with the same id than region
 	idx = WHERE(region_stats_table.ID EQ region_table[k].ID, exists)
@@ -786,7 +786,7 @@ FOR k = 0, number_events - 1 DO BEGIN
 
 	event.required.FRM_DateRun = FRM_DateRun
 	event.required.FRM_Contact = 'veronique.delouille@sidc.be'
-	event.required.FRM_URL = 'http://sdoatsidc.oma.be/web/sdoatsidc/SoftwareSPoCA'
+	event.required.FRM_URL = 'https://www.sidc.be/spoca'
 
 
 	event.required.Event_StartTime = anytim(last_event_written_date, /ccsds) ; The start time is the previous time we wrote events
@@ -804,10 +804,10 @@ FOR k = 0, number_events - 1 DO BEGIN
 	event.required.BoundBox_C1UR = hpc_x[2]
 	event.required.BoundBox_C2UR = hpc_y[2]
 	
-	; We only specify optional keywords if they are finite 
+	; We only specify optional keywords if they are finite
 	IF FINITE(region_stats_table[idx].NUMBER_PIXELS) THEN event.optional.Event_Npixels = region_stats_table[idx].NUMBER_PIXELS
 	event.optional.Event_PixelUnit = 'DN/s'
-	event.optional.OBS_DataPrepURL = 'http://sdoatsidc.oma.be/web/sdoatsidc/SoftwareSPoCA' 
+	event.optional.OBS_DataPrepURL = 'https://www.sidc.be/spoca'
 	event.optional.FRM_SpecificID =  FRM_SpecificID_Prefix +STRING(color, FORMAT='(I010)')
 	IF FINITE(region_stats_table[idx].AREA_ATDISKCENTER) THEN event.optional.Area_AtDiskCenter = region_stats_table[idx].AREA_ATDISKCENTER
 	IF FINITE(region_stats_table[idx].AREA_ATDISKCENTER_UNCERTAINITY) THEN event.optional.Area_AtDiskCenterUncert = region_stats_table[idx].AREA_ATDISKCENTER_UNCERTAINITY
@@ -854,9 +854,9 @@ FOR k = 0, number_events - 1 DO BEGIN
 	IF number_relations NE 0 THEN BEGIN
 		maxRelations = N_ELEMENTS(event.reference_names)
 		e = 0
-		FOR r = 0, number_relations - 1 DO BEGIN 
+		FOR r = 0, number_relations - 1 DO BEGIN
 			IF relation_table[r].present_color EQ color AND STRLOWCASE(STRTRIM(relation_table[r].relation_type, 2)) NE "new"  THEN BEGIN
-				FOR p = 0, N_ELEMENTS(past_events) - 1 DO BEGIN 
+				FOR p = 0, N_ELEMENTS(past_events) - 1 DO BEGIN
 					IF relation_table[r].past_color EQ past_events[p].color THEN BEGIN
 						event.reference_names[e] = "Edge"
 						event.reference_links[e] = past_events[p].ivorn
@@ -874,7 +874,7 @@ FOR k = 0, number_events - 1 DO BEGIN
 	
 	MaxRelationsReached : ; Label for when we have more than 20 relations
 	
-	; The chain codes are stored in the table in column 
+	; The chain codes are stored in the table in column
 	IF write_chaincode THEN BEGIN
 		x_column = where(chaincode_columns EQ STRING(region_table[k].ID, FORMAT='("X",I07)'))
 		y_column = where(chaincode_columns EQ STRING(region_table[k].ID, FORMAT='("Y",I07)'))
@@ -944,7 +944,7 @@ FOR k = 0, number_events - 1 DO BEGIN
 
 	
 
-ENDFOR 
+ENDFOR
 
 last_event_written_date = current_observation_date ; We update the time we wrote an event
 past_events = present_events ; We update the past events
@@ -959,11 +959,11 @@ Cleanup :	; Label in case of a problem, or if there is no AR
 
 ; We save the ARmaps
 IF (saveFiles EQ 1) THEN BEGIN
-	FILE_COPY, ARmaps[N_ELEMENTS(ARmaps) - 1], saveDirectory, /NOEXPAND_PATH, /OVERWRITE, /REQUIRE_DIRECTORY, VERBOSE = verbose 
+	FILE_COPY, ARmaps[N_ELEMENTS(ARmaps) - 1], saveDirectory, /NOEXPAND_PATH, /OVERWRITE, /REQUIRE_DIRECTORY, VERBOSE = verbose
 ENDIF
 
 IF (saveFiles GT 1) THEN BEGIN
-	FILE_COPY, ARmaps, saveDirectory, /NOEXPAND_PATH, /OVERWRITE, /REQUIRE_DIRECTORY, VERBOSE = verbose 
+	FILE_COPY, ARmaps, saveDirectory, /NOEXPAND_PATH, /OVERWRITE, /REQUIRE_DIRECTORY, VERBOSE = verbose
 ENDIF
 
 number_of_files_to_delete = N_ELEMENTS(ARmaps) - trackingOverlap
@@ -991,7 +991,7 @@ IF (verbose GT 0) THEN BEGIN
 	PRINT, endl, STRPAD('FINISHING', 100, fill='_')
 ENDIF
 
-; We save the centers file 
+; We save the centers file
 IF (saveFiles GT 0) THEN BEGIN
 	FILE_COPY,  spoca_centersfile, saveDirectory + "/centers." + anytim(current_observation_date, /ccsds) + ".txt", /NOEXPAND_PATH, /OVERWRITE, VERBOSE = verbose
 ENDIF
@@ -1013,5 +1013,3 @@ IF (verbose GT 0) THEN BEGIN
 ENDIF
  
 END ; of spoca
-
-
