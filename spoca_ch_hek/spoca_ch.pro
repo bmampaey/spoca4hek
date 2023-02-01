@@ -31,19 +31,24 @@ IF tag_exist(header, 'IMG_TYPE') && header.img_type NE 'LIGHT' THEN BEGIN
 	RETURN
 ENDIF
 
+
 ;New eclipse flag
 IF tag_exist (header, 'aiagp6') && header.aiagp6 NE 0 THEN BEGIN
+    if (header.aiagp6 ne 0 and (header.fsn lt 57279348 or header.fsn gt 57342656)) then begin
 	rejectionString = 'Eclipse (AIAGP6 != 0)'
 	imageRejected = 1
 	RETURN
+    endif
+
 ENDIF
+
 
 
 IF tag_exist(header, "exptime") && header.exptime LT 1.5 THEN BEGIN
 	rejectionString = 'Exposure time too short (exptime <= 1.5)'
 	imageRejected = 1
 	RETURN
-ENDIF
+     ENDIF  
 
 
 IF tag_exist(header, "aiftsid") && header.aiftsid GE 49152 THEN BEGIN
@@ -52,11 +57,23 @@ IF tag_exist(header, "aiftsid") && header.aiftsid GE 49152 THEN BEGIN
 	RETURN
 ENDIF
 
-
-IF tag_exist (header, "percentd") && header.percentd LT 99.9999 THEN BEGIN
-	rejectionString = 'Missing pixels (percentd < 99.9999)'
+;RPT venus transit fix
+IF tag_exist (header, "datavals") && header.datavals LT 16777200  THEN BEGIN
+	rejectionString = 'Missing pixels (datavals < 16777200 )'
 	imageRejected = 1
 	RETURN
+ENDIF
+
+IF tag_exist(header, "aifdbid") && header.aifdbid NE 241 THEN BEGIN
+	rejectionString = 'Calibration image (aiftsid >= 49152)'
+	imageRejected = 1
+	RETURN
+ENDIF
+
+if tag_exist(header, "AIHIS192") && header.AIHIS192 GE 10 THEN BEGIN
+   rejectionString = 'AIHIS192 count indicates possible camera anomaly'
+   imageRejected = 1
+   RETURN
 ENDIF
 
 ;IF tag_exist (header, "aectype") && header.aectype LT 2 then begin
@@ -79,7 +96,11 @@ IF tag_exist(header,'QUALITY') THEN BEGIN
 	BitSet=(header.quality AND BitArray) NE 0
 	
 	; If any of these bits is set - reject the image
-	ForbiddenBits=[0,1,2,3,4,12,13,14,15,16,17,18,20,21,31] 
+	ForbiddenBits=[0,1,3,4,7,12,13,14,15,16,17,18,20,21,31] 
+
+      if (header.fsn ge 57279348 AND header.fsn le 57342656) then begin
+          ForbiddenBits=[0,1,3,4,7,12,13,14,15,16,17,18,20,31]; don't check for bit 21, AIAGP6, as human error had it erroneously set during this FSN range
+      endif
 	;RPT - added bits for ISS loop (17), ACS_MODE not SCIENCE (12)
 	;RPT - 9/25/10 - bits 20, 21, below from Rock's new def file
 	;	20	(AIFCPS <= -20 or AIFCPS >= 100)	;	AIA focus out of range 
@@ -102,7 +123,7 @@ IF tag_exist(header,'QUALLEV0') THEN BEGIN
 	BitSet=(header.quallev0 AND BitArray) NE 0
 	
 	; If any of these bits is set - reject the image
-	ForbiddenBits=[0,1,2,3,4,5,6,7,16,17,18,19,20,21,22,23,24,25,26,27,28] 
+	ForbiddenBits=[0,1,2,3,4,5,6,7,15,16,17,18,19,20,21,22,23,24,25,26,27,28] 
 	;RPT - added bits for ISS loop (17), ACS_MODE not SCIENCE (12)
 
 
@@ -195,7 +216,8 @@ endl=STRING(10B)
 error = ''
 
 ; We set the vebosity of the module
-IF N_ELEMENTS(verbose) EQ 0 THEN verbose = 0
+;RPT default to on 8/8
+IF N_ELEMENTS(verbose) EQ 0 THEN verbose = 1
 
 ; --------- We take care of the arguments -----------------
 
@@ -213,10 +235,10 @@ SWITCH runMode OF
 					PRINT, "runMode Construct called"
 				ENDIF
 				; We will set the start of the first event later
-				last_event_written_date = 0
+				last_event_written_date = 0.0D
 				; We need a dummy value because IDL does not have empty arrays 
-				meta_events = REPLICATE({meta_event, color:0, first_seen:!VALUES.D_INFINITY, last_seen:!VALUES.D_INFINITY, last_ivorn:'DUMMY VALUE SHOULD NEVER APPEAR IN EVENTS RELATIONS'}, 1)
-				saved_events =  REPLICATE({event_info, color:0, ivorn:'DUMMY VALUE SHOULD NEVER APPEAR', info:'DUMMY VALUE SHOULD NEVER APPEAR IN EXPORTED EVENTS'}, 1)
+				meta_events = REPLICATE({meta_event, color:0L, first_seen:!VALUES.D_INFINITY, last_seen:!VALUES.D_INFINITY, last_ivorn:'DUMMY VALUE SHOULD NEVER APPEAR IN EVENTS RELATIONS'}, 1)
+				saved_events =  REPLICATE({event_info, color:0L, ivorn:'DUMMY VALUE SHOULD NEVER APPEAR', info:'DUMMY VALUE SHOULD NEVER APPEAR IN EXPORTED EVENTS'}, 1)
 				status = {last_event_written_date : last_event_written_date, meta_events : meta_events, saved_events : saved_events}
 				
 				; For safety we cleanup the outputDirectory first
@@ -895,9 +917,9 @@ FOR k = 0, number_events - 1 DO BEGIN
 	
 	; We write the VOevent into a buffer
 	IF KEYWORD_SET(write_file) THEN BEGIN
-		export_event, event, /write, suff=region_table[k].HEKID, buff=buff
+		export_event, event, /write, suff=region_table[k].HEKID, buff=buff, infil_params='/data1/home/rtimmons/localidl/vobs/ontology/data/VOEvent_Spec.txt'
 	ENDIF ELSE BEGIN
-		export_event, event, suffix=region_table[k].HEKID, buff=buff
+		export_event, event, suffix=region_table[k].HEKID, buff=buff, infil_params='/data1/home/rtimmons/localidl/vobs/ontology/data/VOEvent_Spec.txt'
 	ENDELSE
 	
 	; We add the event to saved_events
@@ -960,7 +982,9 @@ IF exists GT 0 THEN BEGIN
 			IF N_ELEMENTS(events) GT 0 THEN BEGIN
 				events = [events, saved_events[ripe_events].info]
 			ENDIF ELSE BEGIN
-				events = saved_events[ripe_events].info
+                                ;RPT single array fix - if wrong
+                                ;                       remove outer []
+				events = [saved_events[ripe_events].info]
 			ENDELSE
 			saved_events = saved_events[unripe_events]
 		ENDIF

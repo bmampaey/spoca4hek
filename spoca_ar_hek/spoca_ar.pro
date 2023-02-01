@@ -29,13 +29,16 @@ IF tag_exist(header, 'IMG_TYPE') && header.img_type NE 'LIGHT' THEN BEGIN
 	rejectionString = 'Dark image (IMG_TYPE != LIGHT)'
 	imageRejected = 1
 	RETURN
-ENDIF
+ENDIF  
 
 ;New eclipse flag
 IF tag_exist (header, 'aiagp6') && header.aiagp6 NE 0 THEN BEGIN
+    if (header.aiagp6 ne 0 and (header.fsn lt 57279348 OR header.fsn gt 57342656)) then begin
 	rejectionString = 'Eclipse (AIAGP6 != 0)'
 	imageRejected = 1
 	RETURN
+    endif
+
 ENDIF
 
 
@@ -52,9 +55,16 @@ IF tag_exist(header, "aiftsid") && header.aiftsid GE 49152 THEN BEGIN
 	RETURN
 ENDIF
 
+;RPT venus transit fix
+IF tag_exist (header, "datavals") && header.datavals LT 16777200  THEN BEGIN
+	rejectionString = 'Missing pixels (datavals < 16777200 )'
+	imageRejected = 1
+	RETURN
+    ENDIF
 
-IF tag_exist (header, "percentd") && header.percentd LT 99.9999 THEN BEGIN
-	rejectionString = 'Missing pixels (percentd < 99.9999)'
+
+IF tag_exist(header, "aifdbid") && header.aifdbid NE 241 THEN BEGIN
+	rejectionString = 'Calibration image (aiftsid >= 49152)'
 	imageRejected = 1
 	RETURN
 ENDIF
@@ -65,7 +75,11 @@ ENDIF
 ;	return
 ;endif
 
-
+if tag_exist(header, "AIHIS192") && header.AIHIS192 GE 10 THEN BEGIN
+   rejectionString = 'AIHIS192 count indicates possible camera anomaly'
+   imageRejected = 1
+   RETURN
+ENDIF
 
 ; Quality keyword in AIA - details TBD
 ; Need to understand in more details what "quality" means as a flag
@@ -81,12 +95,14 @@ IF tag_exist(header,'QUALITY') THEN BEGIN
 	BitSet=(header.quality AND BitArray) NE 0
 	
 	; If any of these bits is set - reject the image
-	ForbiddenBits=[0,1,2,3,4,12,13,14,15,16,17,18,20,21,31] 
+	ForbiddenBits=[0,1,3,4,7,12,13,14,15,16,17,18,20,21,31] 
 	;RPT - added bits for ISS loop (17), ACS_MODE not SCIENCE (12)
 	;RPT - 9/25/10 - bits 20, 21, below from Rock's new def file
 	;	20	(AIFCPS <= -20 or AIFCPS >= 100)	;	AIA focus out of range 
 	;	21	AIAGP6 != 0					;	AIA register flag
-
+      if (header.fsn ge 57279348 AND header.fsn le 57342656) then begin
+          ForbiddenBits=[0,1,3,4,7,12,13,14,15,16,17,18,20,31]; don't check for bit 21, AIAGP6, as human error had it erroneously set during this FSN range
+      endif
 
 	IF total(BitSet[ForbiddenBits]) GT 0 THEN BEGIN 
 		rejectionString = 'Bad quality1 ('+STRTRIM(STRING(header.quality), 2)+')'
@@ -104,7 +120,7 @@ IF tag_exist(header,'QUALLEV0') THEN BEGIN
 	BitSet=(header.quallev0 AND BitArray) NE 0
 	
 	; If any of these bits is set - reject the image
-	ForbiddenBits=[0,1,2,3,4,5,6,7,16,17,18,19,20,21,22,23,24,25,26,27,28] 
+	ForbiddenBits=[0,1,2,3,4,5,6,7,15,16,17,18,19,20,21,22,23,24,25,26,27,28] 
 	;RPT - added bits for ISS loop (17), ACS_MODE not SCIENCE (12)
 
 
@@ -194,7 +210,8 @@ regionStatsTableHdu = 'AIA_171_ActiveRegionStats'
 error = ''
 
 ; We set the vebosity of the module
-IF N_ELEMENTS(verbose) EQ 0 THEN verbose = 0
+;RPT default to on 8/8
+IF N_ELEMENTS(verbose) EQ 0 THEN verbose = 1
 
 ; --------- We take care of the arguments -----------------
 
@@ -212,10 +229,10 @@ SWITCH runMode OF
 					PRINT, "runMode Construct called"
 				ENDIF
 				; We will set the start of the first event later
-				last_event_written_date = 0
+				last_event_written_date = 0.0D
 				
 				numActiveEvents = 0
-				past_events = REPLICATE({match, color:0, ivorn:'DUMMY VALUE SHOULD NEVER APPEAR IN EVENTS RELATIONS'}, 1) 
+				past_events = REPLICATE({match, color:0L, ivorn:'DUMMY VALUE SHOULD NEVER APPEAR IN EVENTS RELATIONS'}, 1) 
 				status = {last_event_written_date : last_event_written_date, numActiveEvents : numActiveEvents, past_events : past_events}
 				
 				; For safety we cleanup the outputDirectory first
@@ -712,7 +729,7 @@ FRM_SpecificID_Prefix =  'SPoCA_v' + STRING(ModuleVersionNumber, FORMAT='(F0.1)'
 events = STRARR(number_events) 
 
 ; We declare the array of couples color, Ivorn
-present_events = REPLICATE({match, color:0, ivorn:'unknown'}, number_events) 
+present_events = REPLICATE({match, color:0L, ivorn:'unknown'}, number_events) 
 
 FOR k = 0, number_events - 1 DO BEGIN 
 
@@ -915,9 +932,9 @@ FOR k = 0, number_events - 1 DO BEGIN
 	; We write the VOevent
 	label=region_table[k].HEKID
 	IF KEYWORD_SET(write_file) THEN BEGIN
-		export_event, event, /write, suff=label, buff=buff
+		export_event, event, /write, suff=label, buff=buff, infil_params='/data1/home/rtimmons/localidl/vobs/ontology/data/VOEvent_Spec.txt'
 	ENDIF ELSE BEGIN
-		export_event, event, suffix=label, buff=buff
+		export_event, event, suffix=label, buff=buff, infil_params='/data1/home/rtimmons/localidl/vobs/ontology/data/VOEvent_Spec.txt'
 	ENDELSE
 	
 	events[k]=STRJOIN(buff, /SINGLE) ;
